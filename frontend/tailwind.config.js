@@ -31,8 +31,9 @@ export default {
         },
       },
       fontFamily: {
-        sans: ['Plus Jakarta Sans', 'Inter', '-apple-system', 'BlinkMacSystemFont', 'Segoe UI', 'Roboto', 'sans-serif'],
-        mono: ['JetBrains Mono', 'Fira Code', 'Consolas', 'monospace'],
+        sans: ['Inter', '-apple-system', 'BlinkMacSystemFont', 'Segoe UI', 'Roboto', 'sans-serif'],
+        mono: ['IBM Plex Mono', 'Consolas', 'monospace'],
+        serif: ['"DM Serif Display"', 'Georgia', 'serif'],
       },
       boxShadow: {
         'teal-glow': '0 0 25px -5px rgba(20, 184, 166, 0.15)',
