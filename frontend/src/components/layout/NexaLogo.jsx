@@ -53,7 +53,7 @@ export const NexaLogo = ({ className = '', size = 'md' }) => {
 
       {/* Brand Wordmark */}
       <div className="flex flex-col">
-        <span className="font-bold tracking-wider text-vault-heading uppercase text-lg leading-none font-sans">
+        <span className="font-bold tracking-wider text-vault-heading uppercase text-lg leading-none font-display">
           NEXA<span className="text-teal-400">VAULT</span>
         </span>
       </div>

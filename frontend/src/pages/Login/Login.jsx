@@ -90,7 +90,7 @@ export const Login = () => {
           <NexaLogo size="md" />
 
           {/* Header motto line */}
-          <div className="hidden md:flex items-center gap-3 text-xs tracking-widest font-mono text-vault-muted uppercase">
+          <div className="hidden md:flex items-center gap-3 text-xs tracking-widest font-display text-vault-muted uppercase">
             <span>PEOPLE</span>
             <span className="text-teal-500/50">•</span>
             <span>PROJECTS</span>
@@ -109,14 +109,14 @@ export const Login = () => {
           <div className="lg:col-span-6 space-y-8 pr-0 lg:pr-8">
             
             {/* Tagline Badge */}
-            <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-teal-950/60 border border-teal-500/20 text-[11px] font-mono tracking-widest text-teal-400 uppercase">
+            <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-teal-950/60 border border-teal-500/20 text-[11px] font-display tracking-widest text-teal-400 uppercase">
               <span className="w-1.5 h-1.5 rounded-full bg-teal-400 animate-pulse" />
               ACADEMIC WORKSPACE
             </div>
 
             {/* Main Statement */}
             <div className="space-y-4">
-              <h1 className="text-4xl sm:text-5xl lg:text-6xl font-extrabold tracking-tight leading-[1.1] text-white">
+              <h1 className="text-4xl sm:text-5xl lg:text-6xl font-extrabold tracking-tight leading-[1.1] text-white font-display">
                 Build <br />
                 <span className="text-teal-400 underline decoration-teal-500/30 underline-offset-8">Collaborate</span> <br />
                 Achieve
@@ -131,7 +131,7 @@ export const Login = () => {
 
             {/* Bottom Stacked Motto */}
             <div className="pt-8 border-t border-vault-border/30 max-w-xs">
-              <div className="font-mono text-[11px] tracking-widest text-slate-500 uppercase leading-snug space-y-0.5">
+              <div className="font-display text-[11px] tracking-widest text-slate-500 uppercase leading-snug space-y-0.5">
                 <p>KNOWLEDGE</p>
                 <p className="text-slate-400">BUILDS</p>
                 <p className="text-slate-300">BRIGHTER</p>
