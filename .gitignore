@@ -1,0 +1,13 @@
+# Dependencies
+node_modules
+.pnpm-store
+
+# Production build output
+dist
+
+# Local environment & IDE
+.env
+.env.local
+.vscode/
+.idea/
+*.log
