@@ -1,3 +1,5 @@
+@import './variables.css';
+
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
@@ -8,8 +10,8 @@
   }
   
   body {
-    background-color: #080C0E;
-    color: #ECF1F4;
+    background-color: var(--color-vault-bg);
+    color: var(--color-vault-heading);
   }
 }
 
@@ -32,12 +34,12 @@
   height: 6px;
 }
 ::-webkit-scrollbar-track {
-  background: #080C0E;
+  background: var(--color-vault-bg);
 }
 ::-webkit-scrollbar-thumb {
-  background: #1B262E;
+  background: var(--color-vault-border);
   border-radius: 3px;
 }
 ::-webkit-scrollbar-thumb:hover {
-  background: #0D9488;
+  background: var(--color-teal-600);
 }

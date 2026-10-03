@@ -27,7 +27,7 @@ export const HeroVaultGraphic = () => {
           </linearGradient>
         </defs>
 
-        {/* Large Concentric Vault Arc (Matches user reference image) */}
+        {/* Large Concentric Vault Arc */}
         <circle
           cx="20%"
           cy="50%"

@@ -1,12 +1,6 @@
 import React from 'react';
 
 export const NexaLogo = ({ className = '', size = 'md' }) => {
-  const sizeClasses = {
-    sm: 'h-6',
-    md: 'h-8',
-    lg: 'h-10',
-  };
-
   const iconSizes = {
     sm: 24,
     md: 32,

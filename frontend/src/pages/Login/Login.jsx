@@ -1,19 +1,20 @@
 import React, { useState } from 'react';
 import { Mail, Lock, Eye, EyeOff, ArrowRight } from 'lucide-react';
-import { NexaLogo } from '../components/brand/NexaLogo';
-import { HeroVaultGraphic } from '../components/brand/HeroVaultGraphic';
-import { Input } from '../components/ui/Input';
-import { Button } from '../components/ui/Button';
-import { Checkbox } from '../components/ui/Checkbox';
-import { Alert } from '../components/ui/Alert';
+import { NexaLogo } from '../../components/layout/NexaLogo';
+import { HeroVaultGraphic } from '../../components/layout/HeroVaultGraphic';
+import { Input } from '../../components/ui/Input';
+import { Button } from '../../components/ui/Button';
+import { Checkbox } from '../../components/ui/Checkbox';
+import { Alert } from '../../components/ui/Alert';
+import './Login.css';
 
-export const LoginPage = () => {
+export const Login = () => {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [rememberMe, setRememberMe] = useState(true);
   const [isLoading, setIsLoading] = useState(false);
-  const [alert, setAlert] = useState(null); // { type: 'error' | 'success', message: string }
+  const [alert, setAlert] = useState(null);
   const [fieldErrors, setFieldErrors] = useState({});
 
   const validateForm = () => {
@@ -47,7 +48,6 @@ export const LoginPage = () => {
     // Simulate backend auth check
     setTimeout(() => {
       setIsLoading(false);
-      // Demo authentication outcome
       if (email === 'demo@university.edu' || email === 'student@nexavault.edu' || email.length > 3) {
         setAlert({
           type: 'success',
@@ -89,7 +89,7 @@ export const LoginPage = () => {
         <header className="flex items-center justify-between w-full pb-6 border-b border-vault-border/40">
           <NexaLogo size="md" />
 
-          {/* Header motto line matching the design spec */}
+          {/* Header motto line */}
           <div className="hidden md:flex items-center gap-3 text-xs tracking-widest font-mono text-vault-muted uppercase">
             <span>PEOPLE</span>
             <span className="text-teal-500/50">•</span>
@@ -143,7 +143,7 @@ export const LoginPage = () => {
 
           {/* Right Column: Login Card Component */}
           <div className="lg:col-span-6 flex justify-center lg:justify-end">
-            <div className="w-full max-w-md bg-vault-surface/85 backdrop-blur-xl border border-teal-500/20 rounded-2xl p-7 sm:p-9 shadow-card-subtle relative group transition-all duration-300 hover:border-teal-500/30">
+            <div className="w-full max-w-md bg-vault-surface/85 login-card-blur border border-teal-500/20 rounded-2xl p-7 sm:p-9 shadow-card-subtle relative group transition-all duration-300 hover:border-teal-500/30">
               
               {/* Card Subtle Top-Left Accent Highlight */}
               <div className="absolute top-0 left-8 right-8 h-[1px] bg-gradient-to-r from-transparent via-teal-500/40 to-transparent" />
