@@ -4,6 +4,7 @@ from app.core.config import settings
 from app.db.base import Base
 from app.db.session import engine, SessionLocal
 from app.models.user import User
+from app.models.group import Group
 from app.core.security import hash_password
 from app.api.v1.router import api_router
 
