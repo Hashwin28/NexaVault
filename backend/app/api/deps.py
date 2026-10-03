@@ -50,3 +50,14 @@ def get_current_user(
         )
 
     return user
+
+def get_current_student(
+    current_user: User = Depends(get_current_user)
+) -> User:
+    """Verifies that the authenticated user has the 'student' role."""
+    if current_user.role.lower() != "student":
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Access forbidden: Student role required."
+        )
+    return current_user
