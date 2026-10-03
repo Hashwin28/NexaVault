@@ -263,87 +263,47 @@ export const studentGroups = [
   {
     id: "grp-1",
     name: "Alpha Storage Engine Vault",
-    tagline: "High-performance algorithmic data structures & B-Tree indexing team",
-    status: "IN_REVISION",
-    statusLabel: "Revision in Progress",
+    code: "NV-ALPHA-2026",
     workspaceCode: "CS204-DSA",
     workspaceTitle: "DSA Algorithmic Vault",
     projectTitle: "NexaVault Core Storage Engine",
-    repoUrl: "github.com/nexavault-teams/alpha-storage-vault",
     lead: "Alex Chen",
+    leadAvatar: "AC",
     members: [
-      { name: "Alex Chen", role: "Team Lead & Data Structures", avatar: "AC", isUser: true },
-      { name: "Maya Lin", role: "Algorithmic Optimizer", avatar: "ML" },
-      { name: "Rohan Patel", role: "Benchmarking & C++ Core", avatar: "RP" },
-      { name: "Sofia Rossi", role: "Unit Tests & Auto-Grader", avatar: "SR" }
-    ],
-    lastActivity: "Merged PR #18 (Red-Black Tree balance logic) 25 mins ago",
-    activeSprint: "Sprint 3: Big-O Space Analysis",
-    deliverablesCount: 4,
-    completedDeliverables: 3
+      { name: "Alex Chen", role: "Leader", avatar: "AC", isUser: true, isLeader: true },
+      { name: "Maya Lin", role: "Member", avatar: "ML", isUser: false, isLeader: false },
+      { name: "Rohan Patel", role: "Member", avatar: "RP", isUser: false, isLeader: false },
+      { name: "Sofia Rossi", role: "Member", avatar: "SR", isUser: false, isLeader: false }
+    ]
   },
   {
     id: "grp-2",
     name: "CyberAuth Security Squad",
-    tagline: "Distributed microservices authentication & JWT security gateway",
-    status: "UNDER_REVIEW",
-    statusLabel: "Faculty Reviewing Sprint 2",
+    code: "NV-CYBER-301",
     workspaceCode: "CS301-ASE",
     workspaceTitle: "Advanced Software Engineering Lab",
     projectTitle: "Distributed Auth Gateway",
-    repoUrl: "github.com/nexavault-teams/cyberauth-squad",
     lead: "David Kim",
+    leadAvatar: "DK",
     members: [
-      { name: "Alex Chen", role: "FastAPI Backend Developer", avatar: "AC", isUser: true },
-      { name: "David Kim", role: "Architecture Lead", avatar: "DK" },
-      { name: "Emily Watson", role: "React Integration Specialist", avatar: "EW" }
-    ],
-    lastActivity: "Pushed commit 476626d to auth-router 2 hours ago",
-    activeSprint: "Sprint 2: CORS & Token Verification",
-    deliverablesCount: 5,
-    completedDeliverables: 5
+      { name: "David Kim", role: "Leader", avatar: "DK", isUser: false, isLeader: true },
+      { name: "Alex Chen", role: "Member", avatar: "AC", isUser: true, isLeader: false },
+      { name: "Emily Watson", role: "Member", avatar: "EW", isUser: false, isLeader: false }
+    ]
   },
   {
     id: "grp-3",
     name: "Relational Query Planners",
-    tagline: "SQL Parser, Abstract Syntax Tree generator, and Query optimizer team",
-    status: "APPROVED",
-    statusLabel: "Grade A+ (98/100)",
+    code: "NV-QUERY-208",
     workspaceCode: "CS208-DBS",
     workspaceTitle: "Database Systems Core",
     projectTitle: "Query Execution Planner",
-    repoUrl: "github.com/nexavault-teams/query-planners",
-    lead: "Alex Chen",
-    members: [
-      { name: "Alex Chen", role: "Lead SQL Engine Dev", avatar: "AC", isUser: true },
-      { name: "Lucas Meyer", role: "AST Optimizer", avatar: "LM" },
-      { name: "Aria Thorne", role: "Database Benchmarks", avatar: "AT" }
-    ],
-    lastActivity: "Graded by Dr. Elena Rostova on Oct 2",
-    activeSprint: "Final Release Delivered",
-    deliverablesCount: 6,
-    completedDeliverables: 6
-  },
-  {
-    id: "grp-4",
-    name: "Kernel Thread Schedulers",
-    tagline: "POSIX concurrent thread scheduling & memory page replacement group",
-    status: "ACTIVE",
-    statusLabel: "Active Development",
-    workspaceCode: "CS305-OSK",
-    workspaceTitle: "Operating Systems Kernel",
-    projectTitle: "POSIX Thread Pool Scheduler",
-    repoUrl: "github.com/nexavault-teams/kernel-schedulers",
     lead: "Elena Zhao",
+    leadAvatar: "EZ",
     members: [
-      { name: "Alex Chen", role: "Virtual Memory Module Dev", avatar: "AC", isUser: true },
-      { name: "Elena Zhao", role: "Pthreads Lead", avatar: "EZ" },
-      { name: "Marcus Vance", role: "Synchronization & Mutex", avatar: "MV" },
-      { name: "James Wright", role: "Kernel Drivers", avatar: "JW" }
-    ],
-    lastActivity: "Ran virtual memory page replacement tests 1 day ago",
-    activeSprint: "Sprint 4: Lock-free Queue",
-    deliverablesCount: 4,
-    completedDeliverables: 2
+      { name: "Elena Zhao", role: "Leader", avatar: "EZ", isUser: false, isLeader: true },
+      { name: "Lucas Meyer", role: "Member", avatar: "LM", isUser: false, isLeader: false },
+      { name: "Aria Thorne", role: "Member", avatar: "AT", isUser: false, isLeader: false }
+    ]
   }
 ];
