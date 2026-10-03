@@ -1,8 +1,13 @@
 import React from 'react';
+import { AuthProvider } from './context/AuthContext';
 import { Login } from './pages/Login/Login';
 
 export function App() {
-  return <Login />;
+  return (
+    <AuthProvider>
+      <Login />
+    </AuthProvider>
+  );
 }
 
 export default App;
