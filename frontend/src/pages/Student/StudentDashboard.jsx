@@ -7,6 +7,7 @@ import { ActiveWorkspaces } from '../../components/student/ActiveWorkspaces';
 import { FacultyFeedback } from '../../components/student/FacultyFeedback';
 import { RecentResults } from '../../components/student/RecentResults';
 import { RecentActivity } from '../../components/student/RecentActivity';
+import { GroupsPage } from './Groups/Groups';
 import { Alert } from '../../components/ui/Alert';
 import { UploadCloud, X, Check, FileCode, GitBranch } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
@@ -57,50 +58,56 @@ export const StudentDashboard = () => {
         {/* Dashboard Main Workspace View */}
         <main className="flex-1 p-6 lg:p-8 space-y-8 max-w-7xl w-full mx-auto">
 
-          {/* Student Welcome Banner */}
-          <div className="bg-vault-surface/85 border border-teal-500/20 rounded-2xl p-6 sm:p-7 shadow-card-subtle relative overflow-hidden flex flex-col sm:flex-row items-start sm:items-center justify-between gap-6">
-            <div className="space-y-2 max-w-2xl">
-              <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-teal-950/80 border border-teal-500/30 text-[11px] font-mono text-teal-400">
-                <span className="w-1.5 h-1.5 rounded-full bg-teal-400 animate-pulse" />
-                ACADEMIC SESSION ACTIVE • {activeUser.role.toUpperCase()} PROFILE
+          {activeTab === 'groups' ? (
+            <GroupsPage />
+          ) : (
+            <>
+              {/* Student Welcome Banner */}
+              <div className="bg-vault-surface/85 border border-teal-500/20 rounded-2xl p-6 sm:p-7 shadow-card-subtle relative overflow-hidden flex flex-col sm:flex-row items-start sm:items-center justify-between gap-6">
+                <div className="space-y-2 max-w-2xl">
+                  <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-teal-950/80 border border-teal-500/30 text-[11px] font-mono text-teal-400">
+                    <span className="w-1.5 h-1.5 rounded-full bg-teal-400 animate-pulse" />
+                    ACADEMIC SESSION ACTIVE • {activeUser.role.toUpperCase()} PROFILE
+                  </div>
+                  <h2 className="text-2xl sm:text-3xl font-extrabold text-white font-display tracking-tight">
+                    Welcome back, {activeUser.full_name || activeUser.name}
+                  </h2>
+                  <p className="text-xs sm:text-sm text-slate-400 leading-relaxed font-sans">
+                    You have <strong className="text-amber-300">1 faculty revision request</strong> pending for <i>NexaVault Core Storage Engine</i>. All 4 course vaults are synchronized.
+                  </p>
+                </div>
+
+                <div className="flex flex-row sm:flex-col items-center sm:items-end gap-2 shrink-0">
+                  <span className="text-xs font-mono text-slate-400">Semester Index</span>
+                  <span className="text-xl sm:text-2xl font-bold font-display text-teal-300 bg-teal-950/60 border border-teal-500/30 px-3 py-1 rounded-xl">
+                    3.92 / 4.00
+                  </span>
+                </div>
               </div>
-              <h2 className="text-2xl sm:text-3xl font-extrabold text-white font-display tracking-tight">
-                Welcome back, {activeUser.full_name || activeUser.name}
-              </h2>
-              <p className="text-xs sm:text-sm text-slate-400 leading-relaxed font-sans">
-                You have <strong className="text-amber-300">1 faculty revision request</strong> pending for <i>NexaVault Core Storage Engine</i>. All 4 course vaults are synchronized.
-              </p>
-            </div>
 
-            <div className="flex flex-row sm:flex-col items-center sm:items-end gap-2 shrink-0">
-              <span className="text-xs font-mono text-slate-400">Semester Index</span>
-              <span className="text-xl sm:text-2xl font-bold font-display text-teal-300 bg-teal-950/60 border border-teal-500/30 px-3 py-1 rounded-xl">
-                3.92 / 4.00
-              </span>
-            </div>
-          </div>
+              {/* Overview Metrics Cards */}
+              <MetricsCards />
 
-          {/* Overview Metrics Cards */}
-          <MetricsCards />
+              {/* Submission & Updates Lifecycle Tracker (Key Feature) */}
+              <SubmissionTracker
+                onActionRequired={() => setShowSubmissionModal(true)}
+              />
 
-          {/* Submission & Updates Lifecycle Tracker (Key Feature) */}
-          <SubmissionTracker
-            onActionRequired={() => setShowSubmissionModal(true)}
-          />
+              {/* Two-Column Grid: Active Workspaces & Faculty Feedback */}
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+                <ActiveWorkspaces />
+                <FacultyFeedback
+                  onUploadRevision={() => setShowSubmissionModal(true)}
+                />
+              </div>
 
-          {/* Two-Column Grid: Active Workspaces & Faculty Feedback */}
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-            <ActiveWorkspaces />
-            <FacultyFeedback
-              onUploadRevision={() => setShowSubmissionModal(true)}
-            />
-          </div>
-
-          {/* Two-Column Grid: Recent Results & Audit Log Activity */}
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-            <RecentResults />
-            <RecentActivity />
-          </div>
+              {/* Two-Column Grid: Recent Results & Audit Log Activity */}
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+                <RecentResults />
+                <RecentActivity />
+              </div>
+            </>
+          )}
 
         </main>
 

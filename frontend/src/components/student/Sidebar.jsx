@@ -2,6 +2,7 @@ import React from 'react';
 import { 
   LayoutDashboard, 
   Layers, 
+  Users,
   FolderGit2, 
   UploadCloud, 
   CheckCircle2, 
@@ -24,6 +25,7 @@ export const Sidebar = ({ activeTab, setActiveTab, isOpen, setIsOpen }) => {
   const navItems = [
     { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard, badge: null },
     { id: 'workspaces', label: 'Workspaces', icon: Layers, badge: '4' },
+    { id: 'groups', label: 'Groups', icon: Users, badge: '4' },
     { id: 'projects', label: 'Projects', icon: FolderGit2, badge: '6' },
     { id: 'submissions', label: 'Submissions & Updates', icon: UploadCloud, badge: '3' },
     { id: 'results', label: 'Results', icon: CheckCircle2, badge: null },
