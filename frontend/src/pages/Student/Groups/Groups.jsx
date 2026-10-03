@@ -236,18 +236,37 @@ export const GroupsPage = () => {
         </div>
       </div>
 
-      {/* Groups List */}
-      <div className="space-y-4">
-        {groups.map((group) => {
-          // Check current user status in this group
-          const isUserLeader = group.lead.toLowerCase() === currentUserName.toLowerCase() || 
-            group.members.some(m => (m.isUser || m.name.toLowerCase() === currentUserName.toLowerCase()) && m.isLeader);
+      {/* Filter ONLY groups where the student is a member or leader */}
+      {(() => {
+        const myGroups = groups.filter(group =>
+          group.lead.toLowerCase() === currentUserName.toLowerCase() ||
+          group.members.some(m => m.isUser || m.name.toLowerCase() === currentUserName.toLowerCase())
+        );
 
-          const isUserMember = group.members.some(
-            m => m.isUser || m.name.toLowerCase() === currentUserName.toLowerCase()
-          );
-
+        if (myGroups.length === 0) {
           return (
+            <div className="p-12 text-center bg-vault-surface border border-vault-border rounded-2xl space-y-3">
+              <Users size={36} className="mx-auto text-slate-500" />
+              <h4 className="text-base font-bold text-white">No Groups Joined Yet</h4>
+              <p className="text-xs text-slate-400 max-w-sm mx-auto">
+                You are not currently a member of any group. Click <strong>"Create Group"</strong> to start your own group as Leader or <strong>"Join Group"</strong> with a Group Code.
+              </p>
+            </div>
+          );
+        }
+
+        return (
+          <div className="space-y-4">
+            {myGroups.map((group) => {
+              // Check current user status in this group
+              const isUserLeader = group.lead.toLowerCase() === currentUserName.toLowerCase() || 
+                group.members.some(m => (m.isUser || m.name.toLowerCase() === currentUserName.toLowerCase()) && m.isLeader);
+
+              const isUserMember = group.members.some(
+                m => m.isUser || m.name.toLowerCase() === currentUserName.toLowerCase()
+              );
+
+              return (
             <div 
               key={group.id}
               className="bg-vault-surface border border-vault-border/60 hover:border-teal-500/30 rounded-2xl p-6 transition-all duration-150 space-y-5"
@@ -403,16 +422,8 @@ export const GroupsPage = () => {
           );
         })}
       </div>
-
-      {groups.length === 0 && (
-        <div className="p-12 text-center bg-vault-surface border border-vault-border rounded-2xl space-y-3">
-          <Users size={36} className="mx-auto text-slate-500" />
-          <h4 className="text-base font-bold text-white">No Groups Available</h4>
-          <p className="text-xs text-slate-400 max-w-sm mx-auto">
-            You are not part of any group yet. Click "Create Group" to start your own group as Leader or "Join Group" using a shared Group Code.
-          </p>
-        </div>
-      )}
+    );
+  })()}
 
       {/* Modal 1: Create Group Modal */}
       {showCreateModal && (
