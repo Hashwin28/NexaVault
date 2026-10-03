@@ -32,7 +32,7 @@ export default {
       },
       fontFamily: {
         sans: ['Inter', '-apple-system', 'BlinkMacSystemFont', 'Segoe UI', 'Roboto', 'sans-serif'],
-        mono: ['IBM Plex Mono', 'Consolas', 'monospace'],
+        mono: ['"IBM Plex Mono"', 'monospace'],
         serif: ['"DM Serif Display"', 'Georgia', 'serif'],
       },
       boxShadow: {

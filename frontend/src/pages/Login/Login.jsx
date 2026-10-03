@@ -124,7 +124,7 @@ export const Login = () => {
               
               <div className="w-12 h-1 bg-teal-500 rounded-full" />
 
-              <p className="font-serif italic text-slate-300/95 text-base sm:text-lg tracking-wide leading-relaxed max-w-lg pt-2">
+              <p className="font-serif italic text-slate-200 text-xl sm:text-2xl tracking-normal leading-relaxed max-w-lg pt-3">
                 Plan better. Work together. Deliver on time.
               </p>
             </div>
