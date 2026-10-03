@@ -124,9 +124,8 @@ export const Login = () => {
               
               <div className="w-12 h-1 bg-teal-500 rounded-full" />
 
-              <p className="text-slate-400 text-sm sm:text-base max-w-lg leading-relaxed pt-2">
-                A modern academic workspace for students and staff to manage projects, 
-                collaborate effortlessly, and turn ideas into impact.
+              <p className="text-slate-300/90 text-sm sm:text-base font-normal tracking-wider leading-loose max-w-lg pt-2">
+                Plan better. Work together. Deliver on time.
               </p>
             </div>
 
