@@ -1,7 +1,17 @@
 from fastapi import APIRouter
-from app.api.v1.endpoints import auth, student, groups
+from app.api.v1.endpoints import (
+    auth,
+    groups,
+    workspaces,
+    projects,
+    submissions,
+    results,
+)
 
 api_router = APIRouter()
-api_router.include_router(auth.router, prefix="/auth", tags=["authentication"])
-api_router.include_router(student.router, prefix="/student", tags=["student-auth"])
-api_router.include_router(groups.router, prefix="/groups", tags=["groups"])
+api_router.include_router(auth.router, prefix="/auth", tags=["Authentication"])
+api_router.include_router(groups.router, prefix="/groups", tags=["Groups"])
+api_router.include_router(workspaces.router, prefix="/workspaces", tags=["Workspaces"])
+api_router.include_router(projects.router, prefix="/projects", tags=["Projects"])
+api_router.include_router(submissions.router, tags=["Submissions"])
+api_router.include_router(results.router, prefix="/results", tags=["Results"])

@@ -61,3 +61,14 @@ def get_current_student(
             detail="Access forbidden: Student role required."
         )
     return current_user
+
+def get_current_staff(
+    current_user: User = Depends(get_current_user)
+) -> User:
+    """Verifies that the authenticated user has the 'staff' role."""
+    if current_user.role.lower() not in ["staff", "teacher"]:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Access forbidden: Staff role required."
+        )
+    return current_user
