@@ -1,0 +1,1074 @@
+import React, { useState, useEffect } from 'react';
+import { 
+  FolderGit2, 
+  GitBranch, 
+  Layers, 
+  Users, 
+  MessageSquare, 
+  Send, 
+  Plus, 
+  Check, 
+  AlertCircle, 
+  ExternalLink,
+  Clock,
+  CheckCircle2,
+  Lock,
+  Edit3,
+  Calendar,
+  FileText
+} from 'lucide-react';
+import { projectApi } from '../../api/projectApi';
+import { workspaceApi } from '../../api/workspaceApi';
+import { submissionApi } from '../../api/submissionApi';
+import { resultApi } from '../../api/resultApi';
+import { useAuth } from '../../context/AuthContext';
+
+export const ProjectsView = ({ defaultProjectId, onNavigate }) => {
+  const { user } = useAuth();
+
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
+  const [successMsg, setSuccessMsg] = useState(null);
+
+  // Enrolled workspaces & projects mapping
+  const [workspaces, setWorkspaces] = useState([]);
+  const [currentProject, setCurrentProject] = useState(null);
+  const [activeTab, setActiveTab] = useState('overview'); // overview | updates | submissions | github | progress | review | results
+
+  // Project Creation Modal state
+  const [showCreateModal, setShowCreateModal] = useState(false);
+  const [createWorkspaceId, setCreateWorkspaceId] = useState('');
+  const [createProjectName, setCreateProjectName] = useState('');
+  const [createProjectDesc, setCreateProjectDesc] = useState('');
+  const [creatingProject, setCreatingProject] = useState(false);
+
+  // Updates & Comments state
+  const [updates, setUpdates] = useState([]);
+  const [newUpdateContent, setNewUpdateContent] = useState('');
+  const [newUpdateLink, setNewUpdateLink] = useState('');
+  const [commentInputs, setCommentInputs] = useState({}); // { [updateId]: string }
+  const [postingUpdate, setPostingUpdate] = useState(false);
+
+  // Submissions state
+  const [submissions, setSubmissions] = useState([]);
+  const [workspaceRounds, setWorkspaceRounds] = useState([]);
+  const [showSubmitModal, setShowSubmitModal] = useState(false);
+  const [selectedRoundForSubmit, setSelectedRoundForSubmit] = useState(null);
+  const [submissionNotes, setSubmissionNotes] = useState('');
+  const [submissionLink, setSubmissionLink] = useState('');
+  const [submissionSha, setSubmissionSha] = useState('');
+  const [isDraftCheck, setIsDraftCheck] = useState(false);
+  const [submittingDeliverable, setSubmittingDeliverable] = useState(false);
+
+  // GitHub state
+  const [githubData, setGithubData] = useState(null);
+  const [githubRepoUrl, setGithubRepoUrl] = useState('');
+  const [linkingGithub, setLinkingGithub] = useState(false);
+
+  // Results state
+  const [myResults, setMyResults] = useState([]);
+
+  // Load all available projects from enrolled workspaces
+  const loadInitialData = async () => {
+    setLoading(true);
+    setError(null);
+    try {
+      const wsList = await workspaceApi.getMyWorkspaces();
+      setWorkspaces(wsList || []);
+
+      // Determine which project to load
+      let projIdToLoad = defaultProjectId;
+      if (!projIdToLoad) {
+        const firstWithProject = (wsList || []).find((w) => w.has_project && w.project_id);
+        if (firstWithProject) {
+          projIdToLoad = firstWithProject.project_id;
+        }
+      }
+
+      if (projIdToLoad) {
+        await selectProjectById(projIdToLoad, wsList);
+      } else {
+        setCurrentProject(null);
+      }
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const selectProjectById = async (projId, wsList = workspaces) => {
+    try {
+      const proj = await projectApi.getProject(projId);
+      setCurrentProject(proj);
+
+      // Load associated workspace rounds
+      const ws = wsList.find((w) => w.id === proj.workspace_id);
+      if (ws?.review_rounds) {
+        setWorkspaceRounds(ws.review_rounds);
+      } else {
+        const rounds = await workspaceApi.getRounds(proj.workspace_id);
+        setWorkspaceRounds(rounds || []);
+      }
+
+      // Parallel fetch of project tabs data
+      await Promise.allSettled([
+        loadUpdates(proj.id),
+        loadSubmissions(proj.id),
+        loadGithub(proj.id),
+        loadResults(),
+      ]);
+    } catch (err) {
+      setError(err.message);
+      setCurrentProject(null);
+    }
+  };
+
+  useEffect(() => {
+    loadInitialData();
+  }, [defaultProjectId]);
+
+  const loadUpdates = async (projId) => {
+    try {
+      const data = await projectApi.getUpdates(projId);
+      setUpdates(data || []);
+    } catch (err) {
+      // non-fatal
+    }
+  };
+
+  const loadSubmissions = async (projId) => {
+    try {
+      const data = await submissionApi.getSubmissions(projId);
+      setSubmissions(data || []);
+    } catch (err) {
+      // non-fatal
+    }
+  };
+
+  const loadGithub = async (projId) => {
+    try {
+      const data = await projectApi.getGithub(projId);
+      setGithubData(data || null);
+      if (data?.repo_url) setGithubRepoUrl(data.repo_url);
+    } catch (err) {
+      setGithubData(null);
+    }
+  };
+
+  const loadResults = async () => {
+    try {
+      const data = await resultApi.getMyResults();
+      setMyResults(data?.results || []);
+    } catch (err) {
+      // non-fatal
+    }
+  };
+
+  // Handlers
+  const handleCreateProject = async (e) => {
+    e.preventDefault();
+    if (!createWorkspaceId.trim() || !createProjectName.trim()) return;
+
+    setCreatingProject(true);
+    setError(null);
+    try {
+      const newProj = await projectApi.createProject(
+        createWorkspaceId.trim(),
+        createProjectName.trim(),
+        createProjectDesc.trim() || null
+      );
+      setSuccessMsg(`Project "${newProj.name}" created successfully!`);
+      setShowCreateModal(false);
+      setCreateProjectName('');
+      setCreateProjectDesc('');
+      await loadInitialData();
+      await selectProjectById(newProj.id);
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setCreatingProject(false);
+    }
+  };
+
+  const handlePostUpdate = async (e) => {
+    e.preventDefault();
+    if (!currentProject || !newUpdateContent.trim()) return;
+
+    setPostingUpdate(true);
+    setError(null);
+    try {
+      await projectApi.postUpdate(
+        currentProject.id,
+        newUpdateContent.trim(),
+        newUpdateLink.trim() || null
+      );
+      setNewUpdateContent('');
+      setNewUpdateLink('');
+      await loadUpdates(currentProject.id);
+      setSuccessMsg('Progress update posted to project feed.');
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setPostingUpdate(false);
+    }
+  };
+
+  const handlePostComment = async (updateId) => {
+    const text = commentInputs[updateId];
+    if (!currentProject || !text || !text.trim()) return;
+
+    try {
+      await projectApi.postComment(currentProject.id, updateId, text.trim());
+      setCommentInputs((prev) => ({ ...prev, [updateId]: '' }));
+      await loadUpdates(currentProject.id);
+    } catch (err) {
+      setError(err.message);
+    }
+  };
+
+  const handleLinkGithub = async (e) => {
+    e.preventDefault();
+    if (!currentProject || !githubRepoUrl.trim()) return;
+
+    setLinkingGithub(true);
+    setError(null);
+    try {
+      const res = await projectApi.linkGithub(currentProject.id, githubRepoUrl.trim());
+      setGithubData(res);
+      setSuccessMsg('GitHub repository linked successfully.');
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setLinkingGithub(false);
+    }
+  };
+
+  const handleSubmitDeliverable = async (e) => {
+    e.preventDefault();
+    if (!currentProject || !selectedRoundForSubmit) return;
+
+    setSubmittingDeliverable(true);
+    setError(null);
+    try {
+      await submissionApi.createSubmission(currentProject.id, selectedRoundForSubmit.id, {
+        notes: submissionNotes.trim() || null,
+        link: submissionLink.trim() || null,
+        githubCommitSha: submissionSha.trim() || null,
+        isDraft: isDraftCheck,
+      });
+
+      setShowSubmitModal(false);
+      setSubmissionNotes('');
+      setSubmissionLink('');
+      setSubmissionSha('');
+      setIsDraftCheck(false);
+      setSuccessMsg(isDraftCheck ? 'Submission saved as Draft.' : 'Deliverable submitted for review!');
+      await loadSubmissions(currentProject.id);
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setSubmittingDeliverable(false);
+    }
+  };
+
+  const handleFinalizeDraft = async (submissionId) => {
+    try {
+      await submissionApi.finalizeSubmit(submissionId);
+      setSuccessMsg('Draft finalized into SUBMITTED deliverable.');
+      await loadSubmissions(currentProject.id);
+    } catch (err) {
+      setError(err.message);
+    }
+  };
+
+  // Derived weighted progress
+  const approvedRoundSubmissions = submissions.filter((s) => s.latest_version?.status === 'APPROVED');
+  const totalRoundMarks = workspaceRounds.reduce((acc, r) => acc + (parseFloat(r.max_score) || 0), 0);
+  const approvedMarks = approvedRoundSubmissions.reduce((acc, s) => acc + (parseFloat(s.max_score) || 0), 0);
+  const progressPercent = totalRoundMarks > 0 ? Math.round((approvedMarks / totalRoundMarks) * 100) : 0;
+
+  if (loading) {
+    return (
+      <div className="p-8 flex items-center justify-center min-h-[400px]">
+        <div className="flex flex-col items-center gap-3">
+          <div className="w-8 h-8 rounded-full border-2 border-teal-500/20 border-t-teal-400 animate-spin" />
+          <p className="text-xs font-mono text-slate-400">Loading project vault...</p>
+        </div>
+      </div>
+    );
+  }
+
+  // View: No project created yet
+  if (!currentProject) {
+    const enrolledWithNoProject = workspaces.filter((w) => !w.has_project);
+
+    return (
+      <div className="p-6 lg:p-8 space-y-8 max-w-5xl mx-auto">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-6 border-b border-vault-border/40">
+          <div>
+            <h2 className="text-2xl font-bold text-white tracking-tight font-display">
+              Projects
+            </h2>
+            <p className="text-xs text-slate-400 mt-1">
+              Course projects tied strictly to your group and enrolled workspaces.
+            </p>
+          </div>
+
+          {enrolledWithNoProject.length > 0 && (
+            <button
+              onClick={() => {
+                setCreateWorkspaceId(enrolledWithNoProject[0].id);
+                setShowCreateModal(true);
+              }}
+              className="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-teal-500 hover:bg-teal-400 text-slate-950 text-xs font-semibold shadow-sm transition-all"
+            >
+              <Plus size={16} strokeWidth={2.5} />
+              <span>Create Project</span>
+            </button>
+          )}
+        </div>
+
+        {error && (
+          <div className="p-4 rounded-xl bg-rose-500/10 border border-rose-500/30 text-rose-300 text-xs flex items-center gap-2.5">
+            <AlertCircle size={16} />
+            <span>{error}</span>
+          </div>
+        )}
+
+        <div className="p-12 rounded-2xl bg-vault-surface/60 border border-vault-border/60 text-center space-y-4">
+          <FolderGit2 size={36} className="mx-auto text-slate-500" />
+          <div className="space-y-1">
+            <h3 className="text-base font-bold text-white">No Active Projects</h3>
+            <p className="text-xs text-slate-400 max-w-md mx-auto">
+              {enrolledWithNoProject.length > 0
+                ? `Your group is enrolled in ${enrolledWithNoProject.length} workspace(s) but has not yet created a project. Create your course project below.`
+                : 'You need an enrolled workspace with at least 2 group members before you can create a project.'}
+            </p>
+          </div>
+
+          {enrolledWithNoProject.length > 0 ? (
+            <button
+              onClick={() => {
+                setCreateWorkspaceId(enrolledWithNoProject[0].id);
+                setShowCreateModal(true);
+              }}
+              className="px-4 py-2 rounded-lg bg-teal-500 hover:bg-teal-400 text-slate-950 font-semibold text-xs transition-colors"
+            >
+              Create Course Project
+            </button>
+          ) : (
+            <button
+              onClick={() => onNavigate('workspaces')}
+              className="px-4 py-2 rounded-lg bg-vault-canvas hover:bg-vault-elevated border border-vault-border text-slate-200 text-xs font-medium transition-colors"
+            >
+              View Workspaces
+            </button>
+          )}
+        </div>
+
+        {/* Modal: Create Project */}
+        {showCreateModal && (
+          <div className="fixed inset-0 z-50 bg-slate-950/80 backdrop-blur-sm flex items-center justify-center p-4">
+            <div className="bg-vault-surface border border-teal-500/30 rounded-2xl p-6 max-w-md w-full space-y-5 animate-in fade-in">
+              <div className="flex items-center justify-between pb-3 border-b border-vault-border">
+                <h3 className="text-sm font-bold text-white font-mono uppercase">Create Course Project</h3>
+                <button onClick={() => setShowCreateModal(false)} className="text-slate-400 hover:text-white">✕</button>
+              </div>
+
+              <form onSubmit={handleCreateProject} className="space-y-4">
+                <div>
+                  <label className="text-xs font-semibold text-slate-300 block mb-1">Enrolled Workspace *</label>
+                  <select
+                    value={createWorkspaceId}
+                    onChange={(e) => setCreateWorkspaceId(e.target.value)}
+                    required
+                    className="w-full px-3 py-2 rounded-lg bg-vault-canvas border border-vault-border text-white text-xs focus:outline-none focus:border-teal-500/60"
+                  >
+                    {enrolledWithNoProject.map((w) => (
+                      <option key={w.id} value={w.id}>
+                        {w.name} ({w.id})
+                      </option>
+                    ))}
+                  </select>
+                </div>
+
+                <div>
+                  <label className="text-xs font-semibold text-slate-300 block mb-1">Project Title *</label>
+                  <input
+                    type="text"
+                    placeholder="e.g. Distributed Storage Engine Core"
+                    value={createProjectName}
+                    onChange={(e) => setCreateProjectName(e.target.value)}
+                    required
+                    disabled={creatingProject}
+                    className="w-full px-3 py-2 rounded-lg bg-vault-canvas border border-vault-border text-white text-xs focus:outline-none focus:border-teal-500/60"
+                  />
+                </div>
+
+                <div>
+                  <label className="text-xs font-semibold text-slate-300 block mb-1">
+                    Description <span className="text-slate-500 font-normal">(Optional)</span>
+                  </label>
+                  <textarea
+                    rows={3}
+                    placeholder="Brief description of the deliverable architecture..."
+                    value={createProjectDesc}
+                    onChange={(e) => setCreateProjectDesc(e.target.value)}
+                    disabled={creatingProject}
+                    className="w-full px-3 py-2 rounded-lg bg-vault-canvas border border-vault-border text-white text-xs focus:outline-none focus:border-teal-500/60"
+                  />
+                </div>
+
+                <div className="flex justify-end gap-2 pt-2">
+                  <button
+                    type="button"
+                    onClick={() => setShowCreateModal(false)}
+                    className="px-3 py-2 rounded-lg bg-vault-canvas border border-vault-border text-slate-300 text-xs font-medium"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    type="submit"
+                    disabled={creatingProject || !createProjectName.trim()}
+                    className="px-4 py-2 rounded-lg bg-teal-500 hover:bg-teal-400 text-slate-950 text-xs font-semibold"
+                  >
+                    Create Project
+                  </button>
+                </div>
+              </form>
+            </div>
+          </div>
+        )}
+
+      </div>
+    );
+  }
+
+  // View: Active Project with Tabs
+  return (
+    <div className="p-6 lg:p-8 space-y-6 max-w-6xl mx-auto">
+      
+      {/* Top Banner / Project Switcher */}
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-4 border-b border-vault-border/40">
+        <div>
+          <div className="flex items-center gap-2 mb-1">
+            <span className="text-xs font-mono font-semibold text-teal-400 bg-teal-950/60 px-2.5 py-0.5 rounded border border-teal-500/30">
+              {currentProject.workspace_id}
+            </span>
+            <span className="text-xs text-slate-400 font-mono">Group: {currentProject.group_name}</span>
+          </div>
+          <h2 className="text-2xl font-bold text-white tracking-tight font-display">
+            {currentProject.name}
+          </h2>
+        </div>
+
+        {/* Project Switcher if multiple projects */}
+        {workspaces.filter((w) => w.has_project).length > 1 && (
+          <div className="flex items-center gap-2">
+            <span className="text-xs text-slate-400 font-mono">Switch:</span>
+            <select
+              value={currentProject.id}
+              onChange={(e) => selectProjectById(parseInt(e.target.value))}
+              className="px-2.5 py-1.5 rounded-lg bg-vault-canvas border border-vault-border text-xs text-white"
+            >
+              {workspaces.filter((w) => w.has_project).map((w) => (
+                <option key={w.project_id} value={w.project_id}>
+                  {w.id} Project
+                </option>
+              ))}
+            </select>
+          </div>
+        )}
+      </div>
+
+      {/* Alerts */}
+      {error && (
+        <div className="p-4 rounded-xl bg-rose-500/10 border border-rose-500/30 text-rose-300 text-xs flex items-center justify-between">
+          <div className="flex items-center gap-2.5">
+            <AlertCircle size={16} />
+            <span>{error}</span>
+          </div>
+          <button onClick={() => setError(null)} className="text-rose-400 hover:text-rose-200 text-sm">×</button>
+        </div>
+      )}
+
+      {successMsg && (
+        <div className="p-4 rounded-xl bg-teal-500/10 border border-teal-500/30 text-teal-300 text-xs flex items-center justify-between">
+          <div className="flex items-center gap-2.5">
+            <Check size={16} />
+            <span>{successMsg}</span>
+          </div>
+          <button onClick={() => setSuccessMsg(null)} className="text-teal-400 hover:text-teal-200 text-sm">×</button>
+        </div>
+      )}
+
+      {/* Project Navigation Tabs */}
+      <div className="flex items-center gap-1 border-b border-vault-border/60 overflow-x-auto pb-1">
+        {[
+          { id: 'overview', label: 'Overview' },
+          { id: 'updates', label: `Updates (${updates.length})` },
+          { id: 'submissions', label: `Submissions (${submissions.length})` },
+          { id: 'github', label: 'GitHub' },
+          { id: 'progress', label: `Progress (${progressPercent}%)` },
+          { id: 'review', label: 'Review' },
+          { id: 'results', label: 'Results' },
+        ].map((tab) => (
+          <button
+            key={tab.id}
+            onClick={() => setActiveTab(tab.id)}
+            className={`px-4 py-2 text-xs font-medium rounded-t-lg transition-colors whitespace-nowrap outline-none ${
+              activeTab === tab.id
+                ? 'text-teal-300 border-b-2 border-teal-400 bg-teal-500/10 font-semibold'
+                : 'text-slate-400 hover:text-slate-200 hover:bg-vault-canvas/50'
+            }`}
+          >
+            {tab.label}
+          </button>
+        ))}
+      </div>
+
+      {/* TAB 1: OVERVIEW */}
+      {activeTab === 'overview' && (
+        <div className="space-y-6">
+          <div className="p-6 rounded-2xl bg-vault-surface border border-vault-border space-y-5">
+            <div>
+              <h3 className="text-sm font-mono uppercase tracking-wider text-slate-400">Description</h3>
+              <p className="text-xs text-slate-200 leading-relaxed mt-1">
+                {currentProject.description || 'No detailed description specified.'}
+              </p>
+            </div>
+
+            <div className="pt-4 border-t border-vault-border/50">
+              <h3 className="text-xs font-mono uppercase tracking-wider text-slate-400 mb-3">
+                Current Group Members ({currentProject.members.length})
+              </h3>
+              <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3">
+                {currentProject.members.map((m) => (
+                  <div key={m.id} className="p-3 rounded-lg bg-vault-canvas border border-vault-border text-xs space-y-0.5">
+                    <p className="font-semibold text-white">{m.full_name}</p>
+                    <p className="text-[10px] text-slate-400 font-mono truncate">{m.email}</p>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            <div className="pt-4 border-t border-vault-border/50 flex items-center justify-between text-xs text-slate-400 font-mono">
+              <span>Created on {new Date(currentProject.created_at).toLocaleDateString()}</span>
+              {currentProject.github_repo_url && (
+                <a
+                  href={currentProject.github_repo_url}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="text-teal-400 hover:underline flex items-center gap-1"
+                >
+                  <GitBranch size={13} />
+                  <span>Repository</span>
+                </a>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* TAB 2: UPDATES + COMMENTS (Informal Progress Notes) */}
+      {activeTab === 'updates' && (
+        <div className="space-y-6">
+          {/* Post Update Form */}
+          <div className="p-5 rounded-xl bg-vault-surface border border-vault-border space-y-3">
+            <h3 className="text-xs font-bold text-white font-mono uppercase tracking-wider">
+              Post Informal Progress Note
+            </h3>
+            <p className="text-[11px] text-slate-400">
+              Updates are informal progress logs and are NOT graded deliverables. Group members and staff can comment.
+            </p>
+
+            <form onSubmit={handlePostUpdate} className="space-y-3">
+              <textarea
+                rows={2}
+                placeholder="What did your team accomplish today? (e.g. Implemented B-Tree node split algorithm)"
+                value={newUpdateContent}
+                onChange={(e) => setNewUpdateContent(e.target.value)}
+                required
+                disabled={postingUpdate}
+                className="w-full px-3 py-2 rounded-lg bg-vault-canvas border border-vault-border text-white text-xs placeholder:text-slate-500 focus:outline-none focus:border-teal-500/60"
+              />
+
+              <div className="flex flex-col sm:flex-row items-center justify-between gap-3">
+                <input
+                  type="url"
+                  placeholder="Optional commit or documentation link (https://...)"
+                  value={newUpdateLink}
+                  onChange={(e) => setNewUpdateLink(e.target.value)}
+                  disabled={postingUpdate}
+                  className="w-full sm:w-80 px-3 py-1.5 rounded-lg bg-vault-canvas border border-vault-border text-white text-xs placeholder:text-slate-500 focus:outline-none focus:border-teal-500/60 font-mono"
+                />
+
+                <button
+                  type="submit"
+                  disabled={postingUpdate || !newUpdateContent.trim()}
+                  className="px-4 py-1.5 rounded-lg bg-teal-500 hover:bg-teal-400 text-slate-950 font-semibold text-xs transition-colors shrink-0"
+                >
+                  Post Note
+                </button>
+              </div>
+            </form>
+          </div>
+
+          {/* Feed */}
+          {updates.length === 0 ? (
+            <div className="p-8 rounded-xl bg-vault-surface/60 border border-vault-border/60 text-center text-xs text-slate-400">
+              No progress updates posted yet. Keep your team and instructors informed by posting updates above.
+            </div>
+          ) : (
+            <div className="space-y-4">
+              {updates.map((u) => (
+                <div key={u.id} className="p-5 rounded-xl bg-vault-surface border border-vault-border/70 space-y-3">
+                  <div className="flex items-center justify-between text-xs pb-2 border-b border-vault-border/40">
+                    <div className="flex items-center gap-2">
+                      <span className="font-semibold text-white">{u.author_name}</span>
+                      <span className="text-[10px] font-mono text-slate-500">
+                        {new Date(u.created_at).toLocaleString()}
+                      </span>
+                    </div>
+
+                    {u.link && (
+                      <a
+                        href={u.link}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="text-teal-400 hover:underline flex items-center gap-1 text-[11px]"
+                      >
+                        <ExternalLink size={12} />
+                        <span>Reference</span>
+                      </a>
+                    )}
+                  </div>
+
+                  <p className="text-xs text-slate-200 leading-relaxed whitespace-pre-wrap">
+                    {u.content}
+                  </p>
+
+                  {/* Threaded Comments */}
+                  <div className="pt-3 border-t border-vault-border/40 space-y-2">
+                    <span className="text-[10px] font-mono text-slate-500 uppercase block">
+                      Comments ({u.comments?.length || 0})
+                    </span>
+
+                    {u.comments?.map((c) => (
+                      <div key={c.id} className="p-2.5 rounded-lg bg-vault-canvas/70 border border-vault-border/50 text-xs space-y-1">
+                        <div className="flex items-center justify-between">
+                          <span className={`font-semibold ${c.author_role === 'staff' ? 'text-amber-400' : 'text-slate-200'}`}>
+                            {c.author_name} {c.author_role === 'staff' && <span className="text-[10px] font-mono">(Staff)</span>}
+                          </span>
+                          <span className="text-[10px] font-mono text-slate-500">
+                            {new Date(c.created_at).toLocaleDateString()}
+                          </span>
+                        </div>
+                        <p className="text-slate-300 text-[11px]">{c.content}</p>
+                      </div>
+                    ))}
+
+                    {/* Add Comment Input */}
+                    <div className="flex items-center gap-2 pt-1">
+                      <input
+                        type="text"
+                        placeholder="Write a comment..."
+                        value={commentInputs[u.id] || ''}
+                        onChange={(e) => setCommentInputs({ ...commentInputs, [u.id]: e.target.value })}
+                        onKeyDown={(e) => {
+                          if (e.key === 'Enter') handlePostComment(u.id);
+                        }}
+                        className="flex-1 px-3 py-1.5 rounded-lg bg-vault-canvas border border-vault-border text-white text-xs placeholder:text-slate-500 focus:outline-none focus:border-teal-500/60"
+                      />
+                      <button
+                        onClick={() => handlePostComment(u.id)}
+                        disabled={!commentInputs[u.id]?.trim()}
+                        className="p-2 rounded-lg bg-teal-500/20 text-teal-300 hover:bg-teal-500/30 disabled:opacity-40 transition-colors"
+                      >
+                        <Send size={13} />
+                      </button>
+                    </div>
+                  </div>
+
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* TAB 3: SUBMISSIONS (Formal Deliverables Lifecycle) */}
+      {activeTab === 'submissions' && (
+        <div className="space-y-6">
+          <div className="flex items-center justify-between">
+            <div>
+              <h3 className="text-sm font-bold text-white font-mono uppercase tracking-wider">
+                Formal Deliverable Submissions
+              </h3>
+              <p className="text-xs text-slate-400">
+                Draft deliverables can be updated. Submitted deliverables are immutable and snapshotted.
+              </p>
+            </div>
+          </div>
+
+          {/* Rounds list with Submission Status */}
+          <div className="space-y-4">
+            {workspaceRounds.map((round) => {
+              const submission = submissions.find((s) => s.round_id === round.id);
+              const latestVer = submission?.latest_version;
+
+              return (
+                <div key={round.id} className="p-5 rounded-xl bg-vault-surface border border-vault-border space-y-4">
+                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 border-b border-vault-border/50">
+                    <div className="space-y-0.5">
+                      <div className="flex items-center gap-2">
+                        <span className="text-xs font-mono font-bold text-slate-300 bg-vault-canvas px-2 py-0.5 rounded border border-vault-border">
+                          Round {round.order_index}
+                        </span>
+                        <h4 className="text-sm font-bold text-white">{round.title}</h4>
+                      </div>
+                      <p className="text-xs text-slate-400">Due: {new Date(round.due_date).toLocaleDateString()} • Max Marks: {round.max_score} pts</p>
+                    </div>
+
+                    <div className="flex items-center gap-2">
+                      {latestVer ? (
+                        <span className={`px-2.5 py-1 rounded text-xs font-mono font-semibold border ${
+                          latestVer.status === 'APPROVED'
+                            ? 'bg-emerald-950/80 text-emerald-400 border-emerald-500/30'
+                            : latestVer.status === 'REVISION_REQUESTED'
+                            ? 'bg-amber-950/80 text-amber-400 border-amber-500/30'
+                            : latestVer.status === 'DRAFT'
+                            ? 'bg-slate-900 text-slate-300 border-slate-700'
+                            : 'bg-teal-950/80 text-teal-400 border-teal-500/30'
+                        }`}>
+                          {latestVer.status} (v{latestVer.version_number})
+                        </span>
+                      ) : (
+                        <span className="text-xs font-mono text-slate-500">Not Submitted</span>
+                      )}
+
+                      {/* Action buttons */}
+                      {round.is_open && (!latestVer || latestVer.status === 'REVISION_REQUESTED') && (
+                        <button
+                          onClick={() => {
+                            setSelectedRoundForSubmit(round);
+                            setShowSubmitModal(true);
+                          }}
+                          className="px-3 py-1.5 rounded-lg bg-teal-500 hover:bg-teal-400 text-slate-950 text-xs font-semibold transition-colors"
+                        >
+                          {latestVer?.status === 'REVISION_REQUESTED' ? 'Submit New Version' : 'Submit Deliverable'}
+                        </button>
+                      )}
+
+                      {latestVer?.status === 'DRAFT' && (
+                        <button
+                          onClick={() => handleFinalizeDraft(submission.id)}
+                          className="px-3 py-1.5 rounded-lg bg-emerald-500 hover:bg-emerald-400 text-slate-950 text-xs font-semibold transition-colors"
+                        >
+                          Finalize Draft
+                        </button>
+                      )}
+                    </div>
+                  </div>
+
+                  {/* Version Details */}
+                  {latestVer ? (
+                    <div className="p-4 rounded-lg bg-vault-canvas border border-vault-border/60 text-xs space-y-2">
+                      <div className="flex items-center justify-between text-slate-400 font-mono text-[11px]">
+                        <span>Submitted by {latestVer.submitter_name}</span>
+                        {latestVer.submitted_at && (
+                          <span>{new Date(latestVer.submitted_at).toLocaleString()}</span>
+                        )}
+                        {latestVer.is_late && (
+                          <span className="text-amber-400 font-bold">⚠️ Late Submission</span>
+                        )}
+                      </div>
+
+                      {latestVer.notes && (
+                        <p className="text-slate-200 leading-relaxed">{latestVer.notes}</p>
+                      )}
+
+                      {latestVer.link && (
+                        <a
+                          href={latestVer.link}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="text-teal-400 hover:underline flex items-center gap-1 text-[11px]"
+                        >
+                          <ExternalLink size={12} />
+                          <span>Deliverable Link</span>
+                        </a>
+                      )}
+
+                      {/* Roster snapshot */}
+                      {latestVer.roster_snapshot?.length > 0 && (
+                        <div className="pt-2 border-t border-vault-border/40 text-[11px] text-slate-400">
+                          <span className="font-mono text-slate-500 block mb-1">Frozen Roster Snapshot:</span>
+                          <span className="text-slate-300">
+                            {latestVer.roster_snapshot.map((m) => m.full_name).join(', ')}
+                          </span>
+                        </div>
+                      )}
+                    </div>
+                  ) : (
+                    <p className="text-xs text-slate-500 italic">No deliverable submitted yet for this milestone.</p>
+                  )}
+                </div>
+              );
+            })}
+          </div>
+
+          {/* Submission Modal */}
+          {showSubmitModal && selectedRoundForSubmit && (
+            <div className="fixed inset-0 z-50 bg-slate-950/80 backdrop-blur-sm flex items-center justify-center p-4">
+              <div className="bg-vault-surface border border-teal-500/30 rounded-2xl p-6 max-w-md w-full space-y-5 animate-in fade-in">
+                <div className="flex items-center justify-between pb-3 border-b border-vault-border">
+                  <h3 className="text-sm font-bold text-white font-mono uppercase">
+                    Submit Deliverable: {selectedRoundForSubmit.title}
+                  </h3>
+                  <button onClick={() => setShowSubmitModal(false)} className="text-slate-400 hover:text-white">✕</button>
+                </div>
+
+                <form onSubmit={handleSubmitDeliverable} className="space-y-4">
+                  <div>
+                    <label className="text-xs font-semibold text-slate-300 block mb-1">Submission Notes *</label>
+                    <textarea
+                      rows={3}
+                      placeholder="Summary of completed deliverables, test suite outcomes, or architecture overview..."
+                      value={submissionNotes}
+                      onChange={(e) => setSubmissionNotes(e.target.value)}
+                      required
+                      disabled={submittingDeliverable}
+                      className="w-full px-3 py-2 rounded-lg bg-vault-canvas border border-vault-border text-white text-xs focus:outline-none focus:border-teal-500/60"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="text-xs font-semibold text-slate-300 block mb-1">Artifact / Deliverable Link (Optional)</label>
+                    <input
+                      type="url"
+                      placeholder="https://drive.google.com/... or https://github.com/..."
+                      value={submissionLink}
+                      onChange={(e) => setSubmissionLink(e.target.value)}
+                      disabled={submittingDeliverable}
+                      className="w-full px-3 py-2 rounded-lg bg-vault-canvas border border-vault-border text-white text-xs font-mono focus:outline-none focus:border-teal-500/60"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="text-xs font-semibold text-slate-300 block mb-1">GitHub Commit SHA (Optional)</label>
+                    <input
+                      type="text"
+                      placeholder="e.g. 7c91498..."
+                      value={submissionSha}
+                      onChange={(e) => setSubmissionSha(e.target.value)}
+                      disabled={submittingDeliverable}
+                      className="w-full px-3 py-2 rounded-lg bg-vault-canvas border border-vault-border text-white text-xs font-mono focus:outline-none focus:border-teal-500/60"
+                    />
+                  </div>
+
+                  <div className="flex items-center gap-2 pt-1">
+                    <input
+                      type="checkbox"
+                      id="draftCheck"
+                      checked={isDraftCheck}
+                      onChange={(e) => setIsDraftCheck(e.target.checked)}
+                      className="rounded border-vault-border text-teal-500 focus:ring-0"
+                    />
+                    <label htmlFor="draftCheck" className="text-xs text-slate-300">
+                      Save as Draft (Allows editing before final review freeze)
+                    </label>
+                  </div>
+
+                  <div className="flex justify-end gap-2 pt-2">
+                    <button
+                      type="button"
+                      onClick={() => setShowSubmitModal(false)}
+                      className="px-3 py-2 rounded-lg bg-vault-canvas border border-vault-border text-slate-300 text-xs font-medium"
+                    >
+                      Cancel
+                    </button>
+                    <button
+                      type="submit"
+                      disabled={submittingDeliverable || !submissionNotes.trim()}
+                      className="px-4 py-2 rounded-lg bg-teal-500 hover:bg-teal-400 text-slate-950 text-xs font-semibold"
+                    >
+                      {isDraftCheck ? 'Save Draft' : 'Submit for Review'}
+                    </button>
+                  </div>
+                </form>
+              </div>
+            </div>
+          )}
+
+        </div>
+      )}
+
+      {/* TAB 4: GITHUB (Project-Level Sync) */}
+      {activeTab === 'github' && (
+        <div className="space-y-6">
+          <div className="p-6 rounded-2xl bg-vault-surface border border-vault-border space-y-5">
+            <div className="flex items-center justify-between pb-4 border-b border-vault-border/50">
+              <div className="flex items-center gap-3">
+                <div className="p-2.5 rounded-xl bg-teal-500/10 text-teal-400 border border-teal-500/20">
+                  <GitBranch size={20} />
+                </div>
+                <div>
+                  <h3 className="text-base font-bold text-white">Project GitHub Integration</h3>
+                  <p className="text-xs text-slate-400">Project-level public repository tracking</p>
+                </div>
+              </div>
+
+              {githubData && (
+                <span className="px-2 py-0.5 rounded text-[10px] font-mono bg-emerald-950/80 text-emerald-400 border border-emerald-500/30">
+                  Connected
+                </span>
+              )}
+            </div>
+
+            <form onSubmit={handleLinkGithub} className="space-y-3">
+              <div>
+                <label className="text-xs font-semibold text-slate-300 block mb-1">Public GitHub Repository URL</label>
+                <div className="flex gap-2">
+                  <input
+                    type="url"
+                    placeholder="https://github.com/org/repo"
+                    value={githubRepoUrl}
+                    onChange={(e) => setGithubRepoUrl(e.target.value)}
+                    required
+                    disabled={linkingGithub}
+                    className="flex-1 px-3 py-2 rounded-lg bg-vault-canvas border border-vault-border text-white text-xs font-mono focus:outline-none focus:border-teal-500/60"
+                  />
+                  <button
+                    type="submit"
+                    disabled={linkingGithub || !githubRepoUrl.trim()}
+                    className="px-4 py-2 rounded-lg bg-teal-500 hover:bg-teal-400 text-slate-950 font-semibold text-xs transition-colors shrink-0"
+                  >
+                    {githubData ? 'Update Repo' : 'Link Repo'}
+                  </button>
+                </div>
+              </div>
+            </form>
+
+            {githubData && (
+              <div className="pt-4 border-t border-vault-border/50 text-xs space-y-2">
+                <div className="flex items-center justify-between text-slate-400">
+                  <span>Linked by peer: #{githubData.project_id}</span>
+                  <span>{new Date(githubData.created_at).toLocaleDateString()}</span>
+                </div>
+                <a
+                  href={githubData.repo_url}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="text-teal-400 hover:underline flex items-center gap-1.5 font-mono text-xs"
+                >
+                  <ExternalLink size={13} />
+                  <span>{githubData.repo_url}</span>
+                </a>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* TAB 5: PROGRESS (Derived Weighted Metric) */}
+      {activeTab === 'progress' && (
+        <div className="p-6 rounded-2xl bg-vault-surface border border-vault-border space-y-5">
+          <div>
+            <h3 className="text-base font-bold text-white font-display">Dynamically Weighted Progress</h3>
+            <p className="text-xs text-slate-400 mt-1">
+              Progress is strictly calculated from the maximum marks of approved Review Rounds.
+            </p>
+          </div>
+
+          <div className="space-y-2">
+            <div className="flex items-center justify-between text-xs font-mono">
+              <span className="text-slate-400">Total Completion</span>
+              <span className="text-teal-400 font-bold text-sm">{progressPercent}%</span>
+            </div>
+            <div className="w-full h-3 rounded-full bg-vault-canvas overflow-hidden border border-vault-border">
+              <div
+                className="h-full bg-teal-400 transition-all duration-500 rounded-full"
+                style={{ width: `${progressPercent}%` }}
+              />
+            </div>
+          </div>
+
+          <div className="pt-4 border-t border-vault-border/50 text-xs font-mono text-slate-400 space-y-1">
+            <p>• Approved Marks: <strong className="text-white">{approvedMarks} pts</strong></p>
+            <p>• Total Course Weight: <strong className="text-white">{totalRoundMarks} pts</strong></p>
+            <p>• Formula: (approved_marks / total_marks) × 100</p>
+          </div>
+        </div>
+      )}
+
+      {/* TAB 6: REVIEW (Feedback View) */}
+      {activeTab === 'review' && (
+        <div className="space-y-4">
+          <div className="flex items-center justify-between">
+            <h3 className="text-sm font-bold text-white font-mono uppercase tracking-wider">
+              Faculty Evaluation & Feedback
+            </h3>
+          </div>
+
+          {submissions.filter((s) => s.latest_version?.feedback).length === 0 ? (
+            <div className="p-8 rounded-xl bg-vault-surface/60 border border-vault-border/60 text-center text-xs text-slate-400">
+              No formal faculty review notes posted yet.
+            </div>
+          ) : (
+            <div className="space-y-3">
+              {submissions.filter((s) => s.latest_version?.feedback).map((s) => (
+                <div key={s.id} className="p-5 rounded-xl bg-vault-surface border border-vault-border space-y-2">
+                  <div className="flex items-center justify-between text-xs">
+                    <span className="font-bold text-white">{s.round_title}</span>
+                    <span className="text-teal-400 font-mono">Version {s.latest_version.version_number}</span>
+                  </div>
+                  <p className="text-xs text-slate-300 leading-relaxed whitespace-pre-wrap bg-vault-canvas p-3 rounded-lg border border-vault-border/50">
+                    {s.latest_version.feedback}
+                  </p>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* TAB 7: RESULTS (Only Released Scores) */}
+      {activeTab === 'results' && (
+        <div className="p-6 rounded-2xl bg-vault-surface border border-vault-border space-y-4">
+          <div className="flex items-center justify-between">
+            <div>
+              <h3 className="text-base font-bold text-white font-display">Released Results for Project</h3>
+              <p className="text-xs text-slate-400">Your individual released marks for this course project</p>
+            </div>
+          </div>
+
+          {myResults.filter((r) => r.workspace_id === currentProject.workspace_id).length === 0 ? (
+            <div className="p-6 rounded-xl bg-vault-canvas border border-vault-border text-center text-xs text-slate-400">
+              No marks released yet for this project. Scores remain confidential until explicitly released by faculty.
+            </div>
+          ) : (
+            <div className="divide-y divide-vault-border/50 text-xs">
+              {myResults.filter((r) => r.workspace_id === currentProject.workspace_id).map((res) => (
+                <div key={res.id} className="py-3 flex items-center justify-between">
+                  <div>
+                    <p className="font-semibold text-white">{res.round_title}</p>
+                    <p className="text-[11px] text-slate-400 font-mono">
+                      Released: {new Date(res.released_at).toLocaleDateString()}
+                    </p>
+                  </div>
+                  <div className="text-right font-mono">
+                    <span className="text-sm font-bold text-teal-400">{res.score} / {res.max_score}</span>
+                    <span className="text-[11px] text-slate-400 block">{res.percentage}%</span>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
+
+    </div>
+  );
+};

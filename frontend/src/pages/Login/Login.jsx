@@ -1,27 +1,32 @@
 import React, { useState } from 'react';
-import { Mail, Lock, Eye, EyeOff, ArrowRight, ShieldCheck, LogOut, User } from 'lucide-react';
+import { Mail, Lock, Eye, EyeOff, ArrowRight, ShieldCheck, LogOut, User, UserPlus } from 'lucide-react';
 import { NexaLogo } from '../../components/layout/NexaLogo';
 import { HeroVaultGraphic } from '../../components/layout/HeroVaultGraphic';
 import { Input } from '../../components/ui/Input';
 import { Button } from '../../components/ui/Button';
-import { Checkbox } from '../../components/ui/Checkbox';
 import { Alert } from '../../components/ui/Alert';
 import { useAuth } from '../../context/AuthContext';
 import './Login.css';
 
 export const Login = () => {
-  const { user, login, logout, isAuthenticated, isLoading: authLoading } = useAuth();
+  const { user, login, register, logout, isAuthenticated, isLoading: authLoading } = useAuth();
 
+  const [mode, setMode] = useState('login'); // 'login' | 'register'
   const [email, setEmail] = useState('');
+  const [fullName, setFullName] = useState('');
   const [password, setPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
-  const [rememberMe, setRememberMe] = useState(true);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [alert, setAlert] = useState(null);
   const [fieldErrors, setFieldErrors] = useState({});
 
   const validateForm = () => {
     const errors = {};
+    if (mode === 'register' && !fullName.trim()) {
+      errors.fullName = 'Full name is required';
+    }
+
     if (!email.trim()) {
       errors.email = 'Email address is required';
     } else if (email.includes('@') && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
@@ -32,6 +37,10 @@ export const Login = () => {
       errors.password = 'Password is required';
     } else if (password.length < 6) {
       errors.password = 'Password must be at least 6 characters';
+    }
+
+    if (mode === 'register' && password !== confirmPassword) {
+      errors.confirmPassword = 'Passwords do not match';
     }
 
     setFieldErrors(errors);
@@ -49,29 +58,30 @@ export const Login = () => {
     setIsSubmitting(true);
 
     try {
-      const activeUser = await login(email, password);
-      setAlert({
-        type: 'success',
-        title: `Authentication Successful`,
-        message: `Welcome back, ${activeUser.full_name}! Active session verified as ${activeUser.role.toUpperCase()}.`,
-      });
+      if (mode === 'register') {
+        const newUser = await register(email, password, fullName);
+        setAlert({
+          type: 'success',
+          title: 'Account Created',
+          message: `Welcome, ${newUser.full_name}! Your student account is active.`,
+        });
+      } else {
+        const activeUser = await login(email, password);
+        setAlert({
+          type: 'success',
+          title: 'Authentication Successful',
+          message: `Welcome back, ${activeUser.full_name}! Active session verified as ${activeUser.role.toUpperCase()}.`,
+        });
+      }
     } catch (err) {
       setAlert({
         type: 'error',
-        title: 'Invalid Credentials',
-        message: err.message || 'The email or password you entered is incorrect. Please try again.',
+        title: mode === 'register' ? 'Registration Error' : 'Invalid Credentials',
+        message: err.message || 'An error occurred during authentication. Please try again.',
       });
     } finally {
       setIsSubmitting(false);
     }
-  };
-
-  const handleSocialLogin = (provider) => {
-    setAlert({
-      type: 'info',
-      title: `${provider} SSO Gateway`,
-      message: `SSO authentication requires active enterprise portal integration. Please sign in with your email.`,
-    });
   };
 
   const isLoading = isSubmitting || authLoading;
@@ -101,8 +111,8 @@ export const Login = () => {
           </div>
         </header>
 
-        {/* Hero & Login Composition (Asymmetric Split) */}
-        <main className="grid grid-cols-1 lg:grid-cols-12 gap-12 lg:gap-8 items-center py-12 lg:py-16 my-auto">
+        {/* Hero & Form Split */}
+        <main className="grid grid-cols-1 lg:grid-cols-12 gap-12 lg:gap-8 items-center py-10 lg:py-16 my-auto">
           
           {/* Left Column: Brand Hero & Statement */}
           <div className="lg:col-span-6 space-y-8 pr-0 lg:pr-8">
@@ -139,21 +149,27 @@ export const Login = () => {
             </div>
           </div>
 
-          {/* Right Column: Login Card Component */}
+          {/* Right Column: Auth Card */}
           <div className="lg:col-span-6 flex justify-center lg:justify-end">
             <div className="w-full max-w-md bg-vault-surface/85 login-card-blur border border-teal-500/20 rounded-2xl p-7 sm:p-9 shadow-card-subtle relative group transition-all duration-300 hover:border-teal-500/30">
               
-              {/* Card Subtle Top-Left Accent Highlight */}
+              {/* Card Subtle Accent Highlight */}
               <div className="absolute top-0 left-8 right-8 h-[1px] bg-gradient-to-r from-transparent via-teal-500/40 to-transparent" />
 
-              {/* Form Title & Welcome Message */}
-              <div className="mb-7">
-                <h2 className="text-2xl font-bold text-white tracking-tight">
-                  {isAuthenticated ? 'Authenticated Session' : 'Welcome back'}
-                </h2>
-                <p className="text-xs text-slate-400 mt-1.5">
-                  {isAuthenticated ? 'Connected to NexaVault API Security Core' : 'Sign in to continue to NexaVault'}
-                </p>
+              {/* Title & Mode Switcher */}
+              <div className="mb-6 flex items-center justify-between">
+                <div>
+                  <h2 className="text-2xl font-bold text-white tracking-tight">
+                    {isAuthenticated ? 'Authenticated Session' : mode === 'register' ? 'Student Registration' : 'Welcome back'}
+                  </h2>
+                  <p className="text-xs text-slate-400 mt-1">
+                    {isAuthenticated 
+                      ? 'Connected to NexaVault API Security Core' 
+                      : mode === 'register'
+                      ? 'Create your Student account to access academic workspaces'
+                      : 'Sign in to access your groups, projects, and deliverables'}
+                  </p>
+                </div>
               </div>
 
               {/* Alert Feedback Banner */}
@@ -166,7 +182,7 @@ export const Login = () => {
                 />
               )}
 
-              {/* If Authenticated: Show Active Session Profile */}
+              {/* If Authenticated: Active Profile */}
               {isAuthenticated && user ? (
                 <div className="space-y-6">
                   <div className="p-4 rounded-xl bg-teal-950/40 border border-teal-500/30 space-y-3">
@@ -183,7 +199,7 @@ export const Login = () => {
                     <div className="pt-2 border-t border-teal-500/20 flex items-center justify-between text-xs font-mono text-slate-300">
                       <span>Role: <strong className="text-teal-400 uppercase">{user.role}</strong></span>
                       <span className="flex items-center gap-1 text-teal-400">
-                        <ShieldCheck size={14} /> JWT Verified
+                        <ShieldCheck size={14} /> Active
                       </span>
                     </div>
                   </div>
@@ -200,7 +216,26 @@ export const Login = () => {
                 </div>
               ) : (
                 /* Authentication Form */
-                <form onSubmit={handleSubmit} className="space-y-5" noValidate>
+                <form onSubmit={handleSubmit} className="space-y-4" noValidate>
+                  {mode === 'register' && (
+                    <Input
+                      id="fullName"
+                      type="text"
+                      label="Full Name"
+                      placeholder="e.g. Alex Chen"
+                      value={fullName}
+                      onChange={(e) => {
+                        setFullName(e.target.value);
+                        if (fieldErrors.fullName) setFieldErrors(prev => ({ ...prev, fullName: null }));
+                      }}
+                      icon={User}
+                      error={fieldErrors.fullName}
+                      required
+                      autoComplete="name"
+                      disabled={isLoading}
+                    />
+                  )}
+
                   {/* Email Field */}
                   <Input
                     id="email"
@@ -224,7 +259,7 @@ export const Login = () => {
                     id="password"
                     type={showPassword ? 'text' : 'password'}
                     label="Password"
-                    placeholder="Enter your password"
+                    placeholder="Enter password (min 6 characters)"
                     value={password}
                     onChange={(e) => {
                       setPassword(e.target.value);
@@ -233,7 +268,7 @@ export const Login = () => {
                     icon={Lock}
                     error={fieldErrors.password}
                     required
-                    autoComplete="current-password"
+                    autoComplete={mode === 'register' ? 'new-password' : 'current-password'}
                     disabled={isLoading}
                     endAdornment={
                       <button
@@ -248,31 +283,24 @@ export const Login = () => {
                     }
                   />
 
-                  {/* Remember Me & Forgot Password Row */}
-                  <div className="flex items-center justify-between pt-1">
-                    <Checkbox
-                      id="rememberMe"
-                      checked={rememberMe}
-                      onChange={(e) => setRememberMe(e.target.checked)}
-                      label="Remember me"
+                  {mode === 'register' && (
+                    <Input
+                      id="confirmPassword"
+                      type={showPassword ? 'text' : 'password'}
+                      label="Confirm Password"
+                      placeholder="Repeat password"
+                      value={confirmPassword}
+                      onChange={(e) => {
+                        setConfirmPassword(e.target.value);
+                        if (fieldErrors.confirmPassword) setFieldErrors(prev => ({ ...prev, confirmPassword: null }));
+                      }}
+                      icon={Lock}
+                      error={fieldErrors.confirmPassword}
+                      required
+                      autoComplete="new-password"
                       disabled={isLoading}
                     />
-
-                    <a
-                      href="#forgot-password"
-                      onClick={(e) => {
-                        e.preventDefault();
-                        setAlert({
-                          type: 'info',
-                          title: 'Password Recovery',
-                          message: 'Contact your NexaVault system administrator or university registrar.',
-                        });
-                      }}
-                      className="text-xs text-teal-400 hover:text-teal-300 hover:underline transition-colors font-medium"
-                    >
-                      Forgot password?
-                    </a>
-                  </div>
+                  )}
 
                   {/* Submit Action */}
                   <Button
@@ -280,82 +308,47 @@ export const Login = () => {
                     variant="primary"
                     size="md"
                     isLoading={isLoading}
-                    endIcon={ArrowRight}
-                    className="w-full mt-2 py-3 text-sm font-semibold tracking-wide"
+                    endIcon={mode === 'register' ? UserPlus : ArrowRight}
+                    className="w-full mt-4 py-3 text-sm font-semibold tracking-wide"
                   >
-                    Sign in
+                    {mode === 'register' ? 'Create Student Account' : 'Sign In'}
                   </Button>
+
+                  {/* Mode Toggle */}
+                  <div className="pt-4 border-t border-vault-border/40 text-center text-xs text-slate-400">
+                    {mode === 'login' ? (
+                      <>
+                        <span>New to NexaVault? </span>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setMode('register');
+                            setAlert(null);
+                            setFieldErrors({});
+                          }}
+                          className="text-teal-400 hover:text-teal-300 font-semibold underline underline-offset-2 transition-colors ml-1"
+                        >
+                          Create a student account
+                        </button>
+                      </>
+                    ) : (
+                      <>
+                        <span>Already have an account? </span>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setMode('login');
+                            setAlert(null);
+                            setFieldErrors({});
+                          }}
+                          className="text-teal-400 hover:text-teal-300 font-semibold underline underline-offset-2 transition-colors ml-1"
+                        >
+                          Sign in instead
+                        </button>
+                      </>
+                    )}
+                  </div>
                 </form>
-              )}
-
-              {/* Social / SSO Divider */}
-              {!isAuthenticated && (
-                <>
-                  <div className="relative my-6">
-                    <div className="absolute inset-0 flex items-center">
-                      <div className="w-full border-t border-vault-border/60" />
-                    </div>
-                    <div className="relative flex justify-center text-[11px]">
-                      <span className="bg-vault-surface px-3 text-slate-500 font-mono uppercase tracking-wider">
-                        Or continue with
-                      </span>
-                    </div>
-                  </div>
-
-                  {/* Social Login Buttons */}
-                  <div className="grid grid-cols-2 gap-3">
-                    {/* Google Button */}
-                    <button
-                      type="button"
-                      onClick={() => handleSocialLogin('Google')}
-                      disabled={isLoading}
-                      className="flex items-center justify-center gap-2.5 px-3 py-2.5 rounded-lg bg-vault-canvas hover:bg-vault-elevated border border-vault-border text-slate-200 text-xs font-medium transition-all duration-150 outline-none focus-visible:ring-1 focus-visible:ring-teal-400/40"
-                    >
-                      <svg className="w-4 h-4 shrink-0" viewBox="0 0 24 24">
-                        <path fill="#EA4335" d="M12 5c1.6 0 3 .6 4.1 1.6l3.1-3.1C17.3 1.7 14.8 1 12 1 7.5 1 3.7 3.6 1.9 7.3l3.7 2.9C6.5 7.4 9 5 12 5z" />
-                        <path fill="#4285F4" d="M23.5 12.3c0-.8-.1-1.6-.2-2.3H12v4.5h6.5c-.3 1.5-1.1 2.8-2.4 3.7l3.7 2.9c2.2-2 3.7-5 3.7-8.8z" />
-                        <path fill="#FBBC05" d="M5.6 14.8c-.2-.7-.4-1.5-.4-2.3s.2-1.6.4-2.3L1.9 7.3C1.2 8.7.8 10.3.8 12s.4 3.3 1.1 4.7l3.7-2.9z" />
-                        <path fill="#34A853" d="M12 23c3.2 0 6-1.1 8-3l-3.7-2.9c-1.1.7-2.5 1.2-4.3 1.2-3 0-5.5-2.4-6.4-5.2L1.9 16C3.7 19.7 7.5 23 12 23z" />
-                      </svg>
-                      <span>Google</span>
-                    </button>
-
-                    {/* Microsoft Button */}
-                    <button
-                      type="button"
-                      onClick={() => handleSocialLogin('Microsoft')}
-                      disabled={isLoading}
-                      className="flex items-center justify-center gap-2.5 px-3 py-2.5 rounded-lg bg-vault-canvas hover:bg-vault-elevated border border-vault-border text-slate-200 text-xs font-medium transition-all duration-150 outline-none focus-visible:ring-1 focus-visible:ring-teal-400/40"
-                    >
-                      <svg className="w-4 h-4 shrink-0" viewBox="0 0 23 23">
-                        <path fill="#f35325" d="M1 1h10v10H1z" />
-                        <path fill="#81bc06" d="M12 1h10v10H12z" />
-                        <path fill="#05a6f0" d="M1 12h10v10H1z" />
-                        <path fill="#ffba08" d="M12 12h10v10H12z" />
-                      </svg>
-                      <span>Microsoft</span>
-                    </button>
-                  </div>
-
-                  {/* Registration Info */}
-                  <div className="mt-6 text-center text-xs text-slate-400">
-                    <span>New to NexaVault? </span>
-                    <a
-                      href="#create-account"
-                      onClick={(e) => {
-                        e.preventDefault();
-                        setAlert({
-                          type: 'info',
-                          title: 'Account Registration',
-                          message: 'Demo Accounts: student@nexavault.edu or teacher@nexavault.edu (password: password123).',
-                        });
-                      }}
-                      className="text-teal-400 hover:text-teal-300 font-semibold underline underline-offset-2 transition-colors"
-                    >
-                      Create an account
-                    </a>
-                  </div>
-                </>
               )}
 
             </div>
@@ -365,13 +358,11 @@ export const Login = () => {
 
         {/* Footer info line */}
         <footer className="py-4 text-center md:text-left text-[11px] font-mono text-slate-600 flex flex-col sm:flex-row justify-between items-center border-t border-vault-border/20 gap-2">
-          <p>© 2026 NexaVault Platform. Engineering Academic Workspace.</p>
+          <p>© 2026 NexaVault Platform. Academic Workspace & Deliverable Lifecycle Core.</p>
           <div className="flex items-center gap-4">
-            <a href="#privacy" className="hover:text-slate-400 transition-colors">Privacy</a>
+            <span className="text-slate-500">PostgreSQL Secured</span>
             <span>•</span>
-            <a href="#terms" className="hover:text-slate-400 transition-colors">Terms</a>
-            <span>•</span>
-            <a href="#security" className="hover:text-slate-400 transition-colors">Security</a>
+            <span className="text-slate-500">Student Domain</span>
           </div>
         </footer>
 
