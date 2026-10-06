@@ -1,14 +1,13 @@
 from datetime import datetime
 from typing import Optional
-from pydantic import BaseModel, EmailStr
+from pydantic import BaseModel, EmailStr, Field, ConfigDict
 
 class UserBase(BaseModel):
     email: EmailStr
     full_name: str
-    role: str = "student"
 
 class UserCreate(UserBase):
-    password: str
+    password: str = Field(..., min_length=6, description="Password must be at least 6 characters")
 
 class UserLogin(BaseModel):
     email: str
@@ -16,11 +15,11 @@ class UserLogin(BaseModel):
 
 class UserResponse(UserBase):
     id: int
+    role: str
     is_active: bool
     created_at: datetime
 
-    class Config:
-        from_attributes = True
+    model_config = ConfigDict(from_attributes=True)
 
 class Token(BaseModel):
     access_token: str
