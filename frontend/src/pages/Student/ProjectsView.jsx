@@ -293,7 +293,7 @@ export const ProjectsView = ({ defaultProjectId, onNavigate }) => {
       <div className="p-8 flex items-center justify-center min-h-[400px]">
         <div className="flex flex-col items-center gap-3">
           <div className="w-8 h-8 rounded-full border-2 border-teal-500/20 border-t-teal-400 animate-spin" />
-          <p className="text-xs font-mono text-slate-400">Loading project vault...</p>
+          <p className="text-xs font-sans text-slate-400">Loading project vault...</p>
         </div>
       </div>
     );
@@ -307,7 +307,7 @@ export const ProjectsView = ({ defaultProjectId, onNavigate }) => {
       <div className="p-6 lg:p-8 space-y-8 max-w-5xl mx-auto">
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-6 border-b border-vault-border/40">
           <div>
-            <h2 className="text-2xl font-bold text-white tracking-tight font-display">
+            <h2 className="text-2xl font-bold text-white tracking-tight font-serif">
               Projects
             </h2>
             <p className="text-xs text-slate-400 mt-1">
@@ -456,9 +456,9 @@ export const ProjectsView = ({ defaultProjectId, onNavigate }) => {
             <span className="text-xs font-mono font-semibold text-teal-400 bg-teal-950/60 px-2.5 py-0.5 rounded border border-teal-500/30">
               {currentProject.workspace_id}
             </span>
-            <span className="text-xs text-slate-400 font-mono">Group: {currentProject.group_name}</span>
+            <span className="text-xs text-slate-400 font-sans">Group: {currentProject.group_name}</span>
           </div>
-          <h2 className="text-2xl font-bold text-white tracking-tight font-display">
+          <h2 className="text-2xl font-bold text-white tracking-tight font-serif">
             {currentProject.name}
           </h2>
         </div>
@@ -976,14 +976,14 @@ export const ProjectsView = ({ defaultProjectId, onNavigate }) => {
       {activeTab === 'progress' && (
         <div className="p-6 rounded-2xl bg-vault-surface border border-vault-border space-y-5">
           <div>
-            <h3 className="text-base font-bold text-white font-display">Dynamically Weighted Progress</h3>
+            <h3 className="text-base font-bold text-white font-serif">Dynamically Weighted Progress</h3>
             <p className="text-xs text-slate-400 mt-1">
               Progress is strictly calculated from the maximum marks of approved Review Rounds.
             </p>
           </div>
 
           <div className="space-y-2">
-            <div className="flex items-center justify-between text-xs font-mono">
+            <div className="flex items-center justify-between text-xs font-sans">
               <span className="text-slate-400">Total Completion</span>
               <span className="text-teal-400 font-bold text-sm">{progressPercent}%</span>
             </div>
@@ -995,7 +995,7 @@ export const ProjectsView = ({ defaultProjectId, onNavigate }) => {
             </div>
           </div>
 
-          <div className="pt-4 border-t border-vault-border/50 text-xs font-mono text-slate-400 space-y-1">
+          <div className="pt-4 border-t border-vault-border/50 text-xs font-sans text-slate-400 space-y-1">
             <p>• Approved Marks: <strong className="text-white">{approvedMarks} pts</strong></p>
             <p>• Total Course Weight: <strong className="text-white">{totalRoundMarks} pts</strong></p>
             <p>• Formula: (approved_marks / total_marks) × 100</p>
@@ -1007,7 +1007,7 @@ export const ProjectsView = ({ defaultProjectId, onNavigate }) => {
       {activeTab === 'review' && (
         <div className="space-y-4">
           <div className="flex items-center justify-between">
-            <h3 className="text-sm font-bold text-white font-mono uppercase tracking-wider">
+            <h3 className="text-sm font-bold text-white font-sans uppercase tracking-wider">
               Faculty Evaluation & Feedback
             </h3>
           </div>
@@ -1022,7 +1022,7 @@ export const ProjectsView = ({ defaultProjectId, onNavigate }) => {
                 <div key={s.id} className="p-5 rounded-xl bg-vault-surface border border-vault-border space-y-2">
                   <div className="flex items-center justify-between text-xs">
                     <span className="font-bold text-white">{s.round_title}</span>
-                    <span className="text-teal-400 font-mono">Version {s.latest_version.version_number}</span>
+                    <span className="text-teal-400 font-sans">Version {s.latest_version.version_number}</span>
                   </div>
                   <p className="text-xs text-slate-300 leading-relaxed whitespace-pre-wrap bg-vault-canvas p-3 rounded-lg border border-vault-border/50">
                     {s.latest_version.feedback}
@@ -1039,7 +1039,7 @@ export const ProjectsView = ({ defaultProjectId, onNavigate }) => {
         <div className="p-6 rounded-2xl bg-vault-surface border border-vault-border space-y-4">
           <div className="flex items-center justify-between">
             <div>
-              <h3 className="text-base font-bold text-white font-display">Released Results for Project</h3>
+              <h3 className="text-base font-bold text-white font-serif">Released Results for Project</h3>
               <p className="text-xs text-slate-400">Your individual released marks for this course project</p>
             </div>
           </div>

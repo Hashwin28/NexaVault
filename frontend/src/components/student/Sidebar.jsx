@@ -65,7 +65,7 @@ export const Sidebar = ({ activeTab, setActiveTab, isOpen, setIsOpen }) => {
           
           {/* Main Navigation */}
           <div className="space-y-1">
-            <div className="px-3 pb-2 text-[10px] font-mono tracking-widest text-slate-500 uppercase">
+            <div className="px-3 pb-2 text-xs font-sans font-semibold tracking-wider text-slate-400 uppercase">
               NexaVault
             </div>
             {navItems.map((item) => {
@@ -96,7 +96,7 @@ export const Sidebar = ({ activeTab, setActiveTab, isOpen, setIsOpen }) => {
 
           {/* System Section */}
           <div className="space-y-1">
-            <div className="px-3 pb-2 text-[10px] font-mono tracking-widest text-slate-500 uppercase">
+            <div className="px-3 pb-2 text-xs font-sans font-semibold tracking-wider text-slate-400 uppercase">
               SYSTEM
             </div>
             {systemItems.map((item) => {
@@ -131,12 +131,12 @@ export const Sidebar = ({ activeTab, setActiveTab, isOpen, setIsOpen }) => {
         <div className="p-4 border-t border-vault-border/50 bg-vault-canvas/40 space-y-3">
           {/* Student Profile Card */}
           <div className="flex items-center gap-3 p-2 rounded-lg bg-vault-surface border border-vault-border/40">
-            <div className="w-9 h-9 rounded-full bg-teal-500/20 border border-teal-400/40 flex items-center justify-center text-teal-300 text-xs font-bold font-display">
+            <div className="w-9 h-9 rounded-full bg-teal-500/20 border border-teal-400/40 flex items-center justify-center text-teal-300 text-xs font-bold font-sans">
               {user?.full_name ? user.full_name.charAt(0).toUpperCase() : 'U'}
             </div>
             <div className="flex-1 min-w-0">
-              <h4 className="text-xs font-semibold text-white truncate">{user?.full_name || 'Student'}</h4>
-              <p className="text-[10px] text-slate-400 font-mono truncate">{user?.email}</p>
+              <h4 className="text-xs font-semibold text-white truncate font-sans">{user?.full_name || 'Student'}</h4>
+              <p className="text-[10px] text-slate-400 font-sans truncate">{user?.email}</p>
             </div>
           </div>
 
@@ -147,7 +147,7 @@ export const Sidebar = ({ activeTab, setActiveTab, isOpen, setIsOpen }) => {
                 setActiveTab('profile');
                 if (window.innerWidth < 1024) setIsOpen(false);
               }}
-              className={`flex items-center justify-center gap-1.5 py-2 px-2 rounded-md border text-[11px] font-medium transition-colors ${
+              className={`flex items-center justify-center gap-1.5 py-2 px-2 rounded-md border text-[11px] font-medium transition-colors font-sans ${
                 activeTab === 'profile'
                   ? 'bg-teal-500/20 text-teal-300 border-teal-500/40'
                   : 'bg-vault-surface hover:bg-vault-elevated border-vault-border text-slate-300 hover:text-white'
@@ -159,7 +159,7 @@ export const Sidebar = ({ activeTab, setActiveTab, isOpen, setIsOpen }) => {
 
             <button
               onClick={logout}
-              className="flex items-center justify-center gap-1.5 py-2 px-2 rounded-md bg-rose-500/10 hover:bg-rose-500/20 border border-rose-500/30 text-rose-300 text-[11px] font-medium transition-colors"
+              className="flex items-center justify-center gap-1.5 py-2 px-2 rounded-md bg-rose-500/10 hover:bg-rose-500/20 border border-rose-500/30 text-rose-300 text-[11px] font-medium transition-colors font-sans"
             >
               <LogOut size={14} />
               <span>Sign Out</span>

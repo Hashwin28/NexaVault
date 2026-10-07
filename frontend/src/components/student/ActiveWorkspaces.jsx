@@ -1,13 +1,13 @@
 import React from 'react';
-import { Layers, GitBranch, ArrowUpRight, Code2 } from 'lucide-react';
+import { Layers, GitBranch, ArrowUpRight } from 'lucide-react';
 import { activeWorkspaces } from '../../data/studentMockData';
 
 export const ActiveWorkspaces = () => {
   return (
-    <div className="bg-vault-surface/85 border border-vault-border/70 rounded-2xl p-6 shadow-sm space-y-5">
+    <div className="bg-vault-surface/85 border border-vault-border/70 rounded-2xl p-6 shadow-sm space-y-5 font-sans">
       <div className="flex items-center justify-between pb-3 border-b border-vault-border/50">
         <div>
-          <h2 className="text-lg font-bold text-white font-display flex items-center gap-2">
+          <h2 className="text-lg font-bold text-white font-sans flex items-center gap-2">
             <Layers size={18} className="text-teal-400" />
             Active Course Workspaces
           </h2>
@@ -15,7 +15,7 @@ export const ActiveWorkspaces = () => {
             Synchronized course vaults & repository environments
           </p>
         </div>
-        <span className="text-xs font-mono text-teal-400 bg-teal-950/60 border border-teal-500/30 px-2.5 py-1 rounded-md">
+        <span className="text-xs font-sans text-teal-400 bg-teal-950/60 border border-teal-500/30 px-2.5 py-1 rounded-md font-medium">
           4 Active Vaults
         </span>
       </div>
@@ -31,7 +31,7 @@ export const ActiveWorkspaces = () => {
                 <span className="text-xs font-mono font-semibold text-teal-400 bg-teal-950/60 border border-teal-500/20 px-2 py-0.5 rounded">
                   {ws.code}
                 </span>
-                <span className="text-[11px] font-mono text-slate-500">
+                <span className="text-xs font-sans text-slate-400">
                   {ws.lastActivity}
                 </span>
               </div>
@@ -39,15 +39,15 @@ export const ActiveWorkspaces = () => {
               <h3 className="text-sm font-bold text-white font-sans group-hover:text-teal-300 transition-colors">
                 {ws.title}
               </h3>
-              <p className="text-xs text-slate-400 mt-1">
+              <p className="text-xs text-slate-400 mt-1 font-sans">
                 Instructor: <span className="text-slate-300 font-medium">{ws.instructor}</span>
               </p>
 
               {/* Progress Bar */}
               <div className="mt-4 space-y-1.5">
-                <div className="flex items-center justify-between text-[11px]">
+                <div className="flex items-center justify-between text-xs">
                   <span className="text-slate-400">Completion</span>
-                  <span className="font-mono text-teal-300 font-semibold">{ws.progress}%</span>
+                  <span className="font-sans text-teal-300 font-bold">{ws.progress}%</span>
                 </div>
                 <div className="w-full h-1.5 rounded-full bg-vault-elevated overflow-hidden">
                   <div 
@@ -62,7 +62,7 @@ export const ActiveWorkspaces = () => {
             <div className="mt-4 pt-3 border-t border-vault-border/40 flex items-center justify-between text-xs">
               <div className="flex items-center gap-1.5 text-slate-400 truncate max-w-[220px]">
                 <GitBranch size={13} className="text-teal-400 shrink-0" />
-                <span className="truncate text-[11px] font-mono">{ws.lastCommit}</span>
+                <span className="truncate text-xs font-mono">{ws.lastCommit}</span>
               </div>
 
               <a

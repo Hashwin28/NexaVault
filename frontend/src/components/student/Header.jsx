@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React from 'react';
 import { Menu, ShieldCheck } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 
@@ -33,15 +33,15 @@ export const Header = ({ onOpenSidebar, activeTab }) => {
 
         <div>
           <div className="flex items-center gap-2">
-            <h1 className="text-xl font-bold tracking-tight text-white font-display">
+            <h1 className="text-2xl font-bold tracking-tight text-white font-serif">
               {title}
             </h1>
-            <span className="hidden sm:inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-teal-950/80 border border-teal-500/30 text-[11px] font-mono text-teal-400">
+            <span className="hidden sm:inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-teal-950/80 border border-teal-500/30 text-xs font-sans font-semibold text-teal-400">
               <span className="w-1.5 h-1.5 rounded-full bg-teal-400 animate-pulse" />
               STUDENT
             </span>
           </div>
-          <p className="text-xs text-slate-400 mt-0.5 hidden sm:block">
+          <p className="text-xs text-slate-400 mt-0.5 hidden sm:block font-sans">
             NexaVault Platform • Academic Vault & Deliverable Lifecycle Core
           </p>
         </div>
@@ -49,7 +49,7 @@ export const Header = ({ onOpenSidebar, activeTab }) => {
 
       {/* Right: Status Badges */}
       <div className="flex items-center gap-3">
-        <div className="flex items-center gap-2 text-xs font-mono text-teal-400 bg-teal-950/50 px-3 py-1.5 rounded-lg border border-teal-500/20">
+        <div className="flex items-center gap-2 text-xs font-sans font-medium text-teal-400 bg-teal-950/50 px-3 py-1.5 rounded-lg border border-teal-500/20">
           <ShieldCheck size={14} />
           <span>PostgreSQL API Live</span>
         </div>

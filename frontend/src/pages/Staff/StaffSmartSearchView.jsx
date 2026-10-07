@@ -29,13 +29,13 @@ export const StaffSmartSearchView = ({ onSelectProject }) => {
       {/* Search Header */}
       <div className="bg-gradient-to-r from-[#11181C] to-[#0B0F12] p-6 rounded-xl border border-[#1B262E] space-y-4">
         <div>
-          <h2 className="text-xl font-bold text-slate-100 flex items-center gap-2">
+          <h2 className="text-xl font-bold text-slate-100 font-serif flex items-center gap-2">
             Smart Search Engine
-            <span className="text-xs px-2 py-0.5 rounded bg-teal-500/20 text-teal-300 font-mono">
+            <span className="text-xs px-2 py-0.5 rounded bg-teal-500/20 text-teal-300 font-sans">
               Staff Scoped
             </span>
           </h2>
-          <p className="text-xs text-slate-400 mt-1">
+          <p className="text-xs text-slate-400 mt-1 font-sans">
             Search managed workspaces, student group codes, project titles, submissions, and enrolled student rosters.
           </p>
         </div>
@@ -53,7 +53,7 @@ export const StaffSmartSearchView = ({ onSelectProject }) => {
           <button
             type="submit"
             disabled={loading}
-            className="px-6 py-2.5 bg-teal-500 hover:bg-teal-400 text-slate-950 font-bold text-xs rounded-lg shadow-lg shadow-teal-900/30 font-mono disabled:opacity-50"
+            className="px-6 py-2.5 bg-teal-500 hover:bg-teal-400 text-slate-950 font-bold text-xs rounded-lg shadow-lg shadow-teal-900/30 font-sans disabled:opacity-50"
           >
             {loading ? 'Searching...' : 'Search Engine'}
           </button>
@@ -61,7 +61,7 @@ export const StaffSmartSearchView = ({ onSelectProject }) => {
       </div>
 
       {error && (
-        <div className="p-4 rounded-lg bg-rose-500/10 border border-rose-500/20 text-rose-300 text-sm">
+        <div className="p-4 rounded-lg bg-rose-500/10 border border-rose-500/20 text-rose-300 text-sm font-sans">
           {error}
         </div>
       )}
@@ -70,7 +70,7 @@ export const StaffSmartSearchView = ({ onSelectProject }) => {
       {results && (
         <div className="space-y-6">
           {/* Filter Chips */}
-          <div className="flex gap-2 border-b border-[#1B262E] pb-3 overflow-x-auto text-xs font-mono">
+          <div className="flex gap-2 border-b border-[#1B262E] pb-3 overflow-x-auto text-xs font-sans">
             {[
               { id: 'all', label: 'All Results' },
               { id: 'workspaces', label: `Workspaces (${results.workspaces?.length || 0})` },

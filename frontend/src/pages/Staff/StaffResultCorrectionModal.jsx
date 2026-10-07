@@ -35,29 +35,29 @@ export const StaffResultCorrectionModal = ({ entry, onClose, onSuccess }) => {
       <div className="bg-[#11181C] border border-[#1B262E] rounded-xl max-w-md w-full p-6 space-y-4 shadow-xl">
         <div className="flex justify-between items-start border-b border-[#1B262E] pb-3">
           <div>
-            <h3 className="text-base font-bold text-slate-100">Correct Published Score</h3>
-            <p className="text-xs text-slate-400 font-mono">
+            <h3 className="text-base font-bold text-slate-100 font-serif">Correct Published Score</h3>
+            <p className="text-xs text-slate-400 font-sans">
               Student: <strong className="text-slate-200">{entry.student_name || entry.student_email || `Student #${entry.student_id}`}</strong>
             </p>
           </div>
-          <button onClick={onClose} className="text-slate-400 hover:text-slate-200 text-xl">
+          <button onClick={onClose} className="text-slate-400 hover:text-slate-200 text-xl font-sans">
             ×
           </button>
         </div>
 
         {error && (
-          <div className="p-3 rounded bg-rose-500/10 border border-rose-500/20 text-rose-300 text-xs">
+          <div className="p-3 rounded bg-rose-500/10 border border-rose-500/20 text-rose-300 text-xs font-sans">
             {error}
           </div>
         )}
 
         <form onSubmit={handleSubmit} className="space-y-4">
           <div>
-            <label className="text-xs font-mono text-slate-400 uppercase block mb-1">
+            <label className="text-xs font-sans text-slate-400 uppercase block mb-1">
               Current Score vs New Score
             </label>
             <div className="flex items-center gap-3">
-              <div className="px-3 py-1.5 bg-[#0B0F12] border border-[#1B262E] rounded text-xs font-mono text-slate-400">
+              <div className="px-3 py-1.5 bg-[#0B0F12] border border-[#1B262E] rounded text-xs font-sans text-slate-400">
                 Current: {entry.score ?? entry.score_obtained ?? 0} pts
               </div>
               <span className="text-slate-500 font-mono">→</span>

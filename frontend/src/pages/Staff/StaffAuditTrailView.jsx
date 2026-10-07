@@ -44,24 +44,24 @@ export const StaffAuditTrailView = () => {
       {/* Header */}
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 border-b border-[#1B262E] pb-4">
         <div>
-          <h2 className="text-xl font-bold text-slate-100 flex items-center gap-2">
+          <h2 className="text-xl font-bold text-slate-100 font-serif flex items-center gap-2">
             Append-Only Audit Trail
-            <span className="text-xs px-2 py-0.5 rounded bg-teal-500/20 text-teal-300 font-mono">
+            <span className="text-xs px-2 py-0.5 rounded bg-teal-500/20 text-teal-300 font-sans font-normal">
               Immutable Log
             </span>
           </h2>
-          <p className="text-xs text-slate-400">
+          <p className="text-xs text-slate-400 font-sans">
             Audit history tracking staff administrative actions, score corrections, access approvals, and evaluation updates.
           </p>
         </div>
 
         {/* Workspace Filter Dropdown */}
         <div className="flex items-center gap-2">
-          <label className="text-xs font-mono text-slate-400 uppercase">Filter Workspace:</label>
+          <label className="text-xs font-sans text-slate-400 uppercase">Filter Workspace:</label>
           <select
             value={selectedWsId}
             onChange={(e) => setSelectedWsId(e.target.value)}
-            className="bg-[#11181C] border border-[#1B262E] rounded px-3 py-1.5 text-xs text-slate-200 font-mono focus:outline-none focus:border-teal-500"
+            className="bg-[#11181C] border border-[#1B262E] rounded px-3 py-1.5 text-xs text-slate-200 font-sans focus:outline-none focus:border-teal-500"
           >
             <option value="">All Managed Workspaces</option>
             {workspaces.map((ws) => (
@@ -74,7 +74,7 @@ export const StaffAuditTrailView = () => {
       </div>
 
       {error && (
-        <div className="p-4 rounded-lg bg-rose-500/10 border border-rose-500/20 text-rose-300 text-sm">
+        <div className="p-4 rounded-lg bg-rose-500/10 border border-rose-500/20 text-rose-300 text-sm font-sans">
           {error}
         </div>
       )}
@@ -82,17 +82,17 @@ export const StaffAuditTrailView = () => {
       {/* Audit Log Table */}
       <div className="bg-[#11181C] rounded-xl border border-[#1B262E] overflow-hidden">
         {loading ? (
-          <div className="py-16 text-center text-xs font-mono text-slate-500">
+          <div className="py-16 text-center text-xs font-sans text-slate-500">
             Loading audit logs...
           </div>
         ) : logs.length === 0 ? (
-          <div className="py-16 text-center text-xs font-mono text-slate-500 border border-dashed border-[#1B262E] m-4 rounded-lg">
+          <div className="py-16 text-center text-xs font-sans text-slate-500 border border-dashed border-[#1B262E] m-4 rounded-lg">
             No audit events recorded for the selected workspace scope.
           </div>
         ) : (
           <div className="overflow-x-auto">
-            <table className="w-full text-left text-xs text-slate-300">
-              <thead className="bg-[#0B0F12] text-slate-400 font-mono text-[11px] uppercase border-b border-[#1B262E]">
+            <table className="w-full text-left text-xs text-slate-300 font-sans">
+              <thead className="bg-[#0B0F12] text-slate-400 font-sans text-[11px] uppercase border-b border-[#1B262E]">
                 <tr>
                   <th className="py-3 px-4">Timestamp</th>
                   <th className="py-3 px-4">Action Event</th>

@@ -91,18 +91,18 @@ export const StaffProjectDetailView = ({ projectId, onBack }) => {
         <div className="flex items-center gap-4">
           <button
             onClick={onBack}
-            className="px-3 py-1.5 bg-[#11181C] hover:bg-[#1B262E] text-slate-300 font-mono text-xs rounded border border-[#1B262E] transition-all"
+            className="px-3 py-1.5 bg-[#11181C] hover:bg-[#1B262E] text-slate-300 font-sans text-xs rounded border border-[#1B262E] transition-all"
           >
             ← Back to Projects
           </button>
           <div>
             <div className="flex items-center gap-2">
-              <span className="text-xs font-mono px-2 py-0.5 rounded bg-teal-500/20 text-teal-300 border border-teal-500/30">
+              <span className="text-xs font-sans px-2 py-0.5 rounded bg-teal-500/20 text-teal-300 border border-teal-500/30">
                 Oversight View
               </span>
-              <h2 className="text-xl font-bold text-slate-100">{project.name || project.title}</h2>
+              <h2 className="text-xl font-bold text-slate-100 font-serif">{project.name || project.title}</h2>
             </div>
-            <p className="text-xs text-slate-400">
+            <p className="text-xs text-slate-400 font-sans">
               Workspace → Group ({project.group_code || project.group_id}) → Project Oversight
             </p>
           </div>
@@ -123,8 +123,8 @@ export const StaffProjectDetailView = ({ projectId, onBack }) => {
           {/* Weighted Progress Card */}
           <div className="bg-[#11181C] p-5 rounded-xl border border-[#1B262E] space-y-4">
             <div className="flex justify-between items-center">
-              <h3 className="text-sm font-bold text-slate-200">Weighted Progress</h3>
-              <span className="text-xs font-mono font-bold text-teal-400">{progressPct}%</span>
+              <h3 className="text-sm font-bold text-slate-200 font-serif">Weighted Progress</h3>
+              <span className="text-xs font-sans font-bold text-teal-400">{progressPct}%</span>
             </div>
             <div className="w-full bg-[#0B0F12] h-3 rounded-full overflow-hidden border border-[#1B262E]">
               <div

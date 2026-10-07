@@ -28,17 +28,17 @@ export const StaffHeader = ({ activeTab, onOpenSidebar }) => {
         </button>
 
         <div>
-          <h1 className="text-xl font-bold text-slate-100 tracking-tight">
+          <h1 className="text-xl font-bold text-slate-100 tracking-tight font-serif">
             {titleMap[activeTab] || 'Staff Portal'}
           </h1>
-          <p className="text-xs text-slate-400 font-mono">
+          <p className="text-xs text-slate-400 font-sans">
             NexaVault Oversight Control Center
           </p>
         </div>
       </div>
 
       <div className="flex items-center gap-4">
-        <div className="hidden sm:flex items-center gap-2 px-3 py-1.5 rounded-full bg-[#11181C] border border-[#1B262E] text-xs font-mono text-slate-300">
+        <div className="hidden sm:flex items-center gap-2 px-3 py-1.5 rounded-full bg-[#11181C] border border-[#1B262E] text-xs font-sans text-slate-300">
           <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span>
           <span className="text-teal-400 font-semibold">STAFF</span>
           <span className="text-slate-600">|</span>

@@ -11,10 +11,10 @@ export const RecentActivity = () => {
   };
 
   return (
-    <div className="bg-vault-surface/85 border border-vault-border/70 rounded-2xl p-6 shadow-sm space-y-5">
+    <div className="bg-vault-surface/85 border border-vault-border/70 rounded-2xl p-6 shadow-sm space-y-5 font-sans">
       <div className="flex items-center justify-between pb-3 border-b border-vault-border/50">
         <div>
-          <h2 className="text-lg font-bold text-white font-display flex items-center gap-2">
+          <h2 className="text-lg font-bold text-white font-sans flex items-center gap-2">
             <History size={18} className="text-teal-400" />
             Recent Activity & Audit Trail
           </h2>
@@ -22,7 +22,7 @@ export const RecentActivity = () => {
             Immutable log of system events, commits, and reviews
           </p>
         </div>
-        <span className="text-xs font-mono text-slate-400">Real-Time Sync</span>
+        <span className="text-xs font-sans text-slate-400 font-medium">Real-Time Sync</span>
       </div>
 
       <div className="space-y-3">
@@ -38,7 +38,7 @@ export const RecentActivity = () => {
               </div>
               <div className="flex-1 min-w-0">
                 <p className="text-slate-200 font-sans leading-relaxed">{act.text}</p>
-                <span className="text-[10px] font-mono text-slate-500">{act.time}</span>
+                <span className="text-[11px] font-sans text-slate-400">{act.time}</span>
               </div>
             </div>
           );

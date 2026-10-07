@@ -4,10 +4,10 @@ import { facultyFeedbackList } from '../../data/studentMockData';
 
 export const FacultyFeedback = ({ onUploadRevision }) => {
   return (
-    <div className="bg-vault-surface/85 border border-amber-500/30 rounded-2xl p-6 shadow-sm space-y-5">
+    <div className="bg-vault-surface/85 border border-amber-500/30 rounded-2xl p-6 shadow-sm space-y-5 font-sans">
       <div className="flex items-center justify-between pb-3 border-b border-vault-border/50">
         <div>
-          <h2 className="text-lg font-bold text-white font-display flex items-center gap-2">
+          <h2 className="text-lg font-bold text-white font-sans flex items-center gap-2">
             <MessageSquare size={18} className="text-amber-400" />
             Faculty Feedback Requiring Action
           </h2>
@@ -15,7 +15,7 @@ export const FacultyFeedback = ({ onUploadRevision }) => {
             Direct review notes & revision instructions from course professors
           </p>
         </div>
-        <span className="text-xs font-mono text-amber-300 bg-amber-500/10 border border-amber-500/30 px-2.5 py-1 rounded-md flex items-center gap-1.5">
+        <span className="text-xs font-sans text-amber-300 bg-amber-500/10 border border-amber-500/30 px-2.5 py-1 rounded-md flex items-center gap-1.5 font-medium">
           <AlertCircle size={13} /> Action Pending
         </span>
       </div>
@@ -29,17 +29,17 @@ export const FacultyFeedback = ({ onUploadRevision }) => {
             {/* Header Info */}
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
               <div className="flex items-center gap-2.5">
-                <div className="w-8 h-8 rounded-full bg-amber-500/20 border border-amber-400/40 flex items-center justify-center text-amber-300 text-xs font-bold font-display">
+                <div className="w-8 h-8 rounded-full bg-amber-500/20 border border-amber-400/40 flex items-center justify-center text-amber-300 text-xs font-bold font-sans">
                   <UserCheck size={16} />
                 </div>
                 <div>
-                  <h4 className="text-xs font-bold text-white">{fb.evaluator}</h4>
-                  <p className="text-[10px] text-slate-400 font-mono">{fb.title}</p>
+                  <h4 className="text-xs font-bold text-white font-sans">{fb.evaluator}</h4>
+                  <p className="text-[10px] text-slate-400 font-sans">{fb.title}</p>
                 </div>
               </div>
 
-              <div className="flex items-center gap-2 text-[11px] font-mono">
-                <span className="text-amber-400 flex items-center gap-1">
+              <div className="flex items-center gap-2 text-xs font-sans">
+                <span className="text-amber-400 flex items-center gap-1 font-medium">
                   <Calendar size={13} /> {fb.dueDate}
                 </span>
                 <span className="px-2 py-0.5 rounded bg-amber-500/20 text-amber-300 text-[10px] font-bold">
@@ -49,7 +49,7 @@ export const FacultyFeedback = ({ onUploadRevision }) => {
             </div>
 
             {/* Target Module */}
-            <div className="text-xs font-mono text-teal-400 bg-teal-950/40 border border-teal-500/20 p-2 rounded">
+            <div className="text-xs font-sans text-teal-400 bg-teal-950/40 border border-teal-500/20 p-2 rounded">
               Target: <span className="text-slate-200 font-semibold">{fb.target}</span>
             </div>
 
@@ -59,8 +59,8 @@ export const FacultyFeedback = ({ onUploadRevision }) => {
             </p>
 
             {/* Action Footer */}
-            <div className="pt-2 flex items-center justify-between">
-              <span className="text-[11px] font-mono text-slate-400">
+            <div className="pt-2 flex items-center justify-between font-sans text-xs">
+              <span className="text-[11px] text-slate-400">
                 Action: <strong className="text-amber-300">{fb.actionRequired}</strong>
               </span>
 

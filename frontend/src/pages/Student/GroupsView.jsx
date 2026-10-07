@@ -168,7 +168,7 @@ export const GroupsView = ({ onNavigate }) => {
       <div className="p-8 flex items-center justify-center min-h-[400px]">
         <div className="flex flex-col items-center gap-3">
           <div className="w-8 h-8 rounded-full border-2 border-teal-500/20 border-t-teal-400 animate-spin" />
-          <p className="text-xs font-mono text-slate-400">Loading group vault...</p>
+          <p className="text-xs font-sans text-slate-400">Loading group vault...</p>
         </div>
       </div>
     );
@@ -179,7 +179,7 @@ export const GroupsView = ({ onNavigate }) => {
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-6 border-b border-vault-border/40">
         <div>
-          <h2 className="text-2xl font-bold text-white tracking-tight font-display">
+          <h2 className="text-2xl font-bold text-white tracking-tight font-serif">
             Student Group Vault
           </h2>
           <p className="text-xs text-slate-400 mt-1">
@@ -283,11 +283,11 @@ export const GroupsView = ({ onNavigate }) => {
             {/* Members Table */}
             <div className="space-y-3">
               <div className="flex items-center justify-between">
-                <h4 className="text-xs font-bold text-white font-mono uppercase tracking-wider">
+                <h4 className="text-xs font-bold text-white font-sans uppercase tracking-wider">
                   Group Members ({group.members.length} / 5)
                 </h4>
                 {group.members.length < 2 && (
-                  <span className="text-[11px] text-amber-400 font-mono">
+                  <span className="text-[11px] text-amber-400 font-sans">
                     ⚠️ Need ≥ 2 members to enroll or submit
                   </span>
                 )}
@@ -295,7 +295,7 @@ export const GroupsView = ({ onNavigate }) => {
 
               <div className="rounded-xl border border-vault-border overflow-hidden">
                 <table className="w-full text-left text-xs">
-                  <thead className="bg-vault-canvas/60 text-slate-400 font-mono text-[11px] border-b border-vault-border">
+                  <thead className="bg-vault-canvas/60 text-slate-400 font-sans text-[11px] border-b border-vault-border">
                     <tr>
                       <th className="p-3.5">Member Name</th>
                       <th className="p-3.5">Email</th>
@@ -307,15 +307,15 @@ export const GroupsView = ({ onNavigate }) => {
                     {group.members.map((m) => (
                       <tr key={m.id} className="hover:bg-vault-canvas/40 transition-colors">
                         <td className="p-3.5 font-semibold text-white">
-                          {m.full_name} {m.id === user?.id && <span className="text-[10px] text-teal-400 font-mono font-normal">(You)</span>}
+                          {m.full_name} {m.id === user?.id && <span className="text-[10px] text-teal-400 font-sans font-normal">(You)</span>}
                         </td>
-                        <td className="p-3.5 font-mono text-slate-400">{m.email}</td>
+                        <td className="p-3.5 font-sans text-slate-400">{m.email}</td>
                         <td className="p-3.5">
-                          <span className="px-2 py-0.5 rounded text-[10px] font-mono bg-teal-950/80 text-teal-400 border border-teal-500/30">
+                          <span className="px-2 py-0.5 rounded text-[10px] font-sans bg-teal-950/80 text-teal-400 border border-teal-500/30">
                             Equal Member
                           </span>
                         </td>
-                        <td className="p-3.5 font-mono text-slate-400">
+                        <td className="p-3.5 font-sans text-slate-400">
                           {new Date(m.joined_at).toLocaleDateString()}
                         </td>
                       </tr>
@@ -433,7 +433,7 @@ export const GroupsView = ({ onNavigate }) => {
         <div className="fixed inset-0 z-50 bg-slate-950/80 backdrop-blur-sm flex items-center justify-center p-4">
           <div className="bg-vault-surface border border-teal-500/30 rounded-2xl p-6 max-w-md w-full space-y-5 animate-in fade-in">
             <div className="flex items-center justify-between pb-3 border-b border-vault-border">
-              <h3 className="text-sm font-bold text-white font-mono uppercase">Change Group Code</h3>
+              <h3 className="text-sm font-bold text-white font-sans uppercase">Change Group Code</h3>
               <button onClick={() => setShowCodeModal(false)} className="text-slate-400 hover:text-white">✕</button>
             </div>
 
@@ -482,7 +482,7 @@ export const GroupsView = ({ onNavigate }) => {
         <div className="fixed inset-0 z-50 bg-slate-950/80 backdrop-blur-sm flex items-center justify-center p-4">
           <div className="bg-vault-surface border border-teal-500/30 rounded-2xl p-6 max-w-md w-full space-y-5 animate-in fade-in">
             <div className="flex items-center justify-between pb-3 border-b border-vault-border">
-              <h3 className="text-sm font-bold text-white font-mono uppercase">Enroll Group in Workspace</h3>
+              <h3 className="text-sm font-bold text-white font-sans uppercase">Enroll Group in Workspace</h3>
               <button onClick={() => setShowEnrollModal(false)} className="text-slate-400 hover:text-white">✕</button>
             </div>
 
@@ -531,7 +531,7 @@ export const GroupsView = ({ onNavigate }) => {
           <div className="bg-vault-surface border border-rose-500/30 rounded-2xl p-6 max-w-md w-full space-y-5 animate-in fade-in">
             <div className="flex items-center gap-3 text-rose-400">
               <ShieldAlert size={22} />
-              <h3 className="text-sm font-bold text-white font-mono uppercase">Confirm Leaving Group</h3>
+              <h3 className="text-sm font-bold text-white font-sans uppercase">Confirm Leaving Group</h3>
             </div>
 
             <p className="text-xs text-slate-300 leading-relaxed">

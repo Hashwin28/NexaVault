@@ -322,4 +322,80 @@ def test_staff_domain_comprehensive(db_session: Session):
     assert "score_corrected" in actions
     assert "results_released" in actions
 
+    # 22. Scalability Fixes Verification
+    # A. Review Queue Pagination (limit & offset)
+    resp = client.get("/api/v1/reviews/queue?limit=1&offset=0", headers=headers_owner)
+    assert resp.status_code == 200
+    queue_paged = resp.json()
+    assert len(queue_paged) <= 1
+
+    # B. Search Result Limiting (max 50 per category)
+    resp = client.get("/api/v1/search?q=e", headers=headers_owner)
+    assert resp.status_code == 200
+    search_paged = resp.json()
+    assert len(search_paged["projects"]) <= 50
+    assert len(search_paged["students"]) <= 50
+
     print("Staff Domain Comprehensive Test Suite PASSED Successfully!")
+
+def test_audit_scalability_fixes(db_session: Session):
+    timestamp_str = datetime.now().strftime("%Y%m%d%H%M%S")
+    staff_email = f"audit_staff_{timestamp_str}@nexavault.edu"
+    staff = User(email=staff_email, hashed_password=hash_password("password123"), full_name="Audit Staff", role="staff")
+    db_session.add(staff)
+    db_session.commit()
+
+    headers_staff = auth_headers(staff.email)
+
+    # 1. Review Queue Pagination limit & offset validation
+    resp = client.get("/api/v1/reviews/queue?limit=0", headers=headers_staff)
+    assert resp.status_code == 422, "limit < 1 must be rejected by FastAPI Query validation"
+
+    resp = client.get("/api/v1/reviews/queue?limit=150", headers=headers_staff)
+    assert resp.status_code == 422, "limit > 100 must be rejected by FastAPI Query validation"
+
+    resp = client.get("/api/v1/reviews/queue?limit=10&offset=0", headers=headers_staff)
+    assert resp.status_code == 200
+    assert isinstance(resp.json(), list)
+
+    # 2. Smart Search Limiting
+    resp = client.get("/api/v1/search?q=test", headers=headers_staff)
+    assert resp.status_code == 200
+    res = resp.json()
+    assert len(res["workspaces"]) <= 50
+    assert len(res["groups"]) <= 50
+    assert len(res["projects"]) <= 50
+    assert len(res["submissions"]) <= 50
+    assert len(res["students"]) <= 50
+
+    # 3. Group Row Locking on Join
+    # Create group with 5 members to verify max capacity boundary
+    student_creator = User(email=f"creator_{timestamp_str}@nexavault.edu", hashed_password=hash_password("password123"), full_name="Creator", role="student")
+    db_session.add(student_creator)
+    db_session.commit()
+
+    group_code = f"CAP{timestamp_str[-4:]}"
+    grp = Group(name="Capacity Test Group", code=group_code, created_by=student_creator.id)
+    db_session.add(grp)
+    db_session.flush()
+
+    for i in range(5):
+        st = User(email=f"mem{i}_{timestamp_str}@nexavault.edu", hashed_password=hash_password("password123"), full_name=f"Member {i}", role="student")
+        db_session.add(st)
+        db_session.flush()
+        db_session.add(GroupMembership(group_id=grp.id, user_id=st.id))
+
+    db_session.commit()
+
+    # Attempt to join full 5-member group (holding row lock during check)
+    new_student = User(email=f"excess_{timestamp_str}@nexavault.edu", hashed_password=hash_password("password123"), full_name="Excess Student", role="student")
+    db_session.add(new_student)
+    db_session.commit()
+
+    headers_new_student = auth_headers(new_student.email)
+    resp = client.post("/api/v1/groups/join", json={"code": group_code}, headers=headers_new_student)
+    assert resp.status_code == 400
+    assert "maximum capacity of 5 members" in resp.json()["detail"]
+
+    print("Audit Scalability Fixes Test Suite PASSED Successfully!")
+

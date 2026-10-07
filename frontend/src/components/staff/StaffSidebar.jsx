@@ -78,11 +78,11 @@ export const StaffSidebar = ({ activeTab, setActiveTab, isOpen, setIsOpen }) => 
         <div className="p-6 border-b border-[#1B262E] flex flex-col gap-3">
           <div className="flex items-center justify-between">
             <NexaLogo className="h-8" />
-            <span className="text-[10px] font-mono tracking-wider font-semibold px-2 py-0.5 rounded bg-teal-500/10 text-teal-400 border border-teal-500/20 uppercase">
+            <span className="text-[10px] font-sans tracking-wider font-semibold px-2 py-0.5 rounded bg-teal-500/10 text-teal-400 border border-teal-500/20 uppercase">
               Staff Portal
             </span>
           </div>
-          <div className="text-xs font-mono text-slate-400 flex items-center gap-1.5">
+          <div className="text-xs font-sans text-slate-400 flex items-center gap-1.5">
             <span className="w-2 h-2 rounded-full bg-teal-400 animate-pulse"></span>
             <span className="truncate">{user?.full_name || user?.email}</span>
           </div>
@@ -90,7 +90,7 @@ export const StaffSidebar = ({ activeTab, setActiveTab, isOpen, setIsOpen }) => 
 
         {/* Primary Navigation */}
         <div className="flex-1 overflow-y-auto px-4 py-6 space-y-1">
-          <div className="px-3 pb-2 text-[10px] font-mono font-semibold tracking-wider text-slate-400 uppercase">
+          <div className="px-3 pb-2 text-[10px] font-sans font-semibold tracking-wider text-slate-400 uppercase">
             Management & Oversight
           </div>
           {navItems.map((item) => {
@@ -116,7 +116,7 @@ export const StaffSidebar = ({ activeTab, setActiveTab, isOpen, setIsOpen }) => 
 
         {/* System & Account Section */}
         <div className="p-4 border-t border-[#1B262E] space-y-1">
-          <div className="px-3 pb-2 text-[10px] font-mono font-semibold tracking-wider text-slate-400 uppercase">
+          <div className="px-3 pb-2 text-[10px] font-sans font-semibold tracking-wider text-slate-400 uppercase">
             System / Account
           </div>
 

@@ -306,12 +306,12 @@ export const StaffWorkspacesView = ({ selectedWorkspaceId, onSelectProject }) =>
       {/* View Header & Quick Actions */}
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 border-b border-[#1B262E] pb-4">
         <div>
-          <h2 className="text-xl font-bold text-slate-100">Managed Academic Workspaces</h2>
-          <p className="text-xs text-slate-400">
+          <h2 className="text-xl font-bold text-slate-100 font-serif">Managed Academic Workspaces</h2>
+          <p className="text-xs text-slate-400 font-sans">
             Create, manage co-staff, configure notice boards, set review rounds, and oversee group projects.
           </p>
         </div>
-        <div className="flex gap-2">
+        <div className="flex gap-2 font-sans">
           <button
             onClick={() => setShowRequestAccessModal(true)}
             className="px-3.5 py-2 text-xs font-medium text-slate-300 bg-[#11181C] hover:bg-[#1B262E] rounded-lg border border-[#1B262E]"
@@ -345,16 +345,16 @@ export const StaffWorkspacesView = ({ selectedWorkspaceId, onSelectProject }) =>
       <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
         {/* Workspace Selector List */}
         <div className="lg:col-span-1 bg-[#11181C] p-4 rounded-xl border border-[#1B262E] space-y-3">
-          <div className="text-xs font-mono font-semibold text-slate-400 uppercase tracking-wider px-2">
+          <div className="text-xs font-sans font-semibold text-slate-400 uppercase tracking-wider px-2">
             Workspaces ({workspaces.length})
           </div>
 
           {loading ? (
-            <div className="py-8 text-center text-xs font-mono text-slate-500">
+            <div className="py-8 text-center text-xs font-sans text-slate-500">
               Loading workspaces...
             </div>
           ) : workspaces.length === 0 ? (
-            <div className="py-6 text-center text-xs font-mono text-slate-500">
+            <div className="py-6 text-center text-xs font-sans text-slate-500">
               No managed workspaces found.
             </div>
           ) : (

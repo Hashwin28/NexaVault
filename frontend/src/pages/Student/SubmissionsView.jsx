@@ -202,7 +202,7 @@ export const SubmissionsView = () => {
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center p-12 text-slate-400 font-mono text-sm">
+      <div className="flex items-center justify-center p-12 text-slate-400 font-sans text-sm">
         <RefreshCw size={20} className="animate-spin mr-3 text-teal-400" />
         Loading Submissions & Project Streams...
       </div>
@@ -214,7 +214,7 @@ export const SubmissionsView = () => {
       {/* View Header */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
-          <h1 className="text-2xl sm:text-3xl font-extrabold text-white font-display tracking-tight">
+          <h1 className="text-2xl sm:text-3xl font-extrabold text-white font-serif tracking-tight">
             Submissions & Updates
           </h1>
           <p className="text-sm text-slate-400 mt-1 font-sans">
@@ -299,13 +299,13 @@ export const SubmissionsView = () => {
                     <UploadCloud size={18} />
                   </div>
                   <div>
-                    <h2 className="text-base font-bold text-white font-display">Submit Artifact / Revision</h2>
+                    <h2 className="text-base font-bold text-white font-serif">Submit Artifact / Revision</h2>
                     <p className="text-xs text-slate-400">Upload new code revision or draft for faculty evaluation</p>
                   </div>
                 </div>
 
                 <div className="flex items-center gap-2">
-                  <span className={`text-[10px] font-mono px-2 py-0.5 rounded-full border ${
+                  <span className={`text-[10px] font-sans px-2 py-0.5 rounded-full border ${
                     canSubmit 
                       ? 'bg-teal-500/10 text-teal-400 border-teal-500/30' 
                       : 'bg-amber-500/10 text-amber-400 border-amber-500/30'
@@ -560,7 +560,7 @@ export const SubmissionsView = () => {
                   <MessageSquare size={18} />
                 </div>
                 <div>
-                  <h2 className="text-base font-bold text-white font-display">Updates & Faculty Stream</h2>
+                  <h2 className="text-base font-bold text-white font-serif">Updates & Faculty Stream</h2>
                   <p className="text-xs text-slate-400">Share milestone progress and discuss with reviewers</p>
                 </div>
               </div>

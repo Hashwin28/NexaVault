@@ -9,7 +9,7 @@ export const ProfileView = () => {
     <div className="space-y-8 select-none max-w-4xl">
       {/* Header */}
       <div>
-        <h1 className="text-2xl sm:text-3xl font-extrabold text-white font-display tracking-tight">
+        <h1 className="text-2xl sm:text-3xl font-extrabold text-white font-serif tracking-tight">
           Student Profile
         </h1>
         <p className="text-sm text-slate-400 mt-1 font-sans">
@@ -20,21 +20,21 @@ export const ProfileView = () => {
       {/* Profile Overview Card */}
       <div className="bg-vault-surface border border-teal-500/30 rounded-2xl p-6 sm:p-8 space-y-6 shadow-card-subtle">
         <div className="flex flex-col sm:flex-row items-start sm:items-center gap-5 border-b border-vault-border/50 pb-6">
-          <div className="w-16 h-16 rounded-2xl bg-teal-500/20 border border-teal-400/40 flex items-center justify-center text-teal-300 text-2xl font-bold font-display shadow-md">
+          <div className="w-16 h-16 rounded-2xl bg-teal-500/20 border border-teal-400/40 flex items-center justify-center text-teal-300 text-2xl font-bold font-serif shadow-md">
             {user?.full_name ? user.full_name.charAt(0).toUpperCase() : 'S'}
           </div>
 
           <div className="space-y-1">
-            <h2 className="text-xl font-bold text-white font-display">
+            <h2 className="text-xl font-bold text-white font-serif">
               {user?.full_name || 'Registered Student'}
             </h2>
             <div className="flex items-center gap-3 text-xs text-slate-400">
-              <span className="flex items-center gap-1.5 font-mono">
+              <span className="flex items-center gap-1.5 font-sans">
                 <Mail size={13} className="text-teal-400" />
                 {user?.email}
               </span>
               <span>•</span>
-              <span className="px-2 py-0.5 rounded-full bg-teal-500/10 border border-teal-500/30 text-teal-300 font-mono text-[10px] uppercase font-bold">
+              <span className="px-2 py-0.5 rounded-full bg-teal-500/10 border border-teal-500/30 text-teal-300 font-sans text-[10px] uppercase font-bold">
                 Role: {user?.role || 'student'}
               </span>
             </div>
@@ -42,10 +42,10 @@ export const ProfileView = () => {
         </div>
 
         {/* Identity Details Grid */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-xs font-mono">
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-xs font-sans">
           <div className="p-4 rounded-xl bg-vault-canvas border border-vault-border/60 space-y-1">
             <span className="text-slate-500 uppercase text-[10px]">Student Identifier</span>
-            <div className="text-white font-bold text-sm">UID #{user?.id || '---'}</div>
+            <div className="text-white font-bold text-sm font-mono">UID #{user?.id || '---'}</div>
           </div>
 
           <div className="p-4 rounded-xl bg-vault-canvas border border-vault-border/60 space-y-1">
@@ -80,7 +80,7 @@ export const ProfileView = () => {
 
           <button
             onClick={logout}
-            className="w-full sm:w-auto px-5 py-2.5 rounded-xl bg-rose-500/10 hover:bg-rose-500/20 border border-rose-500/30 text-rose-300 text-xs font-bold font-mono flex items-center justify-center gap-2 transition-colors"
+            className="w-full sm:w-auto px-5 py-2.5 rounded-xl bg-rose-500/10 hover:bg-rose-500/20 border border-rose-500/30 text-rose-300 text-xs font-bold font-sans flex items-center justify-center gap-2 transition-colors"
           >
             <LogOut size={15} />
             <span>Terminate Session (Sign Out)</span>

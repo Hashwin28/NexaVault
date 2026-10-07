@@ -124,19 +124,19 @@ export const StaffReviewQueueView = () => {
       {/* Header */}
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 border-b border-[#1B262E] pb-4">
         <div>
-          <h2 className="text-xl font-bold text-slate-100 flex items-center gap-2">
+          <h2 className="text-xl font-bold text-slate-100 font-serif flex items-center gap-2">
             Submission Review Queue
-            <span className="text-xs px-2 py-0.5 rounded bg-teal-500/20 text-teal-300 font-mono">
+            <span className="text-xs px-2 py-0.5 rounded bg-teal-500/20 text-teal-300 font-sans font-normal">
               {queue.length} Pending
             </span>
           </h2>
-          <p className="text-xs text-slate-400">
+          <p className="text-xs text-slate-400 font-sans">
             Claim pending submissions, grade individual group members, send evaluation feedback, and release published scores.
           </p>
         </div>
         <button
           onClick={fetchQueue}
-          className="px-3.5 py-2 text-xs font-mono text-slate-300 bg-[#11181C] hover:bg-[#1B262E] rounded-lg border border-[#1B262E] flex items-center gap-2"
+          className="px-3.5 py-2 text-xs font-sans text-slate-300 bg-[#11181C] hover:bg-[#1B262E] rounded-lg border border-[#1B262E] flex items-center gap-2"
         >
           <span>↻ Refresh Queue</span>
         </button>

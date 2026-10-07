@@ -1,6 +1,6 @@
 from datetime import datetime, timezone
 from typing import List, Optional
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, status, Query
 from sqlalchemy.orm import Session
 from sqlalchemy import asc
 from app.api.deps import get_db, get_current_staff
@@ -21,12 +21,15 @@ router = APIRouter(prefix="/reviews", tags=["Reviews"])
 
 @router.get("/queue", response_model=List[QueueItemResponse])
 def get_review_queue(
+    limit: int = Query(50, ge=1, le=100, description="Maximum number of queue items to return"),
+    offset: int = Query(0, ge=0, description="Queue pagination offset"),
     db: Session = Depends(get_db),
     current_staff: User = Depends(get_current_staff),
 ):
     """
     Staff review queue across workspaces the staff is authorized to manage.
     Ordered by: 1. Review Round due_date asc; 2. Submission creation/submission time asc.
+    Applies DB-level limit and offset pagination.
     """
     staff_entries = db.query(WorkspaceStaff).filter(WorkspaceStaff.user_id == current_staff.id).all()
     ws_ids = {s.workspace_id for s in staff_entries}
@@ -48,6 +51,8 @@ def get_review_queue(
             SubmissionVersion.status.in_(["SUBMITTED", "IN_REVIEW", "NEW_SUBMISSION"]),
         )
         .order_by(asc(ReviewRound.due_date), asc(SubmissionVersion.submitted_at), asc(SubmissionVersion.created_at))
+        .offset(offset)
+        .limit(limit)
         .all()
     )
 

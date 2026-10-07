@@ -15,7 +15,7 @@ export const SmartSearchView = () => {
     <div className="space-y-8 select-none">
       {/* Header */}
       <div>
-        <h1 className="text-2xl sm:text-3xl font-extrabold text-white font-display tracking-tight">
+        <h1 className="text-2xl sm:text-3xl font-extrabold text-white font-serif tracking-tight">
           Smart Search
         </h1>
         <p className="text-sm text-slate-400 mt-1 font-sans">
@@ -47,7 +47,7 @@ export const SmartSearchView = () => {
       </form>
 
       {/* Search Filter Scope Tags (Visual representation) */}
-      <div className="flex flex-wrap items-center gap-2 max-w-3xl text-xs font-mono">
+      <div className="flex flex-wrap items-center gap-2 max-w-3xl text-xs font-sans">
         <span className="text-slate-500 flex items-center gap-1 mr-2">
           <Filter size={12} /> Target Scope:
         </span>
@@ -72,7 +72,7 @@ export const SmartSearchView = () => {
         </div>
 
         <div className="space-y-1">
-          <h3 className="text-base font-bold text-white font-display">
+          <h3 className="text-base font-bold text-white font-serif">
             Global Search Indexing Pipeline Inactive
           </h3>
           <p className="text-xs text-slate-400 max-w-lg mx-auto font-sans leading-relaxed">
@@ -80,7 +80,7 @@ export const SmartSearchView = () => {
           </p>
         </div>
 
-        <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-vault-canvas border border-vault-border text-[11px] font-mono text-slate-400">
+        <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-vault-canvas border border-vault-border text-[11px] font-sans text-slate-400">
           <span className="w-1.5 h-1.5 rounded-full bg-amber-400" />
           Backend Service Status: Unindexed (Phase 8 Roadmap)
         </div>

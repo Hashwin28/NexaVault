@@ -189,14 +189,20 @@ def join_group(
         )
 
     code = join_in.code.strip().upper()
-    group = db.query(Group).filter(Group.code == code, Group.is_deleted == False).first()
+    # PostgreSQL row-level locking via with_for_update() to eliminate member capacity race conditions
+    group = (
+        db.query(Group)
+        .filter(Group.code == code, Group.is_deleted == False)
+        .with_for_update()
+        .first()
+    )
     if not group:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="Invalid Group Code. No active group found matching this code."
         )
 
-    # Check maximum member limit
+    # Check maximum member limit while holding row lock
     member_count = db.query(GroupMembership).filter(GroupMembership.group_id == group.id).count()
     if member_count >= 5:
         raise HTTPException(

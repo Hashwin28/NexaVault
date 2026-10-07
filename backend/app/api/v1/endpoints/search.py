@@ -23,6 +23,7 @@ def staff_smart_search(
     Staff Smart Search foundation.
     Scopes search strictly to Workspaces managed by the current Staff user.
     Excludes Group Codes and Workspace IDs from searchable text.
+    Applies a safe limit of 50 per category to prevent unbounded query result sets.
     """
     term = f"%{q.strip()}%"
 
@@ -43,7 +44,7 @@ def staff_smart_search(
             students=[],
         )
 
-    # 1. Search Workspaces (name, description, term) - excludes Workspace IDs
+    # 1. Search Workspaces (name, description, term) - excludes Workspace IDs (max 50)
     workspaces = (
         db.query(Workspace)
         .filter(
@@ -54,6 +55,7 @@ def staff_smart_search(
                 Workspace.term.ilike(term),
             )
         )
+        .limit(50)
         .all()
     )
     ws_results = [
@@ -61,7 +63,7 @@ def staff_smart_search(
         for w in workspaces
     ]
 
-    # 2. Search Groups enrolled in managed workspaces (name ONLY - excludes code)
+    # 2. Search Groups enrolled in managed workspaces (name ONLY - excludes code) (max 50)
     groups = (
         db.query(Group)
         .join(WorkspaceGroup, WorkspaceGroup.group_id == Group.id)
@@ -70,6 +72,7 @@ def staff_smart_search(
             Group.is_deleted == False,
             Group.name.ilike(term),
         )
+        .limit(50)
         .all()
     )
     group_results = [
@@ -77,7 +80,7 @@ def staff_smart_search(
         for g in groups
     ]
 
-    # 3. Search Projects in managed workspaces (name, description)
+    # 3. Search Projects in managed workspaces (name, description) (max 50)
     projects = (
         db.query(Project)
         .filter(
@@ -87,6 +90,7 @@ def staff_smart_search(
                 Project.description.ilike(term),
             )
         )
+        .limit(50)
         .all()
     )
     project_results = [
@@ -94,7 +98,7 @@ def staff_smart_search(
         for p in projects
     ]
 
-    # 4. Search Submissions / Deliverables in managed workspaces (notes, link, github_commit_sha)
+    # 4. Search Submissions / Deliverables in managed workspaces (max 50)
     versions = (
         db.query(SubmissionVersion)
         .join(Submission, SubmissionVersion.submission_id == Submission.id)
@@ -107,6 +111,7 @@ def staff_smart_search(
                 SubmissionVersion.github_commit_sha.ilike(term),
             )
         )
+        .limit(50)
         .all()
     )
     submission_results = [
@@ -123,7 +128,7 @@ def staff_smart_search(
         for v in versions
     ]
 
-    # 5. Search Enrolled Students (full_name, email)
+    # 5. Search Enrolled Students (full_name, email) (max 50)
     students = (
         db.query(User)
         .join(GroupMembership, GroupMembership.user_id == User.id)
@@ -138,6 +143,7 @@ def staff_smart_search(
             )
         )
         .distinct()
+        .limit(50)
         .all()
     )
     student_results = [
