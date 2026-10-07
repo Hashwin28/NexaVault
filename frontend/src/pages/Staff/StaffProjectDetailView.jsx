@@ -38,26 +38,6 @@ export const StaffProjectDetailView = ({ projectId, onBack }) => {
     }
   };
 
-  // Calculate weighted progress percentage
-  const calculateWeightedProgress = () => {
-    if (!project?.results || project.results.length === 0) return 0;
-    
-    // Sum weighted contributions
-    let totalScore = 0;
-    let totalMax = 0;
-
-    project.results.forEach((r) => {
-      const weight = r.weight || 20;
-      const score = r.score ?? r.score_obtained ?? 0;
-      const maxScore = r.max_score || 100;
-      totalScore += (score / maxScore) * weight;
-      totalMax += weight;
-    });
-
-    if (totalMax === 0) return 0;
-    return Math.min(100, Math.round((totalScore / totalMax) * 100));
-  };
-
   if (loading) {
     return (
       <div className="py-20 text-center text-xs font-mono text-slate-500">
@@ -82,7 +62,7 @@ export const StaffProjectDetailView = ({ projectId, onBack }) => {
     );
   }
 
-  const progressPct = calculateWeightedProgress();
+  const progressPercentage = project?.progress_percentage ?? 0;
 
   return (
     <div className="space-y-6">
@@ -123,17 +103,17 @@ export const StaffProjectDetailView = ({ projectId, onBack }) => {
           {/* Weighted Progress Card */}
           <div className="bg-[#11181C] p-5 rounded-xl border border-[#1B262E] space-y-4">
             <div className="flex justify-between items-center">
-              <h3 className="text-sm font-bold text-slate-200 font-serif">Weighted Progress</h3>
-              <span className="text-xs font-sans font-bold text-teal-400">{progressPct}%</span>
+              <h3 className="text-sm font-bold text-slate-200 font-serif">Project Progress</h3>
+              <span className="text-xs font-sans font-bold text-teal-400">{progressPercentage}%</span>
             </div>
             <div className="w-full bg-[#0B0F12] h-3 rounded-full overflow-hidden border border-[#1B262E]">
               <div
                 className="bg-gradient-to-r from-teal-500 to-emerald-400 h-full rounded-full transition-all duration-500"
-                style={{ width: `${progressPct}%` }}
+                style={{ width: `${progressPercentage}%` }}
               />
             </div>
             <p className="text-[11px] text-slate-400 font-mono">
-              Evaluated based on completed review rounds score weights.
+              Evaluated based on completed review rounds score points.
             </p>
           </div>
 

@@ -86,14 +86,32 @@ export const StaffReviewQueueView = () => {
       return;
     }
 
+    // Preserve validation requiring a score for every roster member when APPROVED
+    const roster = selectedVersion.roster_snapshot || selectedVersion.members || [];
+    if (verdict === 'APPROVED' && roster.length > 0) {
+      for (const m of roster) {
+        if (memberScores[m.id] === undefined || memberScores[m.id] === null || isNaN(memberScores[m.id])) {
+          setError(`Score is required for member ${m.name || m.user_id || m.id}.`);
+          return;
+        }
+      }
+    }
+
     setSubmittingEval(true);
     setError(null);
 
     try {
+      const studentScoresList = Object.entries(memberScores).map(([userId, score]) => ({
+        user_id: parseInt(userId, 10) || userId,
+        score: Number(score),
+      }));
+
       const payload = {
-        verdict,
+        verdict: verdict,
+        status: verdict,
         feedback: feedback.trim(),
-        ...(verdict === 'APPROVED' ? { member_scores: memberScores } : {}),
+        general_feedback: feedback.trim(),
+        student_scores: studentScoresList,
       };
 
       await reviewApi.evaluateSubmission(selectedVersion.id, payload);

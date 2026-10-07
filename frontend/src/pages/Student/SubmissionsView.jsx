@@ -134,8 +134,8 @@ export const SubmissionsView = () => {
       await submissionApi.createSubmission(project.id, selectedRoundId, {
         notes: subNotes || null,
         link: subLink || null,
-        github_commit_sha: subCommitSha || null,
-        is_draft: isDraftMode
+        githubCommitSha: subCommitSha || null,
+        isDraft: isDraftMode
       });
       setActionSuccess(isDraftMode ? 'Draft version saved successfully.' : 'Deliverable submitted successfully.');
       setSubNotes('');
@@ -151,7 +151,7 @@ export const SubmissionsView = () => {
     }
   };
 
-  const handleFinalizeDraft = async (roundId, versionId) => {
+  const handleFinalizeDraft = async (submissionId) => {
     if (!project) return;
     if (!canSubmit) {
       alert('Submissions require at least 2 active group members.');
@@ -159,7 +159,7 @@ export const SubmissionsView = () => {
     }
 
     try {
-      await submissionApi.finalizeSubmit(project.id, roundId, versionId);
+      await submissionApi.finalizeSubmit(submissionId);
       setActionSuccess('Draft finalized and submitted for evaluation.');
       setConfirmModal(null);
       const refreshedSubs = await submissionApi.getSubmissions(project.id);
@@ -525,7 +525,7 @@ export const SubmissionsView = () => {
                               {v.status === 'draft' && (
                                 <div className="pt-2 flex justify-end gap-2 border-t border-amber-500/20">
                                   <button
-                                    onClick={() => setConfirmModal({ type: 'finalize', versionId: v.id, roundId: round.id })}
+                                    onClick={() => setConfirmModal({ type: 'finalize', submissionId: v.id })}
                                     disabled={!canSubmit}
                                     className={`px-3 py-1.5 rounded text-[11px] font-bold flex items-center gap-1.5 ${
                                       canSubmit 
@@ -701,7 +701,7 @@ export const SubmissionsView = () => {
                 Cancel
               </button>
               <button
-                onClick={() => handleFinalizeDraft(confirmModal.roundId, confirmModal.versionId)}
+                onClick={() => handleFinalizeDraft(confirmModal.submissionId)}
                 className="px-4 py-2 rounded-lg bg-teal-500 hover:bg-teal-400 text-xs text-slate-950 font-bold"
               >
                 Confirm & Submit
