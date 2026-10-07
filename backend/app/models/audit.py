@@ -15,15 +15,17 @@ class AuditLog(Base):
     action_type = Column(String(100), nullable=False, index=True)
     entity_type = Column(String(100), nullable=False, index=True)
     entity_id = Column(Integer, nullable=True, index=True)
+    workspace_id = Column(String(100), ForeignKey("workspaces.id", ondelete="SET NULL"), nullable=True, index=True)
     old_value = Column(JSONType, nullable=True)
     new_value = Column(JSONType, nullable=True)
     ip_address = Column(String(50), nullable=True)
     created_at = Column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc), nullable=False, index=True)
 
     actor = relationship("User")
+    workspace = relationship("Workspace")
 
     def __repr__(self):
-        return f"<AuditLog id={self.id} action={self.action_type} entity={self.entity_type}:{self.entity_id}>"
+        return f"<AuditLog id={self.id} action={self.action_type} entity={self.entity_type}:{self.entity_id} workspace={self.workspace_id}>"
 
 class AuditMerkleRoot(Base):
     __tablename__ = "audit_merkle_roots"

@@ -30,8 +30,10 @@ from app.services.audit_service import log_audit
 
 router = APIRouter()
 
+from app.services.project_service import calculate_project_progress
+
 def build_project_response(project: Project, db: Session) -> ProjectResponse:
-    """Builds a ProjectResponse with derived group members list."""
+    """Builds a ProjectResponse with derived group members list and progress percentage."""
     memberships = (
         db.query(GroupMembership)
         .filter(GroupMembership.group_id == project.group_id)
@@ -48,6 +50,7 @@ def build_project_response(project: Project, db: Session) -> ProjectResponse:
     ]
 
     github_url = project.github_link.repo_url if project.github_link else None
+    prog_pct = calculate_project_progress(db, project.id)
 
     return ProjectResponse(
         id=project.id,
@@ -59,7 +62,8 @@ def build_project_response(project: Project, db: Session) -> ProjectResponse:
         description=project.description,
         created_at=project.created_at,
         members=members_list,
-        github_repo_url=github_url
+        github_repo_url=github_url,
+        progress_percentage=prog_pct,
     )
 
 @router.post("/", response_model=ProjectResponse, status_code=status.HTTP_201_CREATED)

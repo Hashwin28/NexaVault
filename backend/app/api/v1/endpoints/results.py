@@ -1,10 +1,17 @@
 from typing import List
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
-from app.api.deps import get_db, get_current_student
+from app.api.deps import get_db, get_current_student, get_current_staff
 from app.models.user import User
-from app.models.review import ResultEntry, ReviewRound
-from app.schemas.result import StudentResultResponse, StudentResultsSummary
+from app.models.review import ResultEntry, ReviewRound, ResultCorrection
+from app.schemas.result import (
+    StudentResultResponse,
+    StudentResultsSummary,
+    ResultCorrectionCreate,
+    ResultCorrectionResponse,
+)
+from app.core.permissions import can_correct_result
+from app.services.audit_service import log_audit
 
 router = APIRouter()
 
@@ -63,4 +70,74 @@ def get_my_released_results(
         total_possible=round(total_possible, 2),
         cumulative_percentage=round(cumulative_pct, 2),
         results=results_list
+    )
+
+@router.patch("/{entry_id}/correct", response_model=ResultCorrectionResponse)
+def correct_result_score(
+    entry_id: int,
+    payload: ResultCorrectionCreate,
+    db: Session = Depends(get_db),
+    current_staff: User = Depends(get_current_staff),
+):
+    """
+    Staff corrects an already-approved score.
+    Old score, new score, and reason are recorded in the audit log and ResultCorrection table.
+    """
+    if not can_correct_result(db, current_staff.id, entry_id):
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Result entry not found or access denied."
+        )
+
+    entry = db.query(ResultEntry).filter(ResultEntry.id == entry_id).first()
+    if not entry:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Result entry not found.")
+
+    round_obj = entry.round
+    max_score = float(round_obj.max_score) if round_obj else 100.0
+
+    if payload.new_score < 0 or payload.new_score > max_score:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"New score {payload.new_score} is out of valid range (0 <= score <= {max_score})."
+        )
+
+    old_score_val = float(entry.score)
+
+    correction = ResultCorrection(
+        result_entry_id=entry.id,
+        corrected_by_id=current_staff.id,
+        old_score=old_score_val,
+        new_score=payload.new_score,
+        reason=payload.reason,
+    )
+    db.add(correction)
+
+    entry.score = payload.new_score
+
+    ws_id = round_obj.workspace_id if round_obj else None
+
+    log_audit(
+        db=db,
+        actor_id=current_staff.id,
+        action_type="score_corrected",
+        entity_type="result_entry",
+        entity_id=entry.id,
+        workspace_id=ws_id,
+        old_value={"score": old_score_val},
+        new_value={"score": payload.new_score, "reason": payload.reason},
+    )
+
+    db.commit()
+    db.refresh(correction)
+
+    return ResultCorrectionResponse(
+        id=correction.id,
+        result_entry_id=correction.result_entry_id,
+        corrected_by_id=correction.corrected_by_id,
+        corrected_by_name=current_staff.full_name,
+        old_score=float(correction.old_score),
+        new_score=float(correction.new_score),
+        reason=correction.reason,
+        created_at=correction.created_at,
     )

@@ -79,6 +79,7 @@ def list_project_submissions(
     return [build_submission_response(s) for s in submissions]
 
 @router.post("/projects/{project_id}/rounds/{round_id}/submissions", response_model=SubmissionResponse, status_code=status.HTTP_201_CREATED)
+@router.post("/projects/{project_id}/submissions/{round_id}", response_model=SubmissionResponse, status_code=status.HTTP_201_CREATED)
 def submit_round_deliverable(
     project_id: int,
     round_id: int,

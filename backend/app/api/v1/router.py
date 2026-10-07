@@ -6,6 +6,9 @@ from app.api.v1.endpoints import (
     projects,
     submissions,
     results,
+    reviews,
+    search,
+    audit,
 )
 
 api_router = APIRouter()
@@ -15,3 +18,6 @@ api_router.include_router(workspaces.router, prefix="/workspaces", tags=["Worksp
 api_router.include_router(projects.router, prefix="/projects", tags=["Projects"])
 api_router.include_router(submissions.router, tags=["Submissions"])
 api_router.include_router(results.router, prefix="/results", tags=["Results"])
+api_router.include_router(reviews.router, tags=["Reviews"])
+api_router.include_router(search.router, tags=["Smart Search"])
+api_router.include_router(audit.router, tags=["Audit Trail"])

@@ -163,3 +163,81 @@ def can_submit_to_round(db: Session, user_id: int, project: Project, round_id: i
         return False, f"Review round '{round_obj.title}' is closed for submissions.", group
 
     return True, None, group
+
+def is_workspace_owner(db: Session, user_id: int, workspace_id: str) -> bool:
+    """Checks if user is the owner of the workspace."""
+    workspace = db.query(Workspace).filter(Workspace.id == workspace_id).first()
+    if not workspace:
+        return False
+    if workspace.owner_id == user_id:
+        return True
+    staff_entry = (
+        db.query(WorkspaceStaff)
+        .filter(WorkspaceStaff.workspace_id == workspace_id, WorkspaceStaff.user_id == user_id, WorkspaceStaff.role == "owner")
+        .first()
+    )
+    return staff_entry is not None
+
+def is_workspace_staff(db: Session, user_id: int, workspace_id: str) -> bool:
+    """Checks if user is assigned staff (owner or costaff) of the workspace."""
+    workspace = db.query(Workspace).filter(Workspace.id == workspace_id).first()
+    if not workspace:
+        return False
+    if workspace.owner_id == user_id:
+        return True
+    staff_entry = (
+        db.query(WorkspaceStaff)
+        .filter(WorkspaceStaff.workspace_id == workspace_id, WorkspaceStaff.user_id == user_id)
+        .first()
+    )
+    return staff_entry is not None
+
+def can_manage_workspace(db: Session, user_id: int, workspace_id: str) -> bool:
+    """Staff member authorized for the workspace."""
+    user = db.query(User).filter(User.id == user_id).first()
+    if not user or user.role.lower() != "staff":
+        return False
+    return is_workspace_staff(db, user_id, workspace_id)
+
+def can_manage_notice(db: Session, user_id: int, workspace_id: str) -> bool:
+    """Only authorized workspace staff can create/edit/pin/archive notices."""
+    return can_manage_workspace(db, user_id, workspace_id)
+
+def can_manage_round(db: Session, user_id: int, workspace_id: str) -> bool:
+    """Only authorized workspace staff can create/edit/toggle/delete review rounds."""
+    return can_manage_workspace(db, user_id, workspace_id)
+
+def can_review_submission(db: Session, user_id: int, submission_version_id: int) -> bool:
+    """Staff can review a submission if authorized for its workspace."""
+    user = db.query(User).filter(User.id == user_id).first()
+    if not user or user.role.lower() != "staff":
+        return False
+    from app.models.review import SubmissionVersion, Submission
+    version = db.query(SubmissionVersion).filter(SubmissionVersion.id == submission_version_id).first()
+    if not version:
+        return False
+    submission = db.query(Submission).filter(Submission.id == version.submission_id).first()
+    if not submission:
+        return False
+    project = db.query(Project).filter(Project.id == submission.project_id).first()
+    if not project:
+        return False
+    return is_workspace_staff(db, user_id, project.workspace_id)
+
+def can_release_result(db: Session, user_id: int, submission_version_id: int) -> bool:
+    """Staff can release results if authorized for the submission's workspace."""
+    return can_review_submission(db, user_id, submission_version_id)
+
+def can_correct_result(db: Session, user_id: int, result_entry_id: int) -> bool:
+    """Staff can correct a result entry if authorized for the workspace."""
+    user = db.query(User).filter(User.id == user_id).first()
+    if not user or user.role.lower() != "staff":
+        return False
+    from app.models.review import ResultEntry, ReviewRound
+    entry = db.query(ResultEntry).filter(ResultEntry.id == result_entry_id).first()
+    if not entry:
+        return False
+    round_obj = db.query(ReviewRound).filter(ReviewRound.id == entry.round_id).first()
+    if not round_obj:
+        return False
+    return is_workspace_staff(db, user_id, round_obj.workspace_id)
