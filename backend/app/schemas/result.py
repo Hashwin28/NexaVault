@@ -21,3 +21,19 @@ class StudentResultsSummary(BaseModel):
     total_possible: float
     cumulative_percentage: float
     results: list[StudentResultResponse] = []
+
+class ResultCorrectionCreate(BaseModel):
+    new_score: float
+    reason: str
+
+class ResultCorrectionResponse(BaseModel):
+    id: int
+    result_entry_id: int
+    corrected_by_id: int
+    corrected_by_name: Optional[str] = None
+    old_score: float
+    new_score: float
+    reason: str
+    created_at: datetime
+
+    model_config = ConfigDict(from_attributes=True)

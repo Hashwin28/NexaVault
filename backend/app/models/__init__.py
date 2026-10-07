@@ -3,7 +3,7 @@ from app.models.user import User, RefreshToken, EmailToken
 from app.models.group import Group, GroupMembership
 from app.models.workspace import Workspace, WorkspaceStaff, WorkspaceStaffRequest, WorkspaceGroup, WorkspaceNotice
 from app.models.project import Project, ProjectUpdate, UpdateComment
-from app.models.review import ReviewRound, Submission, SubmissionVersion, Review, ResultEntry
+from app.models.review import ReviewRound, Submission, SubmissionVersion, Review, ResultEntry, ResultCorrection
 from app.models.github import GithubLink, GithubCommit
 from app.models.audit import AuditLog, AuditMerkleRoot
 
@@ -27,6 +27,7 @@ __all__ = [
     "SubmissionVersion",
     "Review",
     "ResultEntry",
+    "ResultCorrection",
     "GithubLink",
     "GithubCommit",
     "AuditLog",

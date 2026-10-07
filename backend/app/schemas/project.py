@@ -55,5 +55,6 @@ class ProjectResponse(BaseModel):
     created_at: datetime
     members: List[ProjectMemberInfo] = []
     github_repo_url: Optional[str] = None
+    progress_percentage: Optional[float] = 0.0
 
     model_config = ConfigDict(from_attributes=True)

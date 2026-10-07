@@ -65,10 +65,12 @@ class SubmissionVersion(Base):
     is_late = Column(Boolean, default=False, nullable=False)
     submitted_at = Column(DateTime(timezone=True), nullable=True)
     roster_snapshot = Column(JSONType, default=list, nullable=False)  # [{user_id, full_name, email}]
+    claimed_by_id = Column(Integer, ForeignKey("users.id", ondelete="SET NULL"), nullable=True, index=True)
     created_at = Column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc), nullable=False)
 
     submission = relationship("Submission", back_populates="versions")
-    submitter = relationship("User")
+    submitter = relationship("User", foreign_keys=[submitted_by])
+    claimed_by = relationship("User", foreign_keys=[claimed_by_id])
     review = relationship("Review", back_populates="submission_version", uselist=False, cascade="all, delete-orphan")
 
     __table_args__ = (
@@ -117,3 +119,20 @@ class ResultEntry(Base):
 
     def __repr__(self):
         return f"<ResultEntry id={self.id} student_id={self.student_id} score={self.score} is_released={self.is_released}>"
+
+class ResultCorrection(Base):
+    __tablename__ = "result_corrections"
+
+    id = Column(Integer, primary_key=True, index=True, autoincrement=True)
+    result_entry_id = Column(Integer, ForeignKey("result_entries.id", ondelete="CASCADE"), nullable=False, index=True)
+    corrected_by_id = Column(Integer, ForeignKey("users.id"), nullable=False, index=True)
+    old_score = Column(Numeric(6, 2), nullable=False)
+    new_score = Column(Numeric(6, 2), nullable=False)
+    reason = Column(Text, nullable=False)
+    created_at = Column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc), nullable=False)
+
+    result_entry = relationship("ResultEntry", backref="corrections")
+    corrected_by = relationship("User")
+
+    def __repr__(self):
+        return f"<ResultCorrection id={self.id} result_entry_id={self.result_entry_id} old={self.old_score} new={self.new_score}>"
