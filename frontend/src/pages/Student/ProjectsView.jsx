@@ -22,6 +22,7 @@ import { workspaceApi } from '../../api/workspaceApi';
 import { submissionApi } from '../../api/submissionApi';
 import { resultApi } from '../../api/resultApi';
 import { useAuth } from '../../context/AuthContext';
+import GitHubRepoDashboard from '../../components/common/GitHubRepoDashboard';
 
 export const ProjectsView = ({ defaultProjectId, onNavigate }) => {
   const { user } = useAuth();
@@ -227,20 +228,34 @@ export const ProjectsView = ({ defaultProjectId, onNavigate }) => {
     }
   };
 
-  const handleLinkGithub = async (e) => {
-    e.preventDefault();
-    if (!currentProject || !githubRepoUrl.trim()) return;
+  const handleLinkGithub = async (newUrl) => {
+    const urlToUse = (typeof newUrl === 'string' ? newUrl : githubRepoUrl)?.trim();
+    if (!currentProject || !urlToUse) return;
 
     setLinkingGithub(true);
     setError(null);
     try {
-      const res = await projectApi.linkGithub(currentProject.id, githubRepoUrl.trim());
+      const res = await projectApi.linkGithub(currentProject.id, urlToUse);
       setGithubData(res);
-      setSuccessMsg('GitHub repository linked successfully.');
+      setGithubRepoUrl(res.repo_url);
+      setSuccessMsg('GitHub repository connected successfully.');
     } catch (err) {
-      setError(err.message);
+      setError(err.message || 'Failed to connect GitHub repository.');
     } finally {
       setLinkingGithub(false);
+    }
+  };
+
+  const handleUnlinkGithub = async () => {
+    if (!currentProject) return;
+    if (!window.confirm('Disconnect this GitHub repository from the project?')) return;
+    try {
+      await projectApi.unlinkGithub(currentProject.id);
+      setGithubData(null);
+      setGithubRepoUrl('');
+      setSuccessMsg('GitHub repository disconnected.');
+    } catch (err) {
+      setError(err.message || 'Failed to disconnect GitHub repository.');
     }
   };
 
@@ -907,69 +922,13 @@ export const ProjectsView = ({ defaultProjectId, onNavigate }) => {
 
       {/* TAB 4: GITHUB (Project-Level Sync) */}
       {activeTab === 'github' && (
-        <div className="space-y-6">
-          <div className="p-6 rounded-2xl bg-vault-surface border border-vault-border space-y-5">
-            <div className="flex items-center justify-between pb-4 border-b border-vault-border/50">
-              <div className="flex items-center gap-3">
-                <div className="p-2.5 rounded-xl bg-teal-500/10 text-teal-400 border border-teal-500/20">
-                  <GitBranch size={20} />
-                </div>
-                <div>
-                  <h3 className="text-base font-bold text-white">Project GitHub Integration</h3>
-                  <p className="text-xs text-slate-400">Project-level public repository tracking</p>
-                </div>
-              </div>
-
-              {githubData && (
-                <span className="px-2 py-0.5 rounded text-[10px] font-mono bg-emerald-950/80 text-emerald-400 border border-emerald-500/30">
-                  Connected
-                </span>
-              )}
-            </div>
-
-            <form onSubmit={handleLinkGithub} className="space-y-3">
-              <div>
-                <label className="text-xs font-semibold text-slate-300 block mb-1">Public GitHub Repository URL</label>
-                <div className="flex gap-2">
-                  <input
-                    type="url"
-                    placeholder="https://github.com/org/repo"
-                    value={githubRepoUrl}
-                    onChange={(e) => setGithubRepoUrl(e.target.value)}
-                    required
-                    disabled={linkingGithub}
-                    className="flex-1 px-3 py-2 rounded-lg bg-vault-canvas border border-vault-border text-white text-xs font-mono focus:outline-none focus:border-teal-500/60"
-                  />
-                  <button
-                    type="submit"
-                    disabled={linkingGithub || !githubRepoUrl.trim()}
-                    className="px-4 py-2 rounded-lg bg-teal-500 hover:bg-teal-400 text-slate-950 font-semibold text-xs transition-colors shrink-0"
-                  >
-                    {githubData ? 'Update Repo' : 'Link Repo'}
-                  </button>
-                </div>
-              </div>
-            </form>
-
-            {githubData && (
-              <div className="pt-4 border-t border-vault-border/50 text-xs space-y-2">
-                <div className="flex items-center justify-between text-slate-400">
-                  <span>Linked by peer: #{githubData.project_id}</span>
-                  <span>{new Date(githubData.created_at).toLocaleDateString()}</span>
-                </div>
-                <a
-                  href={githubData.repo_url}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="text-teal-400 hover:underline flex items-center gap-1.5 font-mono text-xs"
-                >
-                  <ExternalLink size={13} />
-                  <span>{githubData.repo_url}</span>
-                </a>
-              </div>
-            )}
-          </div>
-        </div>
+        <GitHubRepoDashboard
+          repoUrl={githubData?.repo_url || currentProject.github_repo_url || githubRepoUrl}
+          onLinkRepo={handleLinkGithub}
+          onUnlinkRepo={handleUnlinkGithub}
+          linking={linkingGithub}
+          projectMembers={currentProject.members || []}
+        />
       )}
 
       {/* TAB 5: PROGRESS (Derived Weighted Metric) */}

@@ -390,3 +390,39 @@ def link_project_github_repo(
         created_at=link_obj.created_at,
         commits=[]
     )
+
+@router.delete("/{project_id}/github", status_code=status.HTTP_200_OK)
+def unlink_project_github_repo(
+    project_id: int,
+    request: Request,
+    db: Session = Depends(get_db),
+    current_student: User = Depends(get_current_student)
+):
+    """
+    Disconnect linked GitHub repository from the project.
+    Restricted to current group members.
+    """
+    project = db.query(Project).filter(Project.id == project_id).first()
+    if not project or not is_user_group_member(db, current_student.id, project.group_id):
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Project not found or access denied."
+        )
+
+    link = db.query(GithubLink).filter(GithubLink.project_id == project.id).first()
+    if link:
+        db.delete(link)
+        db.commit()
+
+        client_ip = request.client.host if request.client else None
+        log_audit(
+            db=db,
+            actor_id=current_student.id,
+            action_type="GITHUB_UNLINKED",
+            entity_type="PROJECT",
+            entity_id=project.id,
+            new_value=None,
+            ip_address=client_ip
+        )
+    return {"message": "GitHub repository disconnected successfully."}
+

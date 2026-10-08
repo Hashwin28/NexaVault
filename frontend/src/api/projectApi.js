@@ -24,4 +24,9 @@ export const projectApi = {
       method: 'POST',
       body: { repo_url: repoUrl },
     }),
+  unlinkGithub: (projectId) =>
+    apiRequest(`/projects/${projectId}/github`, {
+      method: 'DELETE',
+    }),
 };
+

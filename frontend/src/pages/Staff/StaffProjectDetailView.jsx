@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { projectApi } from '../../api/projectApi';
 import { StaffResultCorrectionModal } from './StaffResultCorrectionModal';
+import GitHubRepoDashboard from '../../components/common/GitHubRepoDashboard';
 
 export const StaffProjectDetailView = ({ projectId, onBack }) => {
   const [project, setProject] = useState(null);
@@ -267,6 +268,17 @@ export const StaffProjectDetailView = ({ projectId, onBack }) => {
           </div>
         </div>
       </div>
+
+      {/* GitHub Repository Live Inspector */}
+      {(github?.repo_url || project.repo_url) && (
+        <div className="pt-2">
+          <GitHubRepoDashboard
+            repoUrl={github?.repo_url || project.repo_url}
+            readOnly={true}
+            projectMembers={project.members || project.roster || []}
+          />
+        </div>
+      )}
 
       {/* Score Correction Modal */}
       {correctionTarget && (
