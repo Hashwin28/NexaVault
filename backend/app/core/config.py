@@ -22,6 +22,10 @@ class Settings(BaseSettings):
         "http://127.0.0.1:5173",
     ]
 
+    def model_post_init(self, __context):
+        if self.DATABASE_URL.startswith("postgres://"):
+            self.DATABASE_URL = self.DATABASE_URL.replace("postgres://", "postgresql://", 1)
+
     model_config = SettingsConfigDict(case_sensitive=True)
 
 settings = Settings()
