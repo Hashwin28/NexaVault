@@ -19,8 +19,8 @@ RUN pip install --no-cache-dir -r requirements.txt
 # Copy backend codebase
 COPY . .
 
-# Ensure entrypoint script is executable
-RUN chmod +x entrypoint.sh
+# Ensure entrypoint script has Unix line endings and is executable
+RUN sed -i 's/\r$//' entrypoint.sh && chmod +x entrypoint.sh
 
 # Expose FastAPI port
 EXPOSE 8000
