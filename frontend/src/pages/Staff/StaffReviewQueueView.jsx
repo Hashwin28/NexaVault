@@ -201,36 +201,37 @@ export const StaffReviewQueueView = () => {
               </thead>
               <tbody className="divide-y divide-[#1B262E]">
                 {queue.map((item) => {
+                  const versionId = item.version_id || item.id;
                   const isClaimedByMe = item.claimed_by_id === user?.id;
                   const isClaimedByOther = item.claimed_by_id && !isClaimedByMe;
                   const isEvaluated = item.review_status === 'EVALUATED' || item.is_evaluated;
 
                   return (
-                    <tr key={item.id} className="hover:bg-[#162026] transition-colors">
+                    <tr key={versionId} className="hover:bg-[#162026] transition-colors">
                       <td className="py-3 px-4">
                         <div className="font-bold text-slate-100">
-                          {item.workspace_title || item.project_title || 'Workspace'}
+                          {item.workspace_name || item.workspace_title || 'Workspace'}
                         </div>
                         <div className="text-[11px] text-slate-400">
-                          {item.project_title || 'Project'}
+                          {item.project_name || item.project_title || 'Project'}
                         </div>
                       </td>
                       <td className="py-3 px-4 font-mono text-teal-400 font-bold">
-                        {item.group_code || item.group_id}
+                        {item.group_code || item.group_id || `Project #${item.project_id}`}
                       </td>
                       <td className="py-3 px-4 font-mono font-bold text-teal-300">
                         v{item.version_number}
                       </td>
                       <td className="py-3 px-4">
                         <div className="text-slate-200 font-medium">
-                          {item.round_name || `Round ${item.round_number || 1}`}
+                          {item.round_title || item.round_name || `Round ${item.round_id || 1}`}
                         </div>
                         <div className="text-[10px] text-slate-500 font-mono">
-                          Max: {item.round_max_score ?? 100} pts • Due: {new Date(item.round_due_date || item.submitted_at).toLocaleDateString()}
+                          Max: {item.round_max_score ?? 100} pts • Due: {item.round_due_date ? new Date(item.round_due_date).toLocaleDateString() : 'N/A'}
                         </div>
                       </td>
                       <td className="py-3 px-4 font-mono text-slate-400">
-                        {new Date(item.submitted_at).toLocaleString()}
+                        {item.submitted_at ? new Date(item.submitted_at).toLocaleString() : 'Recent'}
                       </td>
                       <td className="py-3 px-4">
                         {isClaimedByMe ? (
@@ -239,7 +240,7 @@ export const StaffReviewQueueView = () => {
                           </span>
                         ) : isClaimedByOther ? (
                           <span className="px-2.5 py-1 rounded bg-amber-500/10 text-amber-400 border border-amber-500/20 font-mono text-[10px]">
-                            Claimed (Staff #{item.claimed_by_id})
+                            Claimed ({item.claimed_by_name || `Staff #${item.claimed_by_id}`})
                           </span>
                         ) : (
                           <span className="px-2.5 py-1 rounded bg-slate-800 text-slate-400 border border-slate-700 font-mono text-[10px]">
@@ -257,7 +258,7 @@ export const StaffReviewQueueView = () => {
                               Evaluate
                             </button>
                             <button
-                              onClick={() => handleReleaseClaim(item.id)}
+                              onClick={() => handleReleaseClaim(versionId)}
                               className="px-2.5 py-1.5 text-xs text-amber-400 hover:text-amber-300 bg-amber-500/10 rounded font-mono"
                             >
                               Release
@@ -269,7 +270,7 @@ export const StaffReviewQueueView = () => {
                           </span>
                         ) : (
                           <button
-                            onClick={() => handleClaim(item.id)}
+                            onClick={() => handleClaim(versionId)}
                             className="px-3 py-1.5 bg-teal-600/20 text-teal-300 hover:bg-teal-600/40 border border-teal-500/30 font-semibold text-xs rounded"
                           >
                             Claim for Review
@@ -278,7 +279,7 @@ export const StaffReviewQueueView = () => {
 
                         {isEvaluated && !item.results_released && (
                           <button
-                            onClick={() => handleReleaseResults(item.id)}
+                            onClick={() => handleReleaseResults(versionId)}
                             className="px-2.5 py-1.5 text-xs bg-purple-600 hover:bg-purple-500 text-white font-semibold rounded ml-2 shadow"
                           >
                             Release Results

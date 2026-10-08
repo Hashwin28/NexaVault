@@ -1033,12 +1033,16 @@ def get_workspace_review_rounds(
             id=r.id,
             workspace_id=r.workspace_id,
             title=r.title,
+            name=r.title,
             description=r.description,
             order_index=r.order_index,
+            round_number=r.order_index,
             due_date=r.due_date,
             max_score=float(r.max_score),
             is_open=r.is_open,
-            created_at=r.created_at
+            is_active=r.is_open,
+            created_at=r.created_at,
+            weight=20.0
         )
         for r in rounds
     ]
@@ -1066,14 +1070,28 @@ def create_review_round(
             detail="max_score must be at least 1.0."
         )
 
+    round_title = (payload.title or payload.name or "").strip()
+    if not round_title:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Review round title or name is required."
+        )
+
+    round_idx = payload.order_index or payload.round_number
+    if not round_idx:
+        max_idx = db.query(ReviewRound).filter(ReviewRound.workspace_id == workspace_id).count()
+        round_idx = max_idx + 1
+
+    is_open = payload.is_open if payload.is_open is not None else (payload.is_active if payload.is_active is not None else True)
+
     round_obj = ReviewRound(
         workspace_id=workspace_id,
-        title=payload.title,
+        title=round_title,
         description=payload.description,
-        order_index=payload.order_index,
+        order_index=round_idx,
         due_date=payload.due_date,
         max_score=payload.max_score,
-        is_open=True,
+        is_open=is_open,
     )
     db.add(round_obj)
     db.flush()
@@ -1095,12 +1113,16 @@ def create_review_round(
         id=round_obj.id,
         workspace_id=round_obj.workspace_id,
         title=round_obj.title,
+        name=round_obj.title,
         description=round_obj.description,
         order_index=round_obj.order_index,
+        round_number=round_obj.order_index,
         due_date=round_obj.due_date,
         max_score=float(round_obj.max_score),
         is_open=round_obj.is_open,
+        is_active=round_obj.is_open,
         created_at=round_obj.created_at,
+        weight=payload.weight or 20.0
     )
 
 @router.patch("/{workspace_id}/rounds/{round_id}", response_model=ReviewRoundResponse)
@@ -1138,14 +1160,22 @@ def edit_review_round(
 
     if payload.title is not None:
         round_obj.title = payload.title
+    elif payload.name is not None:
+        round_obj.title = payload.name
     if payload.description is not None:
         round_obj.description = payload.description
     if payload.order_index is not None:
         round_obj.order_index = payload.order_index
+    elif payload.round_number is not None:
+        round_obj.order_index = payload.round_number
     if payload.due_date is not None:
         round_obj.due_date = payload.due_date
     if payload.max_score is not None:
         round_obj.max_score = payload.max_score
+    if payload.is_open is not None:
+        round_obj.is_open = payload.is_open
+    elif payload.is_active is not None:
+        round_obj.is_open = payload.is_active
 
     log_audit(
         db=db,

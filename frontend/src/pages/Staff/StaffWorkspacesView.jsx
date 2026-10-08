@@ -258,15 +258,27 @@ export const StaffWorkspacesView = ({ selectedWorkspaceId, onSelectProject }) =>
     e.preventDefault();
     if (!activeWorkspace) return;
     try {
+      const orderIndex = parseInt(roundForm.round_number, 10) || 1;
+      const roundWeight = parseFloat(roundForm.weight) || 20;
+      const roundMaxScore = parseFloat(roundForm.max_score) || 100;
+      const roundDueDate = roundForm.due_date ? new Date(roundForm.due_date).toISOString() : new Date().toISOString();
+      const isActive = Boolean(roundForm.is_active);
+
       await workspaceApi.createRound(activeWorkspace.id, {
-        ...roundForm,
-        round_number: parseInt(roundForm.round_number, 10),
-        weight: parseFloat(roundForm.weight),
-        max_score: parseFloat(roundForm.max_score),
+        title: roundForm.name.trim(),
+        name: roundForm.name.trim(),
+        description: roundForm.description?.trim() || '',
+        order_index: orderIndex,
+        round_number: orderIndex,
+        weight: roundWeight,
+        max_score: roundMaxScore,
+        due_date: roundDueDate,
+        is_open: isActive,
+        is_active: isActive,
       });
       setSuccess('Review round created.');
       setRoundForm({
-        round_number: (rounds.length || 0) + 1,
+        round_number: (rounds.length || 0) + 2,
         name: '',
         description: '',
         weight: 20,
@@ -282,8 +294,10 @@ export const StaffWorkspacesView = ({ selectedWorkspaceId, onSelectProject }) =>
 
   const handleToggleRoundActive = async (round) => {
     try {
+      const currentActive = round.is_active !== undefined ? round.is_active : (round.is_open ?? true);
       await workspaceApi.updateRound(activeWorkspace.id, round.id, {
-        is_active: !round.is_active,
+        is_active: !currentActive,
+        is_open: !currentActive,
       });
       loadSubTabData(activeWorkspace.id, 'rounds');
     } catch (err) {
@@ -814,47 +828,55 @@ export const StaffWorkspacesView = ({ selectedWorkspaceId, onSelectProject }) =>
                             </tr>
                           </thead>
                           <tbody className="divide-y divide-[#1B262E]">
-                            {rounds.map((r) => (
-                              <tr key={r.id} className="hover:bg-[#162026]">
-                                <td className="py-2.5 px-3 font-mono text-teal-400 font-bold">
-                                  #{r.round_number}
-                                </td>
-                                <td className="py-2.5 px-3">
-                                  <div className="font-semibold text-slate-200">{r.name}</div>
-                                  <div className="text-[10px] text-slate-400">{r.description}</div>
-                                </td>
-                                <td className="py-2.5 px-3 font-mono">{r.weight}%</td>
-                                <td className="py-2.5 px-3 font-mono">{r.max_score} pts</td>
-                                <td className="py-2.5 px-3 font-mono text-slate-400">
-                                  {new Date(r.due_date).toLocaleString()}
-                                </td>
-                                <td className="py-2.5 px-3">
-                                  <span
-                                    className={`px-2 py-0.5 rounded text-[10px] font-mono ${
-                                      r.is_active
-                                        ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20'
-                                        : 'bg-slate-800 text-slate-400 border border-slate-700'
-                                    }`}
-                                  >
-                                    {r.is_active ? 'Active' : 'Closed'}
-                                  </span>
-                                </td>
-                                <td className="py-2.5 px-3 text-right space-x-2">
-                                  <button
-                                    onClick={() => handleToggleRoundActive(r)}
-                                    className="text-xs font-mono text-slate-400 hover:text-teal-300"
-                                  >
-                                    {r.is_active ? 'Close' : 'Activate'}
-                                  </button>
-                                  <button
-                                    onClick={() => handleDeleteRound(r.id)}
-                                    className="text-xs font-mono text-rose-400 hover:text-rose-300"
-                                  >
-                                    Delete
-                                  </button>
-                                </td>
-                              </tr>
-                            ))}
+                            {rounds.map((r) => {
+                              const roundNum = r.round_number ?? r.order_index ?? 1;
+                              const roundName = r.name || r.title || `Round ${roundNum}`;
+                              const roundWeight = r.weight ?? 20;
+                              const roundMaxScore = r.max_score ?? 100;
+                              const roundActive = r.is_active !== undefined ? r.is_active : (r.is_open ?? true);
+                              const dueText = r.due_date ? new Date(r.due_date).toLocaleString() : 'No deadline';
+                              return (
+                                <tr key={r.id} className="hover:bg-[#162026]">
+                                  <td className="py-2.5 px-3 font-mono text-teal-400 font-bold">
+                                    #{roundNum}
+                                  </td>
+                                  <td className="py-2.5 px-3">
+                                    <div className="font-semibold text-slate-200">{roundName}</div>
+                                    {r.description && <div className="text-[10px] text-slate-400">{r.description}</div>}
+                                  </td>
+                                  <td className="py-2.5 px-3 font-mono">{roundWeight}%</td>
+                                  <td className="py-2.5 px-3 font-mono">{roundMaxScore} pts</td>
+                                  <td className="py-2.5 px-3 font-mono text-slate-400">
+                                    {dueText}
+                                  </td>
+                                  <td className="py-2.5 px-3">
+                                    <span
+                                      className={`px-2 py-0.5 rounded text-[10px] font-mono ${
+                                        roundActive
+                                          ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20'
+                                          : 'bg-slate-800 text-slate-400 border border-slate-700'
+                                      }`}
+                                    >
+                                      {roundActive ? 'Active' : 'Closed'}
+                                    </span>
+                                  </td>
+                                  <td className="py-2.5 px-3 text-right space-x-2">
+                                    <button
+                                      onClick={() => handleToggleRoundActive(r)}
+                                      className="text-xs font-mono text-slate-400 hover:text-teal-300"
+                                    >
+                                      {roundActive ? 'Close' : 'Activate'}
+                                    </button>
+                                    <button
+                                      onClick={() => handleDeleteRound(r.id)}
+                                      className="text-xs font-mono text-rose-400 hover:text-rose-300"
+                                    >
+                                      Delete
+                                    </button>
+                                  </td>
+                                </tr>
+                              );
+                            })}
                           </tbody>
                         </table>
                       </div>
