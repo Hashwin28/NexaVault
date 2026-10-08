@@ -52,18 +52,40 @@ def create_workspace(
     Staff creates a new workspace.
     The creating staff user becomes the owner.
     """
-    existing = db.query(Workspace).filter(Workspace.id == payload.id).first()
-    if existing:
+    ws_name = (payload.name or payload.title or "").strip()
+    if not ws_name:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail=f"Workspace with ID '{payload.id}' already exists."
+            detail="Workspace name or title is required."
         )
 
+    ws_id = (payload.id or "").strip()
+    if not ws_id:
+        import re
+        ws_id = re.sub(r'[^a-zA-Z0-9_-]', '-', ws_name).strip('-').upper()
+        if not ws_id:
+            ws_id = f"WS-{int(datetime.now(timezone.utc).timestamp())}"
+        
+        base_id = ws_id
+        counter = 1
+        while db.query(Workspace).filter(Workspace.id == ws_id).first():
+            ws_id = f"{base_id}-{counter}"
+            counter += 1
+    else:
+        existing = db.query(Workspace).filter(Workspace.id == ws_id).first()
+        if existing:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=f"Workspace with ID '{ws_id}' already exists."
+            )
+
+    ws_term = (payload.term or "Academic Term").strip()
+
     workspace = Workspace(
-        id=payload.id,
-        name=payload.name,
+        id=ws_id,
+        name=ws_name,
         description=payload.description,
-        term=payload.term,
+        term=ws_term,
         owner_id=current_staff.id,
         is_open=True,
         is_archived=False,

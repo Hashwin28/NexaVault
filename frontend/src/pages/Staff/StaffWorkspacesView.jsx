@@ -16,7 +16,7 @@ export const StaffWorkspacesView = ({ selectedWorkspaceId, onSelectProject }) =>
 
   // Modals & forms state
   const [showCreateModal, setShowCreateModal] = useState(false);
-  const [createForm, setCreateForm] = useState({ title: '', description: '' });
+  const [createForm, setCreateForm] = useState({ title: '', code: '', term: 'Fall 2026', description: '' });
 
   const [showRequestAccessModal, setShowRequestAccessModal] = useState(false);
   const [requestWsId, setRequestWsId] = useState('');
@@ -120,19 +120,22 @@ export const StaffWorkspacesView = ({ selectedWorkspaceId, onSelectProject }) =>
     }
   };
 
-  // Workspace CRUD
   const handleCreateWorkspace = async (e) => {
     e.preventDefault();
     setError(null);
     try {
+      const wsId = createForm.code?.trim() || createForm.title.trim().replace(/[^a-zA-Z0-9_-]/g, '-').toUpperCase();
       const newWs = await workspaceApi.createWorkspace({
-        title: createForm.title,
-        description: createForm.description,
+        id: wsId,
+        name: createForm.title.trim(),
+        title: createForm.title.trim(),
+        term: createForm.term?.trim() || 'Fall 2026',
+        description: createForm.description?.trim() || '',
         is_active: true,
       });
       setSuccess('Workspace created successfully!');
       setShowCreateModal(false);
-      setCreateForm({ title: '', description: '' });
+      setCreateForm({ title: '', code: '', term: 'Fall 2026', description: '' });
       await fetchWorkspaces();
       setActiveWorkspaceId(newWs.id);
     } catch (err) {
@@ -986,15 +989,38 @@ export const StaffWorkspacesView = ({ selectedWorkspaceId, onSelectProject }) =>
             <h3 className="text-lg font-bold text-slate-100">Create New Academic Workspace</h3>
             <form onSubmit={handleCreateWorkspace} className="space-y-4">
               <div>
-                <label className="text-xs font-mono text-slate-400 block mb-1">Workspace Title</label>
+                <label className="text-xs font-mono text-slate-400 block mb-1">Workspace Title / Name</label>
                 <input
                   type="text"
-                  placeholder="e.g. CS201 Data Structures Fall 2026"
+                  placeholder="e.g. Data Structures & Algorithms Lab"
                   value={createForm.title}
                   onChange={(e) => setCreateForm({ ...createForm, title: e.target.value })}
                   className="w-full bg-[#0B0F12] border border-[#1B262E] rounded px-3 py-2 text-xs text-slate-200 focus:outline-none focus:border-teal-500"
                   required
                 />
+              </div>
+
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="text-xs font-mono text-slate-400 block mb-1">Workspace Code (ID)</label>
+                  <input
+                    type="text"
+                    placeholder="e.g. CS204-DSA"
+                    value={createForm.code}
+                    onChange={(e) => setCreateForm({ ...createForm, code: e.target.value })}
+                    className="w-full bg-[#0B0F12] border border-[#1B262E] rounded px-3 py-2 text-xs text-slate-200 focus:outline-none focus:border-teal-500"
+                  />
+                </div>
+                <div>
+                  <label className="text-xs font-mono text-slate-400 block mb-1">Term / Semester</label>
+                  <input
+                    type="text"
+                    placeholder="e.g. Fall 2026"
+                    value={createForm.term}
+                    onChange={(e) => setCreateForm({ ...createForm, term: e.target.value })}
+                    className="w-full bg-[#0B0F12] border border-[#1B262E] rounded px-3 py-2 text-xs text-slate-200 focus:outline-none focus:border-teal-500"
+                  />
+                </div>
               </div>
 
               <div>

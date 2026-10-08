@@ -3,10 +3,11 @@ from typing import Optional, List
 from pydantic import BaseModel, Field, ConfigDict
 
 class WorkspaceCreate(BaseModel):
-    id: str = Field(..., min_length=1, max_length=100, description="Unique workspace ID, e.g., CS204-DSA")
-    name: str = Field(..., min_length=1, max_length=255)
+    id: Optional[str] = Field(None, max_length=100, description="Unique workspace ID, e.g., CS204-DSA")
+    name: Optional[str] = Field(None, max_length=255)
+    title: Optional[str] = Field(None, max_length=255)
     description: Optional[str] = None
-    term: str = Field(..., min_length=1, max_length=100)
+    term: Optional[str] = Field("Academic Term", max_length=100)
 
 class WorkspaceResponse(BaseModel):
     id: str
