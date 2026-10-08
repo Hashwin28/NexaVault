@@ -426,6 +426,7 @@ def enroll_group_in_workspace(
         action_type="WORKSPACE_ENROLLED",
         entity_type="WORKSPACE",
         entity_id=None,
+        workspace_id=workspace.id,
         new_value={"workspace_id": workspace.id, "group_id": group.id},
         ip_address=client_ip
     )

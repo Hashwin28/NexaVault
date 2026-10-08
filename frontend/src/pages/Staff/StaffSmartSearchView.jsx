@@ -36,7 +36,7 @@ export const StaffSmartSearchView = ({ onSelectProject }) => {
             </span>
           </h2>
           <p className="text-xs text-slate-400 mt-1 font-sans">
-            Search managed workspaces, student group codes, project titles, submissions, and enrolled student rosters.
+            Search managed workspaces, group names, project titles, submissions, and enrolled student rosters.
           </p>
         </div>
 
@@ -44,7 +44,7 @@ export const StaffSmartSearchView = ({ onSelectProject }) => {
         <form onSubmit={handleSearch} className="flex gap-2">
           <input
             type="text"
-            placeholder="Search keywords, project names, student emails, group codes..."
+            placeholder="Search keywords, project names, student emails, group names..."
             value={query}
             onChange={(e) => setQuery(e.target.value)}
             className="flex-1 bg-[#0B0F12] border border-[#1B262E] rounded-lg px-4 py-2.5 text-sm text-slate-100 focus:outline-none focus:border-teal-500 font-sans"
@@ -96,13 +96,13 @@ export const StaffSmartSearchView = ({ onSelectProject }) => {
           {/* Workspaces Section */}
           {(filter === 'all' || filter === 'workspaces') && results.workspaces?.length > 0 && (
             <div className="bg-[#11181C] p-5 rounded-xl border border-[#1B262E] space-y-3">
-              <h3 className="text-sm font-bold text-slate-200">Matched Workspaces</h3>
+              <h3 className="text-sm font-bold text-slate-200 font-serif">Matched Workspaces</h3>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                 {results.workspaces.map((ws) => (
                   <div key={ws.id} className="p-3 bg-[#0B0F12] rounded border border-[#1B262E] space-y-1">
-                    <div className="font-semibold text-sm text-slate-100">{ws.title}</div>
-                    <div className="text-xs text-slate-400">{ws.description}</div>
-                    <div className="text-[10px] text-slate-500 font-mono mt-2">Workspace ID: #{ws.id}</div>
+                    <div className="font-semibold text-sm text-slate-100">{ws.name || ws.title}</div>
+                    <div className="text-xs text-slate-400">{ws.description || 'No description'}</div>
+                    <div className="text-[10px] text-teal-400 font-mono mt-1">{ws.term}</div>
                   </div>
                 ))}
               </div>
@@ -112,12 +112,11 @@ export const StaffSmartSearchView = ({ onSelectProject }) => {
           {/* Groups Section */}
           {(filter === 'all' || filter === 'groups') && results.groups?.length > 0 && (
             <div className="bg-[#11181C] p-5 rounded-xl border border-[#1B262E] space-y-3">
-              <h3 className="text-sm font-bold text-slate-200">Matched Groups</h3>
+              <h3 className="text-sm font-bold text-slate-200 font-serif">Matched Groups</h3>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                 {results.groups.map((g) => (
                   <div key={g.id} className="p-3 bg-[#0B0F12] rounded border border-[#1B262E] space-y-1">
-                    <div className="font-mono text-teal-400 font-bold text-xs">Group Code: {g.code}</div>
-                    <div className="text-xs text-slate-300">Name: {g.name || `Group #${g.id}`}</div>
+                    <div className="text-xs text-slate-200 font-semibold">{g.name || `Group #${g.id}`}</div>
                   </div>
                 ))}
               </div>
@@ -127,7 +126,7 @@ export const StaffSmartSearchView = ({ onSelectProject }) => {
           {/* Projects Section */}
           {(filter === 'all' || filter === 'projects') && results.projects?.length > 0 && (
             <div className="bg-[#11181C] p-5 rounded-xl border border-[#1B262E] space-y-3">
-              <h3 className="text-sm font-bold text-slate-200">Matched Projects</h3>
+              <h3 className="text-sm font-bold text-slate-200 font-serif">Matched Projects</h3>
               <div className="space-y-2">
                 {results.projects.map((p) => (
                   <div key={p.id} className="p-3 bg-[#0B0F12] rounded border border-[#1B262E] flex justify-between items-center">
@@ -152,16 +151,19 @@ export const StaffSmartSearchView = ({ onSelectProject }) => {
           {/* Submissions Section */}
           {(filter === 'all' || filter === 'submissions') && results.submissions?.length > 0 && (
             <div className="bg-[#11181C] p-5 rounded-xl border border-[#1B262E] space-y-3">
-              <h3 className="text-sm font-bold text-slate-200">Matched Submissions</h3>
+              <h3 className="text-sm font-bold text-slate-200 font-serif">Matched Submissions</h3>
               <div className="space-y-2">
                 {results.submissions.map((s) => (
-                  <div key={s.id} className="p-3 bg-[#0B0F12] rounded border border-[#1B262E] flex justify-between items-center text-xs">
+                  <div key={s.version_id} className="p-3 bg-[#0B0F12] rounded border border-[#1B262E] flex justify-between items-center text-xs">
                     <div>
                       <div className="font-mono text-teal-300 font-bold">Submission Version v{s.version_number}</div>
-                      <div className="text-slate-400 font-mono">Repo: {s.repo_url || s.commit_hash}</div>
+                      <div className="text-slate-400 font-mono text-[11px]">{s.notes || s.link || 'Deliverable'}</div>
+                      {s.github_commit_sha && (
+                        <div className="text-slate-500 font-mono text-[10px]">SHA: {s.github_commit_sha}</div>
+                      )}
                     </div>
-                    <span className="text-[10px] font-mono text-slate-500">
-                      {new Date(s.submitted_at).toLocaleDateString()}
+                    <span className="text-[10px] font-mono px-2 py-0.5 rounded bg-teal-500/10 text-teal-300 border border-teal-500/20">
+                      {s.status}
                     </span>
                   </div>
                 ))}
@@ -172,7 +174,7 @@ export const StaffSmartSearchView = ({ onSelectProject }) => {
           {/* Students Section */}
           {(filter === 'all' || filter === 'students') && results.students?.length > 0 && (
             <div className="bg-[#11181C] p-5 rounded-xl border border-[#1B262E] space-y-3">
-              <h3 className="text-sm font-bold text-slate-200">Enrolled Students</h3>
+              <h3 className="text-sm font-bold text-slate-200 font-serif">Enrolled Students</h3>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
                 {results.students.map((st) => (
                   <div key={st.id} className="p-2.5 bg-[#0B0F12] rounded border border-[#1B262E] text-xs">

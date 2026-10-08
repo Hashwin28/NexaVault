@@ -103,6 +103,7 @@ def create_project(
         action_type="PROJECT_CREATED",
         entity_type="PROJECT",
         entity_id=new_project.id,
+        workspace_id=new_project.workspace_id,
         new_value={"name": new_project.name, "workspace_id": new_project.workspace_id, "group_id": new_project.group_id},
         ip_address=client_ip
     )

@@ -166,6 +166,7 @@ def submit_round_deliverable(
         action_type="SUBMISSION_SUBMITTED" if not sub_in.is_draft else "SUBMISSION_DRAFT_CREATED",
         entity_type="SUBMISSION_VERSION",
         entity_id=version.id,
+        workspace_id=project.workspace_id,
         new_value={
             "submission_id": submission.id,
             "version": version.version_number,
@@ -277,6 +278,7 @@ def finalize_draft_submission(
         action_type="SUBMISSION_SUBMITTED",
         entity_type="SUBMISSION_VERSION",
         entity_id=latest_version.id,
+        workspace_id=submission.project.workspace_id,
         new_value={
             "submission_id": submission.id,
             "version": latest_version.version_number,

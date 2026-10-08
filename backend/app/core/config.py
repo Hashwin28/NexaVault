@@ -27,10 +27,19 @@ class Settings(BaseSettings):
     @field_validator("CORS_ORIGINS", mode="before")
     @classmethod
     def assemble_cors_origins(cls, v: Union[str, List[str]]) -> List[str]:
-        if isinstance(v, str) and not v.startswith("["):
-            return [i.strip() for i in v.split(",") if i.strip()]
+        import json
+        if isinstance(v, str):
+            v_str = v.strip()
+            if v_str.startswith("[") and v_str.endswith("]"):
+                try:
+                    parsed = json.loads(v_str)
+                    if isinstance(parsed, list):
+                        return [str(item).strip().rstrip("/") for item in parsed if str(item).strip()]
+                except Exception:
+                    pass
+            return [i.strip().rstrip("/") for i in v_str.split(",") if i.strip()]
         elif isinstance(v, list):
-            return v
+            return [str(item).strip().rstrip("/") for item in v if str(item).strip()]
         return [v]
 
     def model_post_init(self, __context):

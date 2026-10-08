@@ -1,14 +1,28 @@
 import React, { useState } from 'react';
-import { Search, Database, Sparkles, Filter, AlertCircle } from 'lucide-react';
+import { Search, Database, Layers, FolderGit2, FileText, AlertCircle } from 'lucide-react';
+import { searchApi } from '../../api/searchApi';
 
 export const SmartSearchView = () => {
   const [query, setQuery] = useState('');
-  const [hasSearched, setHasSearched] = useState(false);
+  const [results, setResults] = useState(null);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState(null);
+  const [filter, setFilter] = useState('all');
 
-  const handleSearch = (e) => {
+  const handleSearch = async (e) => {
     e.preventDefault();
     if (!query.trim()) return;
-    setHasSearched(true);
+
+    setLoading(true);
+    setError(null);
+    try {
+      const data = await searchApi.smartSearch(query.trim());
+      setResults(data || {});
+    } catch (err) {
+      setError(err.message || 'Search query failed.');
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
@@ -19,7 +33,7 @@ export const SmartSearchView = () => {
           Smart Search
         </h1>
         <p className="text-sm text-slate-400 mt-1 font-sans">
-          Cross-vault semantic index and lexical query engine across projects, review rounds, and technical documentation.
+          Scoped semantic index and query engine across enrolled workspaces, group projects, and deliverables.
         </p>
       </div>
 
@@ -29,62 +43,125 @@ export const SmartSearchView = () => {
           <input
             type="text"
             value={query}
-            onChange={(e) => {
-              setQuery(e.target.value);
-              setHasSearched(false);
-            }}
-            placeholder="Search deliverables, commit messages, feedback, course rubrics..."
+            onChange={(e) => setQuery(e.target.value)}
+            placeholder="Search deliverables, workspace names, project descriptions..."
             className="w-full bg-vault-surface border border-teal-500/30 rounded-2xl py-4 pl-12 pr-28 text-white placeholder-slate-500 text-sm outline-none focus:border-teal-400 focus:ring-1 focus:ring-teal-400 shadow-card-subtle font-sans"
+            required
           />
           <Search size={20} className="absolute left-4 top-4 text-teal-400" />
           <button
             type="submit"
-            className="absolute right-3 top-2.5 px-4 py-2 bg-teal-500 hover:bg-teal-400 text-slate-950 font-bold text-xs rounded-xl shadow-sm transition-colors"
+            disabled={loading}
+            className="absolute right-3 top-2.5 px-4 py-2 bg-teal-500 hover:bg-teal-400 text-slate-950 font-bold text-xs rounded-xl shadow-sm transition-colors disabled:opacity-50"
           >
-            Query Index
+            {loading ? 'Searching...' : 'Query Index'}
           </button>
         </div>
       </form>
 
-      {/* Search Filter Scope Tags (Visual representation) */}
-      <div className="flex flex-wrap items-center gap-2 max-w-3xl text-xs font-sans">
-        <span className="text-slate-500 flex items-center gap-1 mr-2">
-          <Filter size={12} /> Target Scope:
-        </span>
-        {['All Vaults', 'Code Deliverables', 'Round Rubrics', 'Faculty Notices', 'GitHub Commits'].map((filter, idx) => (
-          <span
-            key={filter}
-            className={`px-3 py-1 rounded-lg border cursor-not-allowed ${
-              idx === 0 
-                ? 'bg-teal-500/10 border-teal-500/30 text-teal-300' 
-                : 'bg-vault-surface border-vault-border/60 text-slate-400'
-            }`}
-          >
-            {filter}
-          </span>
-        ))}
-      </div>
-
-      {/* Honest Backend State Banner (No Fake Data) */}
-      <div className="max-w-3xl bg-vault-surface border border-vault-border/60 rounded-2xl p-8 text-center space-y-4">
-        <div className="w-12 h-12 rounded-2xl bg-teal-500/10 border border-teal-500/30 flex items-center justify-center text-teal-400 mx-auto">
-          <Database size={24} />
+      {error && (
+        <div className="max-w-3xl p-4 rounded-xl bg-rose-500/10 border border-rose-500/20 text-rose-300 text-sm flex items-center gap-2 font-sans">
+          <AlertCircle size={16} />
+          <span>{error}</span>
         </div>
+      )}
 
-        <div className="space-y-1">
-          <h3 className="text-base font-bold text-white font-serif">
-            Global Search Indexing Pipeline Inactive
-          </h3>
-          <p className="text-xs text-slate-400 max-w-lg mx-auto font-sans leading-relaxed">
-            The cross-vault full-text search backend and semantic embeddings indexing service is scheduled for deployment during Phase 8. No simulated or mock search results are shown.
-          </p>
-        </div>
+      {/* Results Section */}
+      {results && (
+        <div className="max-w-3xl space-y-6">
+          {/* Filter Chips */}
+          <div className="flex gap-2 border-b border-vault-border/60 pb-3 overflow-x-auto text-xs font-sans">
+            {[
+              { id: 'all', label: 'All Results' },
+              { id: 'workspaces', label: `Workspaces (${results.workspaces?.length || 0})` },
+              { id: 'projects', label: `Projects (${results.projects?.length || 0})` },
+              { id: 'submissions', label: `Submissions (${results.submissions?.length || 0})` },
+            ].map((f) => (
+              <button
+                key={f.id}
+                onClick={() => setFilter(f.id)}
+                className={`px-3 py-1 rounded-full transition-all ${
+                  filter === f.id
+                    ? 'bg-teal-500/20 text-teal-300 border border-teal-500/40 font-bold'
+                    : 'bg-vault-surface text-slate-400 border border-vault-border hover:text-slate-200'
+                }`}
+              >
+                {f.label}
+              </button>
+            ))}
+          </div>
 
-        <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-vault-canvas border border-vault-border text-[11px] font-sans text-slate-400">
-          <span className="w-1.5 h-1.5 rounded-full bg-amber-400" />
-          Backend Service Status: Unindexed (Phase 8 Roadmap)
+          {/* Workspaces */}
+          {(filter === 'all' || filter === 'workspaces') && results.workspaces?.length > 0 && (
+            <div className="bg-vault-surface border border-vault-border/60 rounded-2xl p-5 space-y-3">
+              <h3 className="text-sm font-bold text-white flex items-center gap-2 font-serif">
+                <Layers size={16} className="text-teal-400" /> Enrolled Workspaces
+              </h3>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                {results.workspaces.map((ws) => (
+                  <div key={ws.id} className="p-3 bg-vault-canvas rounded-xl border border-vault-border/60 space-y-1">
+                    <div className="font-semibold text-sm text-slate-100">{ws.name}</div>
+                    <div className="text-xs text-slate-400">{ws.description || 'No description'}</div>
+                    <div className="text-[10px] text-teal-400 font-mono mt-1">{ws.term}</div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* Projects */}
+          {(filter === 'all' || filter === 'projects') && results.projects?.length > 0 && (
+            <div className="bg-vault-surface border border-vault-border/60 rounded-2xl p-5 space-y-3">
+              <h3 className="text-sm font-bold text-white flex items-center gap-2 font-serif">
+                <FolderGit2 size={16} className="text-teal-400" /> Group Projects
+              </h3>
+              <div className="space-y-2">
+                {results.projects.map((p) => (
+                  <div key={p.id} className="p-3 bg-vault-canvas rounded-xl border border-vault-border/60 flex justify-between items-center">
+                    <div>
+                      <div className="font-bold text-sm text-slate-100">{p.name}</div>
+                      <div className="text-xs text-slate-400">{p.description || 'No description provided'}</div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* Submissions */}
+          {(filter === 'all' || filter === 'submissions') && results.submissions?.length > 0 && (
+            <div className="bg-vault-surface border border-vault-border/60 rounded-2xl p-5 space-y-3">
+              <h3 className="text-sm font-bold text-white flex items-center gap-2 font-serif">
+                <FileText size={16} className="text-teal-400" /> Deliverables & Submissions
+              </h3>
+              <div className="space-y-2">
+                {results.submissions.map((s) => (
+                  <div key={s.version_id} className="p-3 bg-vault-canvas rounded-xl border border-vault-border/60 flex justify-between items-center text-xs">
+                    <div>
+                      <div className="font-mono text-teal-300 font-bold">Submission Version v{s.version_number}</div>
+                      <div className="text-slate-400 mt-0.5">{s.notes || s.link || 'No notes attached'}</div>
+                      {s.github_commit_sha && (
+                        <div className="text-[10px] font-mono text-slate-500 mt-0.5">SHA: {s.github_commit_sha}</div>
+                      )}
+                    </div>
+                    <span className="px-2 py-0.5 rounded text-[10px] font-mono bg-teal-500/10 text-teal-300 border border-teal-500/20">
+                      {s.status}
+                    </span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {(!results.workspaces?.length && !results.projects?.length && !results.submissions?.length) && (
+            <div className="p-8 bg-vault-surface border border-vault-border/60 rounded-2xl text-center space-y-2">
+              <Database size={24} className="text-slate-500 mx-auto" />
+              <div className="text-sm font-bold text-slate-300 font-serif">No matches found</div>
+              <p className="text-xs text-slate-500 font-sans">No records matching "{query}" in your enrolled scope.</p>
+            </div>
+          )}
         </div>
-      </div>
+      )}
     </div>
   );
 };
