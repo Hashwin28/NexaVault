@@ -24,6 +24,10 @@ export const projectApi = {
       method: 'POST',
       body: { repo_url: repoUrl },
     }),
+  syncGithub: (projectId) =>
+    apiRequest(`/projects/${projectId}/github/sync`, {
+      method: 'POST',
+    }),
   unlinkGithub: (projectId) =>
     apiRequest(`/projects/${projectId}/github`, {
       method: 'DELETE',

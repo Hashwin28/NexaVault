@@ -1,5 +1,8 @@
+import re
+from datetime import datetime, timezone
 from typing import List, Optional
 from fastapi import APIRouter, Depends, HTTPException, status, Request
+import httpx
 from sqlalchemy.orm import Session
 from app.api.deps import get_db, get_current_user, get_current_student
 from app.models.user import User
@@ -298,6 +301,67 @@ def post_update_comment(
         created_at=comment.created_at
     )
 
+def parse_repo_owner_and_name(repo_url: str):
+    if not repo_url:
+        return None, None
+    clean = re.sub(r"^https?://", "", repo_url.strip())
+    clean = re.sub(r"^www\.", "", clean)
+    clean = re.sub(r"^github\.com/", "", clean)
+    clean = re.sub(r"\.git$", "", clean).strip("/")
+    parts = clean.split("/")
+    if len(parts) >= 2:
+        return parts[0], parts[1]
+    return None, None
+
+def sync_github_commits_from_api(link_obj: GithubLink, db: Session) -> None:
+    """Fetch live commits from public GitHub repository and store them in database."""
+    owner, repo = parse_repo_owner_and_name(link_obj.repo_url)
+    if not owner or not repo:
+        return
+
+    api_url = f"https://api.github.com/repos/{owner}/{repo}/commits?per_page=15"
+    headers = {
+        "Accept": "application/vnd.github.v3+json",
+        "User-Agent": "NexaVault-Academic-Sync/1.0"
+    }
+    try:
+        with httpx.Client(timeout=4.0) as client:
+            resp = client.get(api_url, headers=headers)
+            if resp.status_code == 200:
+                commits_data = resp.json()
+                if isinstance(commits_data, list):
+                    db.query(GithubCommit).filter(GithubCommit.github_link_id == link_obj.id).delete()
+                    for item in commits_data:
+                        sha = item.get("sha")
+                        commit_info = item.get("commit", {})
+                        msg = commit_info.get("message", "Commit")
+                        author_info = commit_info.get("author", {})
+                        author_name = author_info.get("name") or (item.get("author") or {}).get("login") or "Contributor"
+                        date_str = author_info.get("date")
+                        if date_str:
+                            try:
+                                committed_at = datetime.fromisoformat(date_str.replace("Z", "+00:00"))
+                            except Exception:
+                                committed_at = datetime.now(timezone.utc)
+                        else:
+                            committed_at = datetime.now(timezone.utc)
+
+                        if sha:
+                            c_obj = GithubCommit(
+                                github_link_id=link_obj.id,
+                                commit_sha=sha[:40],
+                                commit_message=msg[:500],
+                                author_name=author_name[:255],
+                                committed_at=committed_at
+                            )
+                            db.add(c_obj)
+
+                    link_obj.last_synced_at = datetime.now(timezone.utc)
+                    db.flush()
+    except Exception:
+        # Graceful fallback on network/rate-limit
+        pass
+
 @router.get("/{project_id}/github", response_model=Optional[GithubLinkResponse])
 def get_project_github_info(
     project_id: int,
@@ -315,6 +379,12 @@ def get_project_github_info(
     link = db.query(GithubLink).filter(GithubLink.project_id == project.id).first()
     if not link:
         return None
+
+    # Auto-sync once if commits have never been populated
+    if not link.commits and not link.last_synced_at:
+        sync_github_commits_from_api(link, db)
+        db.commit()
+        db.refresh(link)
 
     commits = [
         GithubCommitResponse(
@@ -344,7 +414,7 @@ def link_project_github_repo(
     current_student: User = Depends(get_current_student)
 ):
     """
-    Link a public GitHub repository to the project.
+    Link a public GitHub repository to the project and sync initial commits.
     Restricted to current group members.
     """
     project = db.query(Project).filter(Project.id == project_id).first()
@@ -368,6 +438,7 @@ def link_project_github_repo(
         db.add(link_obj)
 
     db.flush()
+    sync_github_commits_from_api(link_obj, db)
 
     client_ip = request.client.host if request.client else None
     log_audit(
@@ -383,13 +454,71 @@ def link_project_github_repo(
     db.commit()
     db.refresh(link_obj)
 
+    commits = [
+        GithubCommitResponse(
+            commit_sha=c.commit_sha,
+            commit_message=c.commit_message,
+            author_name=c.author_name,
+            committed_at=c.committed_at
+        )
+        for c in link_obj.commits
+    ]
+
     return GithubLinkResponse(
         id=link_obj.id,
         project_id=link_obj.project_id,
         repo_url=link_obj.repo_url,
         last_synced_at=link_obj.last_synced_at,
         created_at=link_obj.created_at,
-        commits=[]
+        commits=commits
+    )
+
+@router.post("/{project_id}/github/sync", response_model=GithubLinkResponse)
+def sync_project_github_repo(
+    project_id: int,
+    request: Request,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user)
+):
+    """
+    Manually sync commits for the linked GitHub repository.
+    Allowed for group members and workspace staff.
+    """
+    project = db.query(Project).filter(Project.id == project_id).first()
+    if not project or not can_access_project(db, current_user.id, project):
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Project not found or access denied."
+        )
+
+    link = db.query(GithubLink).filter(GithubLink.project_id == project.id).first()
+    if not link:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="No GitHub repository linked to this project."
+        )
+
+    sync_github_commits_from_api(link, db)
+    db.commit()
+    db.refresh(link)
+
+    commits = [
+        GithubCommitResponse(
+            commit_sha=c.commit_sha,
+            commit_message=c.commit_message,
+            author_name=c.author_name,
+            committed_at=c.committed_at
+        )
+        for c in link.commits
+    ]
+
+    return GithubLinkResponse(
+        id=link.id,
+        project_id=link.project_id,
+        repo_url=link.repo_url,
+        last_synced_at=link.last_synced_at,
+        created_at=link.created_at,
+        commits=commits
     )
 
 @router.delete("/{project_id}/github", status_code=status.HTTP_200_OK)

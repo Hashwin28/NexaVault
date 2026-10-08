@@ -926,6 +926,15 @@ export const ProjectsView = ({ defaultProjectId, onNavigate }) => {
           repoUrl={githubData?.repo_url || currentProject.github_repo_url || githubRepoUrl}
           onLinkRepo={handleLinkGithub}
           onUnlinkRepo={handleUnlinkGithub}
+          onSyncRepo={async () => {
+            if (currentProject) {
+              const res = await projectApi.syncGithub(currentProject.id);
+              setGithubData(res);
+              if (res?.repo_url) setGithubRepoUrl(res.repo_url);
+            }
+          }}
+          syncedCommits={githubData?.commits || []}
+          lastSyncedAt={githubData?.last_synced_at}
           linking={linkingGithub}
           projectMembers={currentProject.members || []}
         />

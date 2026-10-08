@@ -275,6 +275,12 @@ export const StaffProjectDetailView = ({ projectId, onBack }) => {
           <GitHubRepoDashboard
             repoUrl={github?.repo_url || project.repo_url}
             readOnly={true}
+            syncedCommits={github?.commits || []}
+            lastSyncedAt={github?.last_synced_at}
+            onSyncRepo={async () => {
+              const res = await projectApi.syncGithub(projectId);
+              setGithub(res);
+            }}
             projectMembers={project.members || project.roster || []}
           />
         </div>

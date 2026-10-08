@@ -40,14 +40,19 @@ export default function GitHubRepoDashboard({
   repoUrl,
   onLinkRepo,
   onUnlinkRepo,
+  onSyncRepo,
+  syncedCommits = [],
+  lastSyncedAt = null,
   linking = false,
   readOnly = false,
   projectMembers = []
 }) {
-  const [activeTab, setActiveTab] = useState('contributors'); // 'commits', 'contributors', 'pulls', 'issues'
+  const [activeTab, setActiveTab] = useState('commits'); // 'commits', 'contributors', 'pulls', 'issues'
   const [isEditing, setIsEditing] = useState(false);
   const [inputUrl, setInputUrl] = useState(repoUrl || '');
   const [loadingDetails, setLoadingDetails] = useState(false);
+  const [syncingServer, setSyncingServer] = useState(false);
+  const [rateLimited, setRateLimited] = useState(false);
   const [repoDetails, setRepoDetails] = useState(null);
   const [commits, setCommits] = useState([]);
   const [contributors, setContributors] = useState([]);
@@ -65,97 +70,100 @@ export default function GitHubRepoDashboard({
       setContributors([]);
       setPulls([]);
       setIssues([]);
+      setRateLimited(false);
     }
   }, [repoUrl]);
 
+  // Sync state if syncedCommits prop updates and direct fetch is empty
+  useEffect(() => {
+    if (syncedCommits && syncedCommits.length > 0 && commits.length === 0) {
+      const formatted = syncedCommits.map((c) => ({
+        sha: c.commit_sha,
+        commit: {
+          message: c.commit_message,
+          author: { name: c.author_name, date: c.committed_at }
+        },
+        author: { login: c.author_name }
+      }));
+      setCommits(formatted);
+    }
+  }, [syncedCommits]);
+
   const fetchGitHubData = async (owner, repo) => {
     setLoadingDetails(true);
+    setRateLimited(false);
+    const headers = { Accept: 'application/vnd.github.v3+json' };
+
     try {
       // 1. Fetch Repository Details
-      const repoRes = await fetch(`https://api.github.com/repos/${owner}/${repo}`).catch(() => null);
+      const repoRes = await fetch(`https://api.github.com/repos/${owner}/${repo}`, { headers }).catch(() => null);
       if (repoRes && repoRes.ok) {
         const data = await repoRes.json();
         setRepoDetails(data);
-      } else {
-        // Fallback default details
-        setRepoDetails({
-          full_name: `${owner}/${repo}`,
-          language: 'JavaScript',
-          stargazers_count: 0,
-          forks_count: 0,
-          open_issues_count: 0,
-          default_branch: 'main',
-          html_url: `https://github.com/${owner}/${repo}`
-        });
+      } else if (repoRes && repoRes.status === 403) {
+        setRateLimited(true);
       }
 
-      // 2. Fetch Contributors
-      const contribRes = await fetch(`https://api.github.com/repos/${owner}/${repo}/contributors?per_page=12`).catch(() => null);
-      if (contribRes && contribRes.ok) {
-        const cData = await contribRes.json();
-        if (Array.isArray(cData)) setContributors(cData);
-      } else {
-        // Fallback to project members
-        const fallbackContribs = projectMembers.map((m, idx) => ({
-          id: m.id || idx,
-          login: m.full_name?.toLowerCase().replace(/\s+/g, '') || `contributor-${idx + 1}`,
-          avatar_url: `https://avatars.githubusercontent.com/u/${(m.id || idx) * 1000 + 100}?v=4`,
-          contributions: 15 + (idx * 7),
-          html_url: `https://github.com/${owner}`
-        }));
-        setContributors(fallbackContribs.length > 0 ? fallbackContribs : [
-          { id: 1, login: owner, avatar_url: `https://avatars.githubusercontent.com/${owner}`, contributions: 24, html_url: `https://github.com/${owner}` }
-        ]);
-      }
-
-      // 3. Fetch Commits
-      const commitRes = await fetch(`https://api.github.com/repos/${owner}/${repo}/commits?per_page=10`).catch(() => null);
+      // 2. Fetch Commits
+      const commitRes = await fetch(`https://api.github.com/repos/${owner}/${repo}/commits?per_page=15`, { headers }).catch(() => null);
       if (commitRes && commitRes.ok) {
         const cmData = await commitRes.json();
         if (Array.isArray(cmData)) setCommits(cmData);
-      } else {
-        setCommits([
-          {
-            sha: 'ad945a5b28',
-            commit: {
-              message: 'feat: integrated repository tracking and deliverable checks',
-              author: { name: owner, date: new Date().toISOString() }
-            },
-            author: { login: owner, avatar_url: `https://avatars.githubusercontent.com/${owner}` }
+      } else if (syncedCommits && syncedCommits.length > 0) {
+        const formatted = syncedCommits.map((c) => ({
+          sha: c.commit_sha,
+          commit: {
+            message: c.commit_message,
+            author: { name: c.author_name, date: c.committed_at }
           },
-          {
-            sha: 'b09afdf2f8',
-            commit: {
-              message: 'refactor: centralized database migration architecture',
-              author: { name: owner, date: new Date(Date.now() - 3600000).toISOString() }
-            },
-            author: { login: owner, avatar_url: `https://avatars.githubusercontent.com/${owner}` }
-          }
-        ]);
+          author: { login: c.author_name }
+        }));
+        setCommits(formatted);
+      }
+
+      // 3. Fetch Contributors
+      const contribRes = await fetch(`https://api.github.com/repos/${owner}/${repo}/contributors?per_page=15`, { headers }).catch(() => null);
+      if (contribRes && contribRes.ok) {
+        const cData = await contribRes.json();
+        if (Array.isArray(cData)) setContributors(cData);
+      } else if (contribRes && contribRes.status === 403) {
+        setRateLimited(true);
       }
 
       // 4. Fetch Pull Requests
-      const pullsRes = await fetch(`https://api.github.com/repos/${owner}/${repo}/pulls?state=all&per_page=5`).catch(() => null);
+      const pullsRes = await fetch(`https://api.github.com/repos/${owner}/${repo}/pulls?state=all&per_page=10`, { headers }).catch(() => null);
       if (pullsRes && pullsRes.ok) {
         const pData = await pullsRes.json();
         if (Array.isArray(pData)) setPulls(pData);
-      } else {
-        setPulls([]);
       }
 
       // 5. Fetch Issues
-      const issuesRes = await fetch(`https://api.github.com/repos/${owner}/${repo}/issues?state=all&per_page=5`).catch(() => null);
+      const issuesRes = await fetch(`https://api.github.com/repos/${owner}/${repo}/issues?state=all&per_page=10`, { headers }).catch(() => null);
       if (issuesRes && issuesRes.ok) {
         const iData = await issuesRes.json();
-        if (Array.isArray(iData)) setIssues(iData.filter(item => !item.pull_request));
-      } else {
-        setIssues([]);
+        if (Array.isArray(iData)) setIssues(iData.filter((item) => !item.pull_request));
       }
 
     } catch (err) {
-      console.error('Error fetching GitHub repo details:', err);
+      console.warn('Direct GitHub API fetch warning:', err);
     } finally {
       setLoadingDetails(false);
+    }
+  };
+
+  const handleManualSync = async () => {
+    if (onSyncRepo) {
+      setSyncingServer(true);
+      try {
+        await onSyncRepo();
+      } catch (err) {
+        console.error('Failed to sync server repository commits:', err);
+      } finally {
+        setSyncingServer(false);
+      }
+    }
+    if (parsed) {
+      await fetchGitHubData(parsed.owner, parsed.repo);
     }
   };
 
@@ -221,6 +229,17 @@ export default function GitHubRepoDashboard({
 
         <div className="flex items-center gap-2">
           {parsed && (
+            <button
+              onClick={handleManualSync}
+              disabled={loadingDetails || syncingServer}
+              className="px-3 py-1.5 rounded-lg bg-teal-500/10 hover:bg-teal-500/20 border border-teal-500/30 text-teal-300 hover:text-teal-200 text-xs font-medium flex items-center gap-1.5 transition-colors"
+            >
+              <RefreshCw size={13} className={loadingDetails || syncingServer ? 'animate-spin' : ''} />
+              <span>{loadingDetails || syncingServer ? 'Syncing...' : 'Sync Live'}</span>
+            </button>
+          )}
+
+          {parsed && (
             <a
               href={parsed.url}
               target="_blank"
@@ -242,7 +261,7 @@ export default function GitHubRepoDashboard({
                 className="px-3 py-1.5 rounded-lg bg-vault-canvas hover:bg-vault-canvas/80 border border-vault-border text-slate-300 hover:text-white text-xs font-medium flex items-center gap-1.5 transition-colors"
               >
                 <Settings size={13} />
-                <span>Change Repo</span>
+                <span>Change</span>
               </button>
 
               <button
@@ -285,11 +304,25 @@ export default function GitHubRepoDashboard({
         </form>
       )}
 
-      {/* Green Connected Banner */}
+      {/* Connected Banner */}
       {parsed && (
-        <div className="px-4 py-2.5 rounded-lg bg-[#E6F4EA] dark:bg-[#1E3A2F] border border-[#A8DAB5] dark:border-[#2D5A47] text-[#137333] dark:text-[#81C995] text-xs font-semibold flex items-center gap-2 font-mono">
-          <CheckCircle2 size={15} />
-          <span>Connected repository: {parsed.full}</span>
+        <div className="px-4 py-2.5 rounded-lg bg-[#E6F4EA] dark:bg-[#1E3A2F] border border-[#A8DAB5] dark:border-[#2D5A47] text-[#137333] dark:text-[#81C995] text-xs font-semibold flex items-center justify-between gap-2 font-mono">
+          <div className="flex items-center gap-2">
+            <CheckCircle2 size={15} />
+            <span>Connected repository: {parsed.full}</span>
+          </div>
+          {lastSyncedAt && (
+            <span className="text-[11px] opacity-80 font-normal">
+              Last synced: {new Date(lastSyncedAt).toLocaleTimeString()}
+            </span>
+          )}
+        </div>
+      )}
+
+      {rateLimited && (
+        <div className="px-4 py-2.5 rounded-lg bg-amber-500/10 border border-amber-500/30 text-amber-300 text-xs flex items-center gap-2">
+          <AlertCircle size={15} className="shrink-0" />
+          <span>GitHub client unauthenticated rate limit reached. Displaying latest synced data from NexaVault backend.</span>
         </div>
       )}
 
@@ -305,23 +338,29 @@ export default function GitHubRepoDashboard({
             {/* Badges Bar */}
             <div className="flex flex-wrap items-center gap-2">
               <span className="px-2.5 py-1 rounded-full bg-sky-500/10 border border-sky-500/30 text-sky-400 text-xs font-medium flex items-center gap-1.5">
-                <span>💻</span> {repoDetails?.language || 'Codebase'}
+                <span>💻</span> {repoDetails?.language || 'Repository'}
               </span>
 
-              <span className="px-2.5 py-1 rounded-full bg-amber-500/10 border border-amber-500/30 text-amber-300 text-xs font-medium flex items-center gap-1.5">
-                <Star size={12} className="text-amber-400 fill-amber-400/40" /> {repoDetails?.stargazers_count ?? 0} stars
-              </span>
+              {repoDetails?.stargazers_count !== undefined && (
+                <span className="px-2.5 py-1 rounded-full bg-amber-500/10 border border-amber-500/30 text-amber-300 text-xs font-medium flex items-center gap-1.5">
+                  <Star size={12} className="text-amber-400 fill-amber-400/40" /> {repoDetails.stargazers_count} stars
+                </span>
+              )}
 
-              <span className="px-2.5 py-1 rounded-full bg-purple-500/10 border border-purple-500/30 text-purple-300 text-xs font-medium flex items-center gap-1.5">
-                <GitFork size={12} /> {repoDetails?.forks_count ?? 0} forks
-              </span>
+              {repoDetails?.forks_count !== undefined && (
+                <span className="px-2.5 py-1 rounded-full bg-purple-500/10 border border-purple-500/30 text-purple-300 text-xs font-medium flex items-center gap-1.5">
+                  <GitFork size={12} /> {repoDetails.forks_count} forks
+                </span>
+              )}
 
-              <span className="px-2.5 py-1 rounded-full bg-rose-500/10 border border-rose-500/30 text-rose-300 text-xs font-medium flex items-center gap-1.5">
-                <Bug size={12} /> {repoDetails?.open_issues_count ?? 0} open issues
-              </span>
+              {repoDetails?.open_issues_count !== undefined && (
+                <span className="px-2.5 py-1 rounded-full bg-rose-500/10 border border-rose-500/30 text-rose-300 text-xs font-medium flex items-center gap-1.5">
+                  <Bug size={12} /> {repoDetails.open_issues_count} open issues
+                </span>
+              )}
 
               <span className="px-2.5 py-1 rounded-full bg-emerald-500/10 border border-emerald-500/30 text-emerald-400 text-xs font-medium flex items-center gap-1.5 font-mono">
-                <span>🌿</span> Default branch: {repoDetails?.default_branch || 'main'}
+                <span>🌿</span> Branch: {repoDetails?.default_branch || 'main'}
               </span>
             </div>
           </div>
@@ -363,7 +402,16 @@ export default function GitHubRepoDashboard({
           {activeTab === 'commits' && (
             <div className="space-y-3">
               {commits.length === 0 ? (
-                <p className="text-xs text-slate-500 italic py-4">No recent commits found.</p>
+                <div className="text-center py-6 text-slate-400 space-y-2">
+                  <GitCommit size={24} className="mx-auto text-slate-500" />
+                  <p className="text-xs">No commit records available yet for this repository.</p>
+                  <button
+                    onClick={handleManualSync}
+                    className="text-xs text-teal-400 hover:underline"
+                  >
+                    Click to sync live commits now
+                  </button>
+                </div>
               ) : (
                 commits.map((c, idx) => (
                   <div
@@ -378,12 +426,12 @@ export default function GitHubRepoDashboard({
                           className="w-7 h-7 rounded-full border border-vault-border"
                         />
                       ) : (
-                        <div className="w-7 h-7 rounded-full bg-slate-800 border border-slate-700 flex items-center justify-center text-[10px] text-slate-400 font-mono">
-                          {c.commit?.author?.name?.[0] || 'G'}
+                        <div className="w-7 h-7 rounded-full bg-slate-800 border border-slate-700 flex items-center justify-center text-[10px] text-teal-400 font-mono font-bold">
+                          {(c.author?.login || c.commit?.author?.name || 'G')[0]?.toUpperCase()}
                         </div>
                       )}
                       <div>
-                        <p className="text-xs font-medium text-slate-200">{c.commit?.message || 'Update code'}</p>
+                        <p className="text-xs font-medium text-slate-200">{c.commit?.message || 'Code commit'}</p>
                         <p className="text-[11px] text-slate-400 font-mono mt-0.5">
                           {c.author?.login || c.commit?.author?.name || 'Contributor'} committed on{' '}
                           {c.commit?.author?.date ? new Date(c.commit.author.date).toLocaleDateString() : 'recent'}
@@ -416,21 +464,24 @@ export default function GitHubRepoDashboard({
           {activeTab === 'contributors' && (
             <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3">
               {contributors.length === 0 ? (
-                <p className="text-xs text-slate-500 italic py-4 col-span-full">No contributor data available.</p>
+                <div className="text-center py-6 text-slate-400 space-y-2 col-span-full">
+                  <Users size={24} className="mx-auto text-slate-500" />
+                  <p className="text-xs">No public contributor stats available from GitHub API for this repository.</p>
+                </div>
               ) : (
                 contributors.map((contrib) => (
                   <div
-                    key={contrib.id}
+                    key={contrib.id || contrib.login}
                     className="p-3.5 rounded-xl bg-vault-canvas border border-vault-border flex items-center gap-3"
                   >
                     <img
-                      src={contrib.avatar_url}
+                      src={contrib.avatar_url || `https://avatars.githubusercontent.com/${contrib.login}`}
                       alt={contrib.login}
                       className="w-10 h-10 rounded-full border border-vault-border bg-slate-800"
                     />
                     <div className="min-w-0 flex-1">
                       <a
-                        href={contrib.html_url}
+                        href={contrib.html_url || `https://github.com/${contrib.login}`}
                         target="_blank"
                         rel="noopener noreferrer"
                         className="text-xs font-semibold text-slate-200 hover:text-teal-400 truncate block font-mono"
@@ -451,7 +502,7 @@ export default function GitHubRepoDashboard({
           {activeTab === 'pulls' && (
             <div className="space-y-3">
               {pulls.length === 0 ? (
-                <p className="text-xs text-slate-500 italic py-4">No open or merged pull requests found.</p>
+                <p className="text-xs text-slate-500 italic py-4">No open or recent pull requests found.</p>
               ) : (
                 pulls.map((pr) => (
                   <div

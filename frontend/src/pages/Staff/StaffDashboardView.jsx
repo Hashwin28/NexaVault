@@ -264,13 +264,13 @@ export const StaffDashboardView = ({ onNavigate }) => {
                     const isClaimedByOther = item.claimed_by_id && !isClaimedByMe;
 
                     return (
-                      <tr key={item.id} className="hover:bg-[#162026]">
+                      <tr key={item.version_id || item.id} className="hover:bg-[#162026]">
                         <td className="py-3 px-3">
                           <div className="font-semibold text-slate-200">
-                            {item.workspace_title || item.project_title || 'Workspace'}
+                            {item.workspace_name || item.workspace_title || 'Workspace'}
                           </div>
-                          <div className="text-[11px] text-slate-400 font-mono">
-                            Group Code: {item.group_code || item.group_id}
+                          <div className="text-[11px] text-slate-400 font-sans">
+                            Project: <span className="text-slate-300 font-medium">{item.project_name || 'Project'}</span>
                           </div>
                         </td>
                         <td className="py-3 px-3 font-mono font-bold text-teal-400">
@@ -278,14 +278,14 @@ export const StaffDashboardView = ({ onNavigate }) => {
                         </td>
                         <td className="py-3 px-3">
                           <div className="text-slate-200 font-medium">
-                            {item.round_name || `Round ${item.round_number || 1}`}
+                            {item.round_title || item.round_name || `Round ${item.round_id || 1}`}
                           </div>
                           <div className="text-[10px] text-slate-500 font-mono">
-                            Max score: {item.round_max_score ?? 'N/A'}
+                            {item.round_due_date ? `Due: ${new Date(item.round_due_date).toLocaleDateString()}` : 'Active'}
                           </div>
                         </td>
                         <td className="py-3 px-3 font-mono text-slate-400">
-                          {new Date(item.submitted_at).toLocaleDateString()}
+                          {item.submitted_at ? new Date(item.submitted_at).toLocaleDateString() : 'Recent'}
                         </td>
                         <td className="py-3 px-3">
                           {isClaimedByMe ? (
@@ -294,7 +294,7 @@ export const StaffDashboardView = ({ onNavigate }) => {
                             </span>
                           ) : isClaimedByOther ? (
                             <span className="px-2 py-0.5 rounded bg-amber-500/10 text-amber-400 border border-amber-500/20 font-mono text-[10px]">
-                              Claimed (Staff #{item.claimed_by_id})
+                              Claimed ({item.claimed_by_name || `Staff #${item.claimed_by_id}`})
                             </span>
                           ) : (
                             <span className="px-2 py-0.5 rounded bg-slate-800 text-slate-400 border border-slate-700 font-mono text-[10px]">
@@ -314,7 +314,7 @@ export const StaffDashboardView = ({ onNavigate }) => {
                             <span className="text-slate-500 text-xs italic">Locked</span>
                           ) : (
                             <button
-                              onClick={() => handleClaimSubmission(item.id)}
+                              onClick={() => handleClaimSubmission(item.version_id)}
                               className="px-2.5 py-1 text-xs bg-teal-600/20 text-teal-300 border border-teal-500/30 rounded hover:bg-teal-600/40"
                             >
                               Claim
