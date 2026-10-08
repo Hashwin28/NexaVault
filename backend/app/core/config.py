@@ -25,6 +25,9 @@ class Settings(BaseSettings):
     def model_post_init(self, __context):
         if self.DATABASE_URL.startswith("postgres://"):
             self.DATABASE_URL = self.DATABASE_URL.replace("postgres://", "postgresql://", 1)
+        if "neon.tech" in self.DATABASE_URL and "sslmode" not in self.DATABASE_URL:
+            delimiter = "&" if "?" in self.DATABASE_URL else "?"
+            self.DATABASE_URL += f"{delimiter}sslmode=require"
 
     model_config = SettingsConfigDict(case_sensitive=True)
 
