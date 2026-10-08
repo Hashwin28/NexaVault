@@ -66,7 +66,10 @@ export const StaffReviewQueueView = () => {
     const maxScore = item.round_max_score || item.round?.max_score || 100;
     
     roster.forEach((m) => {
-      initialScores[m.id] = maxScore;
+      const mId = m.id || m.user_id;
+      if (mId) {
+        initialScores[mId] = maxScore;
+      }
     });
     setMemberScores(initialScores);
   };
@@ -90,8 +93,9 @@ export const StaffReviewQueueView = () => {
     const roster = selectedVersion.roster_snapshot || selectedVersion.members || [];
     if (verdict === 'APPROVED' && roster.length > 0) {
       for (const m of roster) {
-        if (memberScores[m.id] === undefined || memberScores[m.id] === null || isNaN(memberScores[m.id])) {
-          setError(`Score is required for member ${m.name || m.user_id || m.id}.`);
+        const mId = m.id || m.user_id;
+        if (memberScores[mId] === undefined || memberScores[mId] === null || isNaN(memberScores[mId])) {
+          setError(`Score is required for member ${m.full_name || m.name || m.email || mId}.`);
           return;
         }
       }
@@ -114,7 +118,8 @@ export const StaffReviewQueueView = () => {
         student_scores: studentScoresList,
       };
 
-      await reviewApi.evaluateSubmission(selectedVersion.id, payload);
+      const versionId = selectedVersion.version_id || selectedVersion.id;
+      await reviewApi.evaluateSubmission(versionId, payload);
       setSuccess(`Submission evaluation recorded as ${verdict}.`);
       setSelectedVersion(null);
       await fetchQueue();
@@ -190,8 +195,8 @@ export const StaffReviewQueueView = () => {
             <table className="w-full text-left text-xs text-slate-300">
               <thead className="bg-[#0B0F12] text-slate-400 font-mono text-[11px] uppercase border-b border-[#1B262E]">
                 <tr>
-                  <th className="py-3 px-4">Workspace / Project</th>
-                  <th className="py-3 px-4">Group Code</th>
+                  <th className="py-3 px-4">Workspace</th>
+                  <th className="py-3 px-4">Project</th>
                   <th className="py-3 px-4">Version</th>
                   <th className="py-3 px-4">Review Round</th>
                   <th className="py-3 px-4">Submitted At</th>
@@ -204,7 +209,7 @@ export const StaffReviewQueueView = () => {
                   const versionId = item.version_id || item.id;
                   const isClaimedByMe = item.claimed_by_id === user?.id;
                   const isClaimedByOther = item.claimed_by_id && !isClaimedByMe;
-                  const isEvaluated = item.review_status === 'EVALUATED' || item.is_evaluated;
+                  const isEvaluated = item.review_status === 'EVALUATED' || item.is_evaluated || item.status === 'APPROVED' || item.status === 'REVISION_REQUESTED';
 
                   return (
                     <tr key={versionId} className="hover:bg-[#162026] transition-colors">
@@ -212,12 +217,14 @@ export const StaffReviewQueueView = () => {
                         <div className="font-bold text-slate-100">
                           {item.workspace_name || item.workspace_title || 'Workspace'}
                         </div>
-                        <div className="text-[11px] text-slate-400">
-                          {item.project_name || item.project_title || 'Project'}
-                        </div>
                       </td>
-                      <td className="py-3 px-4 font-mono text-teal-400 font-bold">
-                        {item.group_code || item.group_id || `Project #${item.project_id}`}
+                      <td className="py-3 px-4">
+                        <div className="font-semibold text-slate-200">
+                          {item.project_name || item.project_title || `Project #${item.project_id}`}
+                        </div>
+                        <div className="text-[10px] text-slate-400 font-mono">
+                          By: {item.submitter_name || 'Student'}
+                        </div>
                       </td>
                       <td className="py-3 px-4 font-mono font-bold text-teal-300">
                         v{item.version_number}
@@ -306,10 +313,10 @@ export const StaffReviewQueueView = () => {
                   Evaluating Submission v{selectedVersion.version_number}
                 </span>
                 <h3 className="text-lg font-bold text-slate-100">
-                  {selectedVersion.project_title || selectedVersion.workspace_title}
+                  {selectedVersion.workspace_name || selectedVersion.workspace_title || 'Workspace'} — {selectedVersion.project_name || selectedVersion.project_title || 'Project'}
                 </h3>
                 <p className="text-xs text-slate-400">
-                  Group Code: <strong className="text-slate-200 font-mono">{selectedVersion.group_code || selectedVersion.group_id}</strong> • Round: <strong className="text-slate-200">{selectedVersion.round_name || 'Sprint Review'}</strong> (Max Score: {selectedVersion.round_max_score ?? 100})
+                  Submitted by: <strong className="text-slate-200">{selectedVersion.submitter_name || 'Student'}</strong> • Round: <strong className="text-slate-200">{selectedVersion.round_title || selectedVersion.round_name || 'Round'}</strong> (Max Score: {selectedVersion.round_max_score ?? 100})
                 </p>
               </div>
               <button
@@ -402,36 +409,39 @@ export const StaffReviewQueueView = () => {
                     </div>
                   ) : (
                     <div className="space-y-2">
-                      {(selectedVersion.roster_snapshot || selectedVersion.members || []).map((student) => (
-                        <div
-                          key={student.id}
-                          className="flex items-center justify-between p-2.5 bg-[#11181C] rounded border border-[#1B262E]"
-                        >
-                          <div>
-                            <div className="text-xs font-semibold text-slate-200">
-                              {student.full_name || student.email}
+                      {(selectedVersion.roster_snapshot || selectedVersion.members || []).map((student) => {
+                        const sId = student.id || student.user_id;
+                        return (
+                          <div
+                            key={sId}
+                            className="flex items-center justify-between p-2.5 bg-[#11181C] rounded border border-[#1B262E]"
+                          >
+                            <div>
+                              <div className="text-xs font-semibold text-slate-200">
+                                {student.full_name || student.email || `Student #${sId}`}
+                              </div>
+                              <div className="text-[10px] text-slate-500 font-mono">
+                                {student.email}
+                              </div>
                             </div>
-                            <div className="text-[10px] text-slate-500 font-mono">
-                              {student.email}
+                            <div className="flex items-center gap-2">
+                              <input
+                                type="number"
+                                step="0.5"
+                                min="0"
+                                max={selectedVersion.round_max_score ?? 100}
+                                value={memberScores[sId] ?? ''}
+                                onChange={(e) => handleScoreChange(sId, e.target.value)}
+                                className="w-20 bg-[#0B0F12] border border-[#1B262E] rounded px-2 py-1 text-xs text-slate-200 font-mono text-right focus:outline-none focus:border-teal-500"
+                                required={verdict === 'APPROVED'}
+                              />
+                              <span className="text-xs font-mono text-slate-500">
+                                / {selectedVersion.round_max_score ?? 100}
+                              </span>
                             </div>
                           </div>
-                          <div className="flex items-center gap-2">
-                            <input
-                              type="number"
-                              step="0.5"
-                              min="0"
-                              max={selectedVersion.round_max_score ?? 100}
-                              value={memberScores[student.id] ?? ''}
-                              onChange={(e) => handleScoreChange(student.id, e.target.value)}
-                              className="w-20 bg-[#0B0F12] border border-[#1B262E] rounded px-2 py-1 text-xs text-slate-200 font-mono text-right focus:outline-none focus:border-teal-500"
-                              required={verdict === 'APPROVED'}
-                            />
-                            <span className="text-xs font-mono text-slate-500">
-                              / {selectedVersion.round_max_score ?? 100}
-                            </span>
-                          </div>
-                        </div>
-                      ))}
+                        );
+                      })}
                     </div>
                   )}
                 </div>

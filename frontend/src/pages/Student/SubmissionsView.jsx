@@ -465,7 +465,7 @@ export const SubmissionsView = () => {
                             <div 
                               key={v.id} 
                               className={`p-3.5 rounded-lg border text-xs space-y-2 transition-colors ${
-                                v.status === 'draft'
+                                v.status?.toLowerCase() === 'draft'
                                   ? 'bg-amber-500/5 border-amber-500/30 text-slate-300'
                                   : 'bg-vault-canvas/80 border-vault-border/60 text-slate-300'
                               }`}
@@ -474,7 +474,7 @@ export const SubmissionsView = () => {
                                 <div className="flex items-center gap-2">
                                   <span className="font-mono font-bold text-white">v{v.version_number}</span>
                                   <span className={`px-2 py-0.5 rounded text-[10px] font-mono uppercase font-bold ${
-                                    v.status === 'draft' 
+                                    v.status?.toLowerCase() === 'draft' 
                                       ? 'bg-amber-500/20 text-amber-300 border border-amber-500/40' 
                                       : 'bg-teal-500/20 text-teal-300 border border-teal-500/40'
                                   }`}>
@@ -522,10 +522,10 @@ export const SubmissionsView = () => {
                               </div>
 
                               {/* Draft Finalization Action */}
-                              {v.status === 'draft' && (
+                              {v.status?.toLowerCase() === 'draft' && (
                                 <div className="pt-2 flex justify-end gap-2 border-t border-amber-500/20">
                                   <button
-                                    onClick={() => setConfirmModal({ type: 'finalize', submissionId: v.id })}
+                                    onClick={() => setConfirmModal({ type: 'finalize', submissionId: v.submission_id || subForRound.id })}
                                     disabled={!canSubmit}
                                     className={`px-3 py-1.5 rounded text-[11px] font-bold flex items-center gap-1.5 ${
                                       canSubmit 

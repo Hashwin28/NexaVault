@@ -222,7 +222,14 @@ export const StaffWorkspacesView = ({ selectedWorkspaceId, onSelectProject }) =>
     e.preventDefault();
     if (!activeWorkspace) return;
     try {
-      await workspaceApi.createNotice(activeWorkspace.id, noticeForm);
+      const noticeBody = (noticeForm.content || noticeForm.body || '').trim();
+      await workspaceApi.createNotice(activeWorkspace.id, {
+        title: noticeForm.title.trim(),
+        body: noticeBody,
+        content: noticeBody,
+        image_url: noticeForm.image_url?.trim() || null,
+        is_pinned: Boolean(noticeForm.is_pinned),
+      });
       setSuccess('Notice posted to workspace board.');
       setNoticeForm({ title: '', content: '', image_url: '', is_pinned: false });
       loadSubTabData(activeWorkspace.id, 'notices');
@@ -904,9 +911,6 @@ export const StaffWorkspacesView = ({ selectedWorkspaceId, onSelectProject }) =>
                         >
                           <div className="flex justify-between items-start">
                             <div>
-                              <div className="text-xs font-mono text-teal-400 font-bold">
-                                Group Code: {g.code}
-                              </div>
                               <div className="text-sm font-semibold text-slate-100">
                                 {g.name || `Group #${g.id}`}
                               </div>
@@ -932,7 +936,7 @@ export const StaffWorkspacesView = ({ selectedWorkspaceId, onSelectProject }) =>
 
                           {g.project && (
                             <div className="pt-2 border-t border-[#1B262E] flex justify-between items-center text-xs">
-                              <span className="text-slate-400">Project: <strong className="text-slate-200">{g.project.title}</strong></span>
+                              <span className="text-slate-400">Project: <strong className="text-slate-200">{g.project.title || g.project.name}</strong></span>
                               <button
                                 onClick={() => onSelectProject(g.project.id)}
                                 className="text-teal-400 hover:underline font-mono text-[11px]"
@@ -967,9 +971,9 @@ export const StaffWorkspacesView = ({ selectedWorkspaceId, onSelectProject }) =>
                         >
                           <div className="space-y-1">
                             <div className="flex items-center gap-2">
-                              <h5 className="font-bold text-sm text-slate-100">{p.title}</h5>
+                              <h5 className="font-bold text-sm text-slate-100">{p.title || p.name}</h5>
                               <span className="text-[10px] font-mono px-2 py-0.5 rounded bg-teal-500/10 text-teal-300 border border-teal-500/20">
-                                Group Code: {p.group_code || p.group_id}
+                                Group: {p.group_name || `Group #${p.group_id}`}
                               </span>
                             </div>
                             <p className="text-xs text-slate-400 line-clamp-2">
@@ -1082,17 +1086,17 @@ export const StaffWorkspacesView = ({ selectedWorkspaceId, onSelectProject }) =>
           <div className="bg-[#11181C] border border-[#1B262E] rounded-xl max-w-md w-full p-6 space-y-4">
             <h3 className="text-lg font-bold text-slate-100">Request Staff Access</h3>
             <p className="text-xs text-slate-400">
-              Enter the numeric ID of an existing workspace to request co-staff permissions from the owner.
+              Enter the unique ID of an existing workspace to request co-staff permissions from the owner.
             </p>
             <form onSubmit={handleRequestAccess} className="space-y-4">
               <div>
                 <label className="text-xs font-mono text-slate-400 block mb-1">Workspace ID</label>
                 <input
-                  type="number"
-                  placeholder="e.g. 1"
+                  type="text"
+                  placeholder="e.g. DSA-2026"
                   value={requestWsId}
                   onChange={(e) => setRequestWsId(e.target.value)}
-                  className="w-full bg-[#0B0F12] border border-[#1B262E] rounded px-3 py-2 text-xs text-slate-200 focus:outline-none focus:border-teal-500"
+                  className="w-full bg-[#0B0F12] border border-[#1B262E] rounded px-3 py-2 text-xs text-slate-200 font-mono focus:outline-none focus:border-teal-500"
                   required
                 />
               </div>

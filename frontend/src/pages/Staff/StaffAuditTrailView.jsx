@@ -66,7 +66,7 @@ export const StaffAuditTrailView = () => {
             <option value="">All Managed Workspaces</option>
             {workspaces.map((ws) => (
               <option key={ws.id} value={ws.id}>
-                #{ws.id} - {ws.title}
+                {ws.id} - {ws.name || ws.title}
               </option>
             ))}
           </select>

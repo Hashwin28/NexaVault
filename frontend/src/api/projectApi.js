@@ -8,16 +8,33 @@ export const projectApi = {
     }),
   getProject: (id) => apiRequest(`/projects/${id}`),
   getUpdates: (projectId) => apiRequest(`/projects/${projectId}/updates`),
-  postUpdate: (projectId, content, link = null) =>
-    apiRequest(`/projects/${projectId}/updates`, {
+  postUpdate: (projectId, contentOrObj, link = null) => {
+    let body = {};
+    if (typeof contentOrObj === 'object' && contentOrObj !== null) {
+      body = {
+        content: contentOrObj.content,
+        ...(contentOrObj.link ? { link: contentOrObj.link } : {}),
+      };
+    } else {
+      body = {
+        content: contentOrObj,
+        ...(link ? { link } : {}),
+      };
+    }
+    return apiRequest(`/projects/${projectId}/updates`, {
       method: 'POST',
-      body: { content, ...(link ? { link } : {}) },
-    }),
-  postComment: (projectId, updateId, content) =>
-    apiRequest(`/projects/${projectId}/updates/${updateId}/comments`, {
+      body,
+    });
+  },
+  postComment: (projectId, updateId, contentOrObj) => {
+    const content = (typeof contentOrObj === 'object' && contentOrObj !== null)
+      ? contentOrObj.content
+      : contentOrObj;
+    return apiRequest(`/projects/${projectId}/updates/${updateId}/comments`, {
       method: 'POST',
       body: { content },
-    }),
+    });
+  },
   getGithub: (projectId) => apiRequest(`/projects/${projectId}/github`),
   linkGithub: (projectId, repoUrl) =>
     apiRequest(`/projects/${projectId}/github`, {

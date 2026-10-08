@@ -40,15 +40,37 @@ class WorkspaceStaffRequestResolve(BaseModel):
 
 class WorkspaceNoticeCreate(BaseModel):
     title: str = Field(..., min_length=1, max_length=255)
-    body: str = Field(..., min_length=1)
+    body: Optional[str] = None
+    content: Optional[str] = None
     image_url: Optional[str] = None
     is_pinned: bool = False
 
+    @model_validator(mode="before")
+    @classmethod
+    def resolve_body(cls, data):
+        if isinstance(data, dict):
+            val = data.get("body") if data.get("body") is not None else data.get("content")
+            if val is not None:
+                data["body"] = str(val)
+                data["content"] = str(val)
+        return data
+
 class WorkspaceNoticeUpdate(BaseModel):
     title: Optional[str] = Field(None, min_length=1, max_length=255)
-    body: Optional[str] = Field(None, min_length=1)
+    body: Optional[str] = None
+    content: Optional[str] = None
     image_url: Optional[str] = None
     is_pinned: Optional[bool] = None
+
+    @model_validator(mode="before")
+    @classmethod
+    def resolve_body_update(cls, data):
+        if isinstance(data, dict):
+            val = data.get("body") if data.get("body") is not None else data.get("content")
+            if val is not None:
+                data["body"] = str(val)
+                data["content"] = str(val)
+        return data
 
 class WorkspaceNoticeResponse(BaseModel):
     id: int
