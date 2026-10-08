@@ -5,8 +5,6 @@ echo "Running database migrations..."
 alembic upgrade head
 
 echo "Starting NexaVault backend..."
-if [ $# -eq 0 ]; then
-    exec uvicorn app.main:app --host 0.0.0.0 --port 8000
-else
-    exec "$@"
-fi
+PORT="${PORT:-8000}"
+exec uvicorn app.main:app --host 0.0.0.0 --port "$PORT"
+
