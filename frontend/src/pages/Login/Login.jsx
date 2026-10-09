@@ -1,11 +1,12 @@
-import React, { useState } from 'react';
-import { Mail, Lock, Eye, EyeOff, ArrowRight, ShieldCheck, LogOut, User, UserPlus } from 'lucide-react';
+import React, { useState, useEffect } from 'react';
+import { Mail, Lock, Eye, EyeOff, ArrowRight, ShieldCheck, LogOut, User, UserPlus, Loader2, Sparkles } from 'lucide-react';
 import { NexaLogo } from '../../components/layout/NexaLogo';
 import { HeroVaultGraphic } from '../../components/layout/HeroVaultGraphic';
 import { Input } from '../../components/ui/Input';
 import { Button } from '../../components/ui/Button';
 import { Alert } from '../../components/ui/Alert';
 import { useAuth } from '../../context/AuthContext';
+import { authApi } from '../../api/authApi';
 import './Login.css';
 
 export const Login = () => {
@@ -18,8 +19,23 @@ export const Login = () => {
   const [confirmPassword, setConfirmPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isWaking, setIsWaking] = useState(false);
   const [alert, setAlert] = useState(null);
   const [fieldErrors, setFieldErrors] = useState({});
+
+  // Pre-warm backend and Neon database early while user enters credentials
+  useEffect(() => {
+    authApi.prewarm(true);
+
+    const handleServerStatus = (e) => {
+      if (e.detail && typeof e.detail.isWaking === 'boolean') {
+        setIsWaking(e.detail.isWaking);
+      }
+    };
+
+    window.addEventListener('nexavault:server-status', handleServerStatus);
+    return () => window.removeEventListener('nexavault:server-status', handleServerStatus);
+  }, []);
 
   const validateForm = () => {
     const errors = {};
@@ -215,8 +231,17 @@ export const Login = () => {
                   </Button>
                 </div>
               ) : (
-                /* Authentication Form */
-                <form onSubmit={handleSubmit} className="space-y-4" noValidate>
+                <>
+                  {/* Cold Boot Waking Notice */}
+                  {isWaking && (
+                    <div className="mb-4 p-3 rounded-lg bg-teal-950/60 border border-teal-500/40 flex items-center gap-3 text-xs text-teal-300 font-mono animate-pulse">
+                      <Loader2 size={16} className="animate-spin text-teal-400 shrink-0" />
+                      <span>Resuming backend & database cluster (~10–20s on first load)...</span>
+                    </div>
+                  )}
+
+                  {/* Authentication Form */}
+                  <form onSubmit={handleSubmit} className="space-y-4" noValidate>
                   {mode === 'register' && (
                     <Input
                       id="fullName"
@@ -349,6 +374,7 @@ export const Login = () => {
                     )}
                   </div>
                 </form>
+                </>
               )}
 
             </div>

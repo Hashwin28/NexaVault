@@ -1,71 +1,49 @@
-const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000/api/v1';
+import { apiRequest } from './client';
 
 export const authApi = {
+  /**
+   * Pre-warms the backend and Neon database connection on login page mount
+   */
+  async prewarm(wakeDb = true) {
+    try {
+      return await apiRequest(`/health?wake_db=${wakeDb ? 'true' : 'false'}`);
+    } catch {
+      return null;
+    }
+  },
+
   /**
    * Authenticates user with email and password
    */
   async login(email, password) {
-    const response = await fetch(`${API_BASE_URL}/auth/login`, {
+    return await apiRequest('/auth/login', {
       method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({ email, password }),
+      body: { email, password },
     });
-
-    const data = await response.json();
-
-    if (!response.ok) {
-      throw new Error(data.detail || 'Authentication failed. Please check your credentials.');
-    }
-
-    return data; // { access_token, token_type, user }
   },
 
   /**
    * Registers a new user account
    */
   async register(email, password, fullName, role = 'student') {
-    const response = await fetch(`${API_BASE_URL}/auth/register`, {
+    return await apiRequest('/auth/register', {
       method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
+      body: {
         email,
         password,
         full_name: fullName,
         role,
-      }),
+      },
     });
-
-    const data = await response.json();
-
-    if (!response.ok) {
-      throw new Error(data.detail || 'Registration failed.');
-    }
-
-    return data;
   },
 
   /**
    * Fetches profile of currently authenticated user using Bearer JWT
    */
   async getMe(token) {
-    const response = await fetch(`${API_BASE_URL}/auth/me`, {
+    return await apiRequest('/auth/me', {
       method: 'GET',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${token}`,
-      },
+      headers: token ? { Authorization: `Bearer ${token}` } : {},
     });
-
-    const data = await response.json();
-
-    if (!response.ok) {
-      throw new Error(data.detail || 'Failed to validate user session.');
-    }
-
-    return data; // UserResponse
   },
 };
