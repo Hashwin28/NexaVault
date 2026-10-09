@@ -19,6 +19,12 @@ from app.core.permissions import (
     is_user_group_member,
 )
 from app.services.audit_service import log_audit
+from app.core.config import settings
+from app.core.cache import (
+    cache,
+    key_project_submissions,
+    invalidate_project,
+)
 
 router = APIRouter()
 
@@ -71,12 +77,24 @@ def list_project_submissions(
             detail="Project not found or access denied."
         )
 
+    submissions_cache_key = key_project_submissions(project_id)
+    cached = cache.get(submissions_cache_key)
+    if cached is not None:
+        return cached
+
     submissions = (
         db.query(Submission)
         .filter(Submission.project_id == project.id)
         .all()
     )
-    return [build_submission_response(s) for s in submissions]
+    result = [build_submission_response(s).model_dump(mode="json") for s in submissions]
+    cache.set(
+        submissions_cache_key,
+        result,
+        ttl=settings.CACHE_DEFAULT_TTL,
+        tags=[f"project:{project_id}", f"workspace:{project.workspace_id}"]
+    )
+    return result
 
 @router.post("/projects/{project_id}/rounds/{round_id}/submissions", response_model=SubmissionResponse, status_code=status.HTTP_201_CREATED)
 @router.post("/projects/{project_id}/submissions/{round_id}", response_model=SubmissionResponse, status_code=status.HTTP_201_CREATED)
@@ -178,6 +196,8 @@ def submit_round_deliverable(
     )
 
     db.commit()
+    invalidate_project(project.id, project.workspace_id)
+    cache.invalidate_prefix("review:queue")
     db.refresh(submission)
 
     return build_submission_response(submission)
@@ -221,6 +241,7 @@ def update_draft_submission(
         latest_version.github_commit_sha = draft_in.github_commit_sha.strip()
 
     db.commit()
+    invalidate_project(submission.project_id, submission.project.workspace_id)
     db.refresh(submission)
     return build_submission_response(submission)
 
@@ -289,5 +310,7 @@ def finalize_draft_submission(
     )
 
     db.commit()
+    invalidate_project(submission.project_id, submission.project.workspace_id)
+    cache.invalidate_prefix("review:queue")
     db.refresh(submission)
     return build_submission_response(submission)

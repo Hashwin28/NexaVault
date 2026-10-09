@@ -68,6 +68,15 @@ def health(wake_db: bool = False):
     except Exception as exc:
         return {"server": "online", "database": "waking", "message": "Database compute is resuming"}
 
+from app.core.cache import cache
+
+@app.get(f"{settings.API_V1_STR}/cache/stats")
+def get_cache_stats():
+    """
+    Returns real-time in-memory cache telemetry: hits, misses, hit rate, entry count, etc.
+    """
+    return cache.stats()
+
 @app.get("/")
 def root():
     return {

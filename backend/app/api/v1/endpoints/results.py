@@ -12,6 +12,7 @@ from app.schemas.result import (
 )
 from app.core.permissions import can_correct_result
 from app.services.audit_service import log_audit
+from app.core.cache import cache, key_results_me, invalidate_results
 
 router = APIRouter()
 
@@ -26,6 +27,11 @@ def get_my_released_results(
     - Unreleased marks and peer student scores are NEVER exposed.
     - Former group members retain access to their own historical released scores.
     """
+    c_key = key_results_me(current_student.id)
+    cached = cache.get(c_key)
+    if cached is not None:
+        return StudentResultsSummary(**cached)
+
     released_entries = (
         db.query(ResultEntry)
         .join(ReviewRound, ResultEntry.round_id == ReviewRound.id)
@@ -65,12 +71,14 @@ def get_my_released_results(
 
     cumulative_pct = (total_earned / total_possible * 100.0) if total_possible > 0 else 0.0
 
-    return StudentResultsSummary(
+    summary = StudentResultsSummary(
         total_earned=round(total_earned, 2),
         total_possible=round(total_possible, 2),
         cumulative_percentage=round(cumulative_pct, 2),
         results=results_list
     )
+    cache.set(c_key, summary.model_dump(), ttl=60, tags=[f"user:{current_student.id}:results", f"results:{current_student.id}"])
+    return summary
 
 @router.patch("/{entry_id}/correct", response_model=ResultCorrectionResponse)
 def correct_result_score(
@@ -130,6 +138,8 @@ def correct_result_score(
 
     db.commit()
     db.refresh(correction)
+    invalidate_results(entry.student_id)
+    cache.invalidate_prefix("project:progress:")
 
     return ResultCorrectionResponse(
         id=correction.id,

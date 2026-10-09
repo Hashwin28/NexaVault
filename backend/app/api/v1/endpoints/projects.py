@@ -30,6 +30,15 @@ from app.core.permissions import (
     can_access_workspace,
 )
 from app.services.audit_service import log_audit
+from app.core.cache import (
+    cache,
+    key_project_detail,
+    key_project_updates,
+    key_project_github,
+    invalidate_project,
+    invalidate_workspace,
+    invalidate_group,
+)
 
 router = APIRouter()
 
@@ -113,6 +122,9 @@ def create_project(
 
     db.commit()
     db.refresh(new_project)
+    invalidate_workspace(new_project.workspace_id)
+    invalidate_group(group.id)
+    cache.invalidate_prefix("ws:list:")
 
     return build_project_response(new_project, db)
 
@@ -134,7 +146,14 @@ def get_project_details(
             detail="Project not found or access denied."
         )
 
-    return build_project_response(project, db)
+    c_key = key_project_detail(project_id)
+    cached = cache.get(c_key)
+    if cached is not None:
+        return ProjectResponse(**cached)
+
+    res = build_project_response(project, db)
+    cache.set(c_key, res.model_dump(), ttl=120, tags=[f"project:{project_id}", f"workspace:{project.workspace_id}"])
+    return res
 
 @router.get("/{project_id}/updates", response_model=List[ProjectUpdateResponse])
 def list_project_updates(
@@ -152,6 +171,11 @@ def list_project_updates(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="Project not found or access denied."
         )
+
+    c_key = key_project_updates(project_id)
+    cached = cache.get(c_key)
+    if cached is not None:
+        return [ProjectUpdateResponse(**x) for x in cached]
 
     updates = (
         db.query(ProjectUpdate)
@@ -187,6 +211,7 @@ def list_project_updates(
             )
         )
 
+    cache.set(c_key, [r.model_dump() for r in results], ttl=120, tags=[f"project:{project_id}:updates", f"project:{project_id}"])
     return results
 
 @router.post("/{project_id}/updates", response_model=ProjectUpdateResponse, status_code=status.HTTP_201_CREATED)
@@ -230,6 +255,7 @@ def post_project_update(
 
     db.commit()
     db.refresh(new_update)
+    cache.invalidate_tag(f"project:{project_id}:updates")
 
     return ProjectUpdateResponse(
         id=new_update.id,
@@ -290,6 +316,7 @@ def post_update_comment(
 
     db.commit()
     db.refresh(comment)
+    cache.invalidate_tag(f"project:{project_id}:updates")
 
     return UpdateCommentResponse(
         id=comment.id,
@@ -376,8 +403,14 @@ def get_project_github_info(
             detail="Project not found or access denied."
         )
 
+    c_key = key_project_github(project_id)
+    cached = cache.get(c_key)
+    if cached is not None:
+        return GithubLinkResponse(**cached) if cached else None
+
     link = db.query(GithubLink).filter(GithubLink.project_id == project.id).first()
     if not link:
+        cache.set(c_key, None, ttl=180, tags=[f"project:{project_id}:github", f"project:{project_id}"])
         return None
 
     # Auto-sync once if commits have never been populated
@@ -396,7 +429,7 @@ def get_project_github_info(
         for c in link.commits
     ]
 
-    return GithubLinkResponse(
+    res = GithubLinkResponse(
         id=link.id,
         project_id=link.project_id,
         repo_url=link.repo_url,
@@ -404,6 +437,8 @@ def get_project_github_info(
         created_at=link.created_at,
         commits=commits
     )
+    cache.set(c_key, res.model_dump(), ttl=180, tags=[f"project:{project_id}:github", f"project:{project_id}"])
+    return res
 
 @router.post("/{project_id}/github", response_model=GithubLinkResponse)
 def link_project_github_repo(
@@ -453,6 +488,7 @@ def link_project_github_repo(
 
     db.commit()
     db.refresh(link_obj)
+    invalidate_project(project_id, project.workspace_id)
 
     commits = [
         GithubCommitResponse(
@@ -501,6 +537,7 @@ def sync_project_github_repo(
     sync_github_commits_from_api(link, db)
     db.commit()
     db.refresh(link)
+    invalidate_project(project_id, project.workspace_id)
 
     commits = [
         GithubCommitResponse(
@@ -543,6 +580,7 @@ def unlink_project_github_repo(
     if link:
         db.delete(link)
         db.commit()
+        invalidate_project(project_id, project.workspace_id)
 
         client_ip = request.client.host if request.client else None
         log_audit(

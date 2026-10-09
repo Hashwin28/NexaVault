@@ -16,6 +16,13 @@ from app.schemas.review import (
 )
 from app.core.permissions import can_review_submission, is_workspace_staff
 from app.services.audit_service import log_audit
+from app.core.cache import (
+    cache,
+    key_review_queue,
+    invalidate_project,
+    invalidate_results,
+    invalidate_workspace,
+)
 
 router = APIRouter(prefix="/reviews", tags=["Reviews"])
 
@@ -31,6 +38,11 @@ def get_review_queue(
     Ordered by: 1. Review Round due_date asc; 2. Submission creation/submission time asc.
     Applies DB-level limit and offset pagination.
     """
+    c_key = key_review_queue(current_staff.id, limit, offset)
+    cached = cache.get(c_key)
+    if cached is not None:
+        return [QueueItemResponse(**x) for x in cached]
+
     staff_entries = db.query(WorkspaceStaff).filter(WorkspaceStaff.user_id == current_staff.id).all()
     ws_ids = {s.workspace_id for s in staff_entries}
     owned = db.query(Workspace).filter(Workspace.owner_id == current_staff.id).all()
@@ -89,6 +101,7 @@ def get_review_queue(
             )
         )
 
+    cache.set(c_key, [r.model_dump() for r in result], ttl=30, tags=["review:queue"])
     return result
 
 @router.post("/{version_id}/claim")
@@ -164,6 +177,7 @@ def claim_submission(
 
     db.commit()
     db.refresh(version)
+    cache.invalidate_prefix("review:queue")
 
     return {"message": f"Submission version {version_id} claimed successfully.", "version_id": version_id, "claimed_by": current_staff.id}
 
@@ -207,6 +221,7 @@ def release_submission_claim(
     )
 
     db.commit()
+    cache.invalidate_prefix("review:queue")
     return {"message": f"Claim released for submission version {version_id}."}
 
 @router.post("/{version_id}/evaluate", response_model=ReviewEvaluationResponse)
@@ -344,6 +359,10 @@ def evaluate_submission(
 
     db.commit()
     db.refresh(version)
+    cache.invalidate_prefix("review:queue")
+    invalidate_project(proj.id, proj.workspace_id)
+    invalidate_results()
+    cache.invalidate_prefix("project:progress:")
 
     return ReviewEvaluationResponse(
         version_id=version.id,
@@ -404,4 +423,7 @@ def release_results(
     )
 
     db.commit()
+    invalidate_results()
+    cache.invalidate_prefix("project:progress:")
+    invalidate_workspace(proj.workspace_id)
     return {"message": f"Results for submission version {version_id} released successfully.", "released_count": len(entries)}

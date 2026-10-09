@@ -15,6 +15,11 @@ class Settings(BaseSettings):
     # PostgreSQL Database URL
     DATABASE_URL: str = os.getenv("DATABASE_URL", "postgresql://postgres:postgres@localhost:5432/nexavault_db")
     
+    # In-memory Cache settings
+    CACHE_ENABLED: bool = os.getenv("CACHE_ENABLED", "true").lower() in ("1", "true", "yes")
+    CACHE_DEFAULT_TTL: int = int(os.getenv("CACHE_DEFAULT_TTL", "300"))  # 5 minutes
+    CACHE_MAX_ENTRIES: int = int(os.getenv("CACHE_MAX_ENTRIES", "2000"))
+    
     # CORS Origins for Vite Frontend
     CORS_ORIGINS: Union[List[str], str] = [
         "http://localhost:3000",

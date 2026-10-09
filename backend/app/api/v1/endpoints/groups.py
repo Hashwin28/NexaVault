@@ -18,6 +18,14 @@ from app.schemas.group import (
 )
 from app.core.permissions import get_user_active_group, is_user_group_member
 from app.services.audit_service import log_audit
+from app.core.cache import (
+    cache,
+    key_group_detail,
+    key_group_me,
+    invalidate_group,
+    invalidate_user,
+    invalidate_workspace,
+)
 
 router = APIRouter()
 
@@ -125,6 +133,8 @@ def create_group(
 
     db.commit()
     db.refresh(new_group)
+    invalidate_user(current_student.id)
+    cache.invalidate_prefix("ws:list:")
 
     return build_group_response(new_group, db)
 
@@ -134,13 +144,20 @@ def get_my_current_group(
     current_student: User = Depends(get_current_student)
 ):
     """Returns the single active group the student belongs to."""
+    c_key = key_group_me(current_student.id)
+    cached = cache.get(c_key)
+    if cached is not None:
+        return GroupResponse(**cached)
+
     group = get_user_active_group(db, current_student.id)
     if not group:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="You do not currently belong to any active group."
         )
-    return build_group_response(group, db)
+    res = build_group_response(group, db)
+    cache.set(c_key, res.model_dump(), ttl=180, tags=[f"user:{current_student.id}", f"group:{group.id}"])
+    return res
 
 @router.get("/{group_id}", response_model=GroupResponse)
 def get_group_details(
@@ -158,6 +175,11 @@ def get_group_details(
             detail="Group not found or access denied."
         )
 
+    c_key = key_group_detail(group_id)
+    cached = cache.get(c_key)
+    if cached is not None:
+        return GroupResponse(**cached)
+
     group = db.query(Group).filter(Group.id == group_id, Group.is_deleted == False).first()
     if not group:
         raise HTTPException(
@@ -165,7 +187,9 @@ def get_group_details(
             detail="Group not found."
         )
 
-    return build_group_response(group, db)
+    res = build_group_response(group, db)
+    cache.set(c_key, res.model_dump(), ttl=180, tags=[f"group:{group_id}"])
+    return res
 
 @router.post("/join", response_model=GroupResponse)
 def join_group(
@@ -230,6 +254,9 @@ def join_group(
 
     db.commit()
     db.refresh(group)
+    invalidate_group(group.id)
+    invalidate_user(current_student.id)
+    cache.invalidate_prefix("ws:list:")
 
     return build_group_response(group, db)
 
@@ -284,6 +311,7 @@ def change_group_code(
 
     db.commit()
     db.refresh(group)
+    invalidate_group(group.id)
 
     return build_group_response(group, db)
 
@@ -346,6 +374,9 @@ def leave_group(
         msg = f"You have successfully left the group '{group_name}'."
 
     db.commit()
+    invalidate_group(group_id)
+    invalidate_user(current_student.id)
+    cache.invalidate_prefix("ws:")
     return GroupMessageResponse(message=msg)
 
 @router.post("/{group_id}/enroll", response_model=GroupMessageResponse)
@@ -432,6 +463,10 @@ def enroll_group_in_workspace(
     )
 
     db.commit()
+    invalidate_group(group_id)
+    invalidate_workspace(workspace.id)
+    invalidate_user(current_student.id)
+    cache.invalidate_prefix("ws:list:")
 
     return GroupMessageResponse(
         message=f"Group '{group.name}' successfully enrolled in workspace '{workspace.name}' ({workspace.id}).",

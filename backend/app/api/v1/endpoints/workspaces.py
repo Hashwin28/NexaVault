@@ -38,6 +38,20 @@ from app.core.permissions import (
     can_manage_round,
 )
 from app.services.audit_service import log_audit
+from app.core.cache import (
+    cache,
+    key_ws_list_staff,
+    key_ws_list_student,
+    key_ws_detail_staff,
+    key_ws_detail_student,
+    key_ws_groups,
+    key_ws_projects,
+    key_ws_rounds,
+    key_ws_notices,
+    invalidate_workspace,
+    invalidate_rounds,
+    invalidate_notices,
+)
 
 router = APIRouter()
 
@@ -113,6 +127,7 @@ def create_workspace(
 
     db.commit()
     db.refresh(workspace)
+    cache.invalidate_prefix("ws:list:")
 
     return WorkspaceResponse(
         id=workspace.id,
@@ -138,6 +153,11 @@ def list_workspaces(
     For Student: returns workspaces where active group is enrolled.
     """
     if current_user.role.lower() == "staff":
+        c_key = key_ws_list_staff(current_user.id)
+        cached = cache.get(c_key)
+        if cached is not None:
+            return [WorkspaceResponse(**x) for x in cached]
+
         staff_entries = (
             db.query(WorkspaceStaff)
             .filter(WorkspaceStaff.user_id == current_user.id)
@@ -167,12 +187,18 @@ def list_workspaces(
                     role=role,
                 )
             )
+        cache.set(c_key, [r.model_dump() for r in results], ttl=300, tags=[f"user:{current_user.id}:workspaces"])
         return results
     else:
         # Student view - batch queries to eliminate N+1 database roundtrips
         active_group = get_user_active_group(db, current_user.id)
         if not active_group:
             return []
+
+        c_key = key_ws_list_student(current_user.id, active_group.id)
+        cached = cache.get(c_key)
+        if cached is not None:
+            return [WorkspaceStudentResponse(**x) for x in cached]
 
         enrollments = (
             db.query(WorkspaceGroup)
@@ -183,6 +209,7 @@ def list_workspaces(
         )
 
         if not enrollments:
+            cache.set(c_key, [], ttl=300, tags=[f"user:{current_user.id}", f"group:{active_group.id}"])
             return []
 
         ws_ids = [enr.workspace_id for enr in enrollments]
@@ -261,6 +288,7 @@ def list_workspaces(
                     review_rounds=rounds_by_ws.get(ws.id, [])
                 )
             )
+        cache.set(c_key, [r.model_dump() for r in results], ttl=300, tags=[f"user:{current_user.id}", f"group:{active_group.id}"])
         return results
 
 @router.get("/{workspace_id}")
@@ -283,8 +311,17 @@ def get_workspace_details(
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Workspace not found.")
 
     if current_user.role.lower() == "staff":
+        c_key = key_ws_detail_staff(workspace_id, current_user.id)
+        cached = cache.get(c_key)
+        if cached is not None:
+            return WorkspaceResponse(**cached)
+
+        ws = db.query(Workspace).filter(Workspace.id == workspace_id).first()
+        if not ws:
+            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Workspace not found.")
+
         role = "owner" if ws.owner_id == current_user.id else "costaff"
-        return WorkspaceResponse(
+        res = WorkspaceResponse(
             id=ws.id,
             name=ws.name,
             description=ws.description,
@@ -296,9 +333,20 @@ def get_workspace_details(
             created_at=ws.created_at,
             role=role,
         )
+        cache.set(c_key, res.model_dump(), ttl=300, tags=[f"workspace:{workspace_id}"])
+        return res
 
     # Student view
     active_group = get_user_active_group(db, current_user.id)
+    c_key = key_ws_detail_student(workspace_id, current_user.id, active_group.id if active_group else None)
+    cached = cache.get(c_key)
+    if cached is not None:
+        return WorkspaceStudentResponse(**cached)
+
+    ws = db.query(Workspace).filter(Workspace.id == workspace_id).first()
+    if not ws:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Workspace not found.")
+
     enrollment = (
         db.query(WorkspaceGroup)
         .filter(WorkspaceGroup.workspace_id == ws.id, WorkspaceGroup.group_id == active_group.id)
@@ -350,7 +398,7 @@ def get_workspace_details(
         for r in rounds
     ]
 
-    return WorkspaceStudentResponse(
+    res = WorkspaceStudentResponse(
         id=ws.id,
         name=ws.name,
         description=ws.description,
@@ -363,6 +411,8 @@ def get_workspace_details(
         notices=notice_responses,
         review_rounds=round_responses
     )
+    cache.set(c_key, res.model_dump(), ttl=300, tags=[f"workspace:{workspace_id}", f"group:{active_group.id if active_group else 0}"])
+    return res
 
 # --- STAFF ACCESS REQUESTS & CO-STAFF MANAGEMENT ---
 
@@ -538,6 +588,9 @@ def resolve_staff_request(
 
     db.commit()
     db.refresh(req)
+    if action == "approve":
+        invalidate_workspace(workspace_id)
+        cache.invalidate_prefix(f"ws:list:staff:u{req.requester_id}")
 
     return WorkspaceStaffRequestResponse(
         id=req.id,
@@ -596,6 +649,8 @@ def assign_costaff(
     )
 
     db.commit()
+    invalidate_workspace(workspace_id)
+    cache.invalidate_prefix(f"ws:list:staff:u{user_id}")
     return {"message": f"User {user_id} assigned as co-staff for workspace {workspace_id}."}
 
 @router.delete("/{workspace_id}/costaff/{user_id}", status_code=status.HTTP_200_OK)
@@ -656,6 +711,8 @@ def remove_costaff(
     )
 
     db.commit()
+    invalidate_workspace(workspace_id)
+    cache.invalidate_prefix(f"ws:list:staff:u{user_id}")
     return {"message": f"Co-staff user {user_id} removed from workspace {workspace_id}."}
 
 @router.post("/{workspace_id}/archive", status_code=status.HTTP_200_OK)
@@ -689,6 +746,8 @@ def archive_workspace(
     )
 
     db.commit()
+    invalidate_workspace(workspace_id)
+    cache.invalidate_prefix("ws:list:")
     return {"message": f"Workspace {workspace_id} archived successfully."}
 
 # --- OVERSIGHT: GROUPS & PROJECTS IN WORKSPACE ---
@@ -707,6 +766,11 @@ def list_workspace_groups(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="Workspace not found or access denied."
         )
+
+    c_key = key_ws_groups(workspace_id)
+    cached = cache.get(c_key)
+    if cached is not None:
+        return cached
 
     enrollments = (
         db.query(WorkspaceGroup)
@@ -737,6 +801,7 @@ def list_workspace_groups(
             "project_name": project.name if project else None,
         })
 
+    cache.set(c_key, result, ttl=120, tags=[f"workspace:{workspace_id}"])
     return result
 
 @router.get("/{workspace_id}/projects")
@@ -753,6 +818,11 @@ def list_workspace_projects(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="Workspace not found or access denied."
         )
+
+    c_key = key_ws_projects(workspace_id)
+    cached = cache.get(c_key)
+    if cached is not None:
+        return cached
 
     projects = db.query(Project).filter(Project.workspace_id == workspace_id).all()
     result = []
@@ -773,6 +843,7 @@ def list_workspace_projects(
             "created_at": proj.created_at,
         })
 
+    cache.set(c_key, result, ttl=120, tags=[f"workspace:{workspace_id}"])
     return result
 
 # --- NOTICE BOARD ---
@@ -793,6 +864,11 @@ def get_workspace_notices(
             detail="Workspace not found or access denied."
         )
 
+    c_key = key_ws_notices(workspace_id)
+    cached = cache.get(c_key)
+    if cached is not None:
+        return [WorkspaceNoticeResponse(**x) for x in cached]
+
     notices = (
         db.query(WorkspaceNotice)
         .filter(WorkspaceNotice.workspace_id == workspace_id, WorkspaceNotice.is_archived == False)
@@ -800,7 +876,7 @@ def get_workspace_notices(
         .all()
     )
 
-    return [
+    result = [
         WorkspaceNoticeResponse(
             id=n.id,
             workspace_id=n.workspace_id,
@@ -814,6 +890,8 @@ def get_workspace_notices(
         )
         for n in notices
     ]
+    cache.set(c_key, [r.model_dump() for r in result], ttl=300, tags=[f"workspace:{workspace_id}:notices", f"workspace:{workspace_id}"])
+    return result
 
 @router.post("/{workspace_id}/notices", response_model=WorkspaceNoticeResponse, status_code=status.HTTP_201_CREATED)
 def create_notice(
@@ -855,6 +933,7 @@ def create_notice(
 
     db.commit()
     db.refresh(notice)
+    invalidate_notices(workspace_id)
 
     return WorkspaceNoticeResponse(
         id=notice.id,
@@ -917,6 +996,7 @@ def edit_notice(
 
     db.commit()
     db.refresh(notice)
+    invalidate_notices(workspace_id)
 
     return WorkspaceNoticeResponse(
         id=notice.id,
@@ -969,6 +1049,7 @@ def toggle_pin_notice(
 
     db.commit()
     db.refresh(notice)
+    invalidate_notices(workspace_id)
 
     return WorkspaceNoticeResponse(
         id=notice.id,
@@ -1018,6 +1099,7 @@ def archive_notice(
     )
 
     db.commit()
+    invalidate_notices(workspace_id)
     return {"message": f"Notice {notice_id} archived successfully."}
 
 # --- REVIEW ROUNDS ---
@@ -1037,13 +1119,18 @@ def get_workspace_review_rounds(
             detail="Workspace not found or access denied."
         )
 
+    c_key = key_ws_rounds(workspace_id)
+    cached = cache.get(c_key)
+    if cached is not None:
+        return [ReviewRoundResponse(**x) for x in cached]
+
     rounds = (
         db.query(ReviewRound)
         .filter(ReviewRound.workspace_id == workspace_id)
         .order_by(ReviewRound.order_index.asc())
         .all()
     )
-    return [
+    result = [
         ReviewRoundResponse(
             id=r.id,
             workspace_id=r.workspace_id,
@@ -1061,6 +1148,8 @@ def get_workspace_review_rounds(
         )
         for r in rounds
     ]
+    cache.set(c_key, [r.model_dump() for r in result], ttl=300, tags=[f"workspace:{workspace_id}:rounds", f"workspace:{workspace_id}"])
+    return result
 
 @router.post("/{workspace_id}/rounds", response_model=ReviewRoundResponse, status_code=status.HTTP_201_CREATED)
 def create_review_round(
@@ -1123,6 +1212,7 @@ def create_review_round(
 
     db.commit()
     db.refresh(round_obj)
+    invalidate_rounds(workspace_id)
 
     return ReviewRoundResponse(
         id=round_obj.id,
@@ -1205,6 +1295,7 @@ def edit_review_round(
 
     db.commit()
     db.refresh(round_obj)
+    invalidate_rounds(workspace_id)
 
     return ReviewRoundResponse(
         id=round_obj.id,
@@ -1256,6 +1347,7 @@ def toggle_review_round(
 
     db.commit()
     db.refresh(round_obj)
+    invalidate_rounds(workspace_id)
 
     return ReviewRoundResponse(
         id=round_obj.id,
@@ -1303,4 +1395,5 @@ def delete_review_round(
 
     db.delete(round_obj)
     db.commit()
+    invalidate_rounds(workspace_id)
     return {"message": f"Review round {round_id} deleted successfully."}
