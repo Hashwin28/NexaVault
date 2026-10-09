@@ -28,10 +28,12 @@ export const StaffDashboard = () => {
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [selectedWorkspaceId, setSelectedWorkspaceId] = useState(initial.workspaceId);
   const [selectedProjectId, setSelectedProjectId] = useState(initial.projectId);
+  const [visitedTabs, setVisitedTabs] = useState(() => new Set([initial.tab]));
 
   const setActiveTab = (tab, params = {}) => {
     if (!VALID_STAFF_TABS.includes(tab)) return;
     setActiveTabState(tab);
+    setVisitedTabs(prev => new Set([...prev, tab]));
     const searchParams = new URLSearchParams();
     if (params.workspaceId) searchParams.set('workspaceId', params.workspaceId);
     if (params.projectId) searchParams.set('projectId', params.projectId);
@@ -43,6 +45,7 @@ export const StaffDashboard = () => {
     const handleHashChange = () => {
       const { tab, workspaceId, projectId } = parseStaffUrlHash();
       setActiveTabState(tab);
+      setVisitedTabs(prev => new Set([...prev, tab]));
       if (workspaceId) setSelectedWorkspaceId(workspaceId);
       if (projectId) setSelectedProjectId(projectId);
     };
@@ -89,34 +92,54 @@ export const StaffDashboard = () => {
           onOpenSidebar={() => setSidebarOpen(true)}
         />
 
-        {/* Dynamic Staff View */}
+        {/* Dynamic Staff View with Keep-Alive */}
         <main className="flex-1 p-6 lg:p-8 space-y-8 max-w-7xl w-full mx-auto">
-          {activeTab === 'dashboard' && (
-            <StaffDashboardView onNavigate={handleNavigate} />
+          {visitedTabs.has('dashboard') && (
+            <div className={activeTab === 'dashboard' ? 'block' : 'hidden'}>
+              <StaffDashboardView onNavigate={handleNavigate} />
+            </div>
           )}
 
-          {activeTab === 'workspaces' && (
-            <StaffWorkspacesView
-              selectedWorkspaceId={selectedWorkspaceId}
-              onSelectProject={handleSelectProject}
-            />
+          {visitedTabs.has('workspaces') && (
+            <div className={activeTab === 'workspaces' ? 'block' : 'hidden'}>
+              <StaffWorkspacesView
+                selectedWorkspaceId={selectedWorkspaceId}
+                onSelectProject={handleSelectProject}
+              />
+            </div>
           )}
 
-          {activeTab === 'review-queue' && <StaffReviewQueueView />}
-
-          {activeTab === 'search' && (
-            <StaffSmartSearchView onSelectProject={handleSelectProject} />
+          {visitedTabs.has('review-queue') && (
+            <div className={activeTab === 'review-queue' ? 'block' : 'hidden'}>
+              <StaffReviewQueueView />
+            </div>
           )}
 
-          {activeTab === 'audit' && <StaffAuditTrailView />}
+          {visitedTabs.has('search') && (
+            <div className={activeTab === 'search' ? 'block' : 'hidden'}>
+              <StaffSmartSearchView onSelectProject={handleSelectProject} />
+            </div>
+          )}
 
-          {activeTab === 'profile' && <StaffProfileView />}
+          {visitedTabs.has('audit') && (
+            <div className={activeTab === 'audit' ? 'block' : 'hidden'}>
+              <StaffAuditTrailView />
+            </div>
+          )}
 
-          {activeTab === 'project-detail' && (
-            <StaffProjectDetailView
-              projectId={selectedProjectId}
-              onBack={() => setActiveTab('workspaces')}
-            />
+          {visitedTabs.has('profile') && (
+            <div className={activeTab === 'profile' ? 'block' : 'hidden'}>
+              <StaffProfileView />
+            </div>
+          )}
+
+          {visitedTabs.has('project-detail') && (
+            <div className={activeTab === 'project-detail' ? 'block' : 'hidden'}>
+              <StaffProjectDetailView
+                projectId={selectedProjectId}
+                onBack={() => setActiveTab('workspaces')}
+              />
+            </div>
           )}
         </main>
 

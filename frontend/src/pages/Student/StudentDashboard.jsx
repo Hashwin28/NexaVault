@@ -28,10 +28,12 @@ export const StudentDashboard = () => {
   const [activeTab, setActiveTabState] = useState(initial.tab);
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [selectedProjectId, setSelectedProjectId] = useState(initial.projectId);
+  const [visitedTabs, setVisitedTabs] = useState(() => new Set([initial.tab]));
 
   const setActiveTab = (tab, projectId = null) => {
     if (!VALID_TABS.includes(tab)) return;
     setActiveTabState(tab);
+    setVisitedTabs(prev => new Set([...prev, tab]));
     if (projectId) {
       setSelectedProjectId(projectId);
       window.location.hash = `#${tab}?projectId=${projectId}`;
@@ -44,6 +46,7 @@ export const StudentDashboard = () => {
     const handleHashChange = () => {
       const { tab, projectId } = parseUrlHash();
       setActiveTabState(tab);
+      setVisitedTabs(prev => new Set([...prev, tab]));
       if (projectId) {
         setSelectedProjectId(projectId);
       }
@@ -83,48 +86,66 @@ export const StudentDashboard = () => {
           activeTab={activeTab}
         />
 
-        {/* Dashboard Main Workspace View */}
+        {/* Dashboard Main Workspace View with 0ms Keep-Alive Caching */}
         <main className="flex-1 p-6 lg:p-8 space-y-8 max-w-7xl w-full mx-auto">
-          {activeTab === 'dashboard' && (
-            <DashboardView onNavigate={(tab) => setActiveTab(tab)} />
+          {visitedTabs.has('dashboard') && (
+            <div className={activeTab === 'dashboard' ? 'block' : 'hidden'}>
+              <DashboardView onNavigate={(tab) => setActiveTab(tab)} />
+            </div>
           )}
 
-          {activeTab === 'workspaces' && (
-            <WorkspacesView 
-              onNavigate={(tab) => setActiveTab(tab)} 
-              onSelectProject={handleSelectProjectFromWorkspace}
-            />
+          {visitedTabs.has('workspaces') && (
+            <div className={activeTab === 'workspaces' ? 'block' : 'hidden'}>
+              <WorkspacesView 
+                onNavigate={(tab) => setActiveTab(tab)} 
+                onSelectProject={handleSelectProjectFromWorkspace}
+              />
+            </div>
           )}
 
-          {activeTab === 'groups' && (
-            <GroupsView onNavigate={(tab) => setActiveTab(tab)} />
+          {visitedTabs.has('groups') && (
+            <div className={activeTab === 'groups' ? 'block' : 'hidden'}>
+              <GroupsView onNavigate={(tab) => setActiveTab(tab)} />
+            </div>
           )}
 
-          {activeTab === 'projects' && (
-            <ProjectsView 
-              defaultProjectId={selectedProjectId}
-              onNavigate={(tab) => setActiveTab(tab)} 
-            />
+          {visitedTabs.has('projects') && (
+            <div className={activeTab === 'projects' ? 'block' : 'hidden'}>
+              <ProjectsView 
+                defaultProjectId={selectedProjectId}
+                onNavigate={(tab) => setActiveTab(tab)} 
+              />
+            </div>
           )}
 
-          {activeTab === 'submissions' && (
-            <SubmissionsView />
+          {visitedTabs.has('submissions') && (
+            <div className={activeTab === 'submissions' ? 'block' : 'hidden'}>
+              <SubmissionsView />
+            </div>
           )}
 
-          {activeTab === 'results' && (
-            <ResultsView />
+          {visitedTabs.has('results') && (
+            <div className={activeTab === 'results' ? 'block' : 'hidden'}>
+              <ResultsView />
+            </div>
           )}
 
-          {activeTab === 'search' && (
-            <SmartSearchView />
+          {visitedTabs.has('search') && (
+            <div className={activeTab === 'search' ? 'block' : 'hidden'}>
+              <SmartSearchView />
+            </div>
           )}
 
-          {activeTab === 'audit' && (
-            <AuditTrailView />
+          {visitedTabs.has('audit') && (
+            <div className={activeTab === 'audit' ? 'block' : 'hidden'}>
+              <AuditTrailView />
+            </div>
           )}
 
-          {activeTab === 'profile' && (
-            <ProfileView />
+          {visitedTabs.has('profile') && (
+            <div className={activeTab === 'profile' ? 'block' : 'hidden'}>
+              <ProfileView />
+            </div>
           )}
         </main>
 

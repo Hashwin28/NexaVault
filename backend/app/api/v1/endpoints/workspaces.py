@@ -1,7 +1,8 @@
+from collections import defaultdict
 from datetime import datetime, timezone
 from typing import List, Optional, Union
 from fastapi import APIRouter, Depends, HTTPException, status
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import Session, joinedload
 from app.api.deps import get_db, get_current_user, get_current_staff, get_current_student
 from app.models.user import User
 from app.models.workspace import (
@@ -168,7 +169,7 @@ def list_workspaces(
             )
         return results
     else:
-        # Student view
+        # Student view - batch queries to eliminate N+1 database roundtrips
         active_group = get_user_active_group(db, current_user.id)
         if not active_group:
             return []
@@ -181,21 +182,30 @@ def list_workspaces(
             .all()
         )
 
-        results = []
-        for enr in enrollments:
-            ws = enr.workspace
-            project = (
-                db.query(Project)
-                .filter(Project.workspace_id == ws.id, Project.group_id == active_group.id)
-                .first()
-            )
-            notices = (
-                db.query(WorkspaceNotice)
-                .filter(WorkspaceNotice.workspace_id == ws.id, WorkspaceNotice.is_archived == False)
-                .order_by(WorkspaceNotice.is_pinned.desc(), WorkspaceNotice.created_at.desc())
-                .all()
-            )
-            notice_responses = [
+        if not enrollments:
+            return []
+
+        ws_ids = [enr.workspace_id for enr in enrollments]
+
+        # 1. Batch load projects
+        all_projects = (
+            db.query(Project)
+            .filter(Project.workspace_id.in_(ws_ids), Project.group_id == active_group.id)
+            .all()
+        )
+        projects_by_ws = {p.workspace_id: p for p in all_projects}
+
+        # 2. Batch load notices with eager author joined
+        all_notices = (
+            db.query(WorkspaceNotice)
+            .options(joinedload(WorkspaceNotice.author))
+            .filter(WorkspaceNotice.workspace_id.in_(ws_ids), WorkspaceNotice.is_archived == False)
+            .order_by(WorkspaceNotice.is_pinned.desc(), WorkspaceNotice.created_at.desc())
+            .all()
+        )
+        notices_by_ws = defaultdict(list)
+        for n in all_notices:
+            notices_by_ws[n.workspace_id].append(
                 WorkspaceNoticeResponse(
                     id=n.id,
                     workspace_id=n.workspace_id,
@@ -207,16 +217,18 @@ def list_workspaces(
                     created_at=n.created_at,
                     author_name=n.author.full_name if n.author else "Staff"
                 )
-                for n in notices
-            ]
-
-            rounds = (
-                db.query(ReviewRound)
-                .filter(ReviewRound.workspace_id == ws.id)
-                .order_by(ReviewRound.order_index.asc())
-                .all()
             )
-            round_responses = [
+
+        # 3. Batch load review rounds
+        all_rounds = (
+            db.query(ReviewRound)
+            .filter(ReviewRound.workspace_id.in_(ws_ids))
+            .order_by(ReviewRound.order_index.asc())
+            .all()
+        )
+        rounds_by_ws = defaultdict(list)
+        for r in all_rounds:
+            rounds_by_ws[r.workspace_id].append(
                 ReviewRoundResponse(
                     id=r.id,
                     workspace_id=r.workspace_id,
@@ -228,9 +240,12 @@ def list_workspaces(
                     is_open=r.is_open,
                     created_at=r.created_at
                 )
-                for r in rounds
-            ]
+            )
 
+        results = []
+        for enr in enrollments:
+            ws = enr.workspace
+            project = projects_by_ws.get(ws.id)
             results.append(
                 WorkspaceStudentResponse(
                     id=ws.id,
@@ -242,8 +257,8 @@ def list_workspaces(
                     enrolled_at=enr.enrolled_at,
                     has_project=project is not None,
                     project_id=project.id if project else None,
-                    notices=notice_responses,
-                    review_rounds=round_responses
+                    notices=notices_by_ws.get(ws.id, []),
+                    review_rounds=rounds_by_ws.get(ws.id, [])
                 )
             )
         return results
