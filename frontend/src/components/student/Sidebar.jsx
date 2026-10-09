@@ -72,14 +72,16 @@ export const Sidebar = ({ activeTab, setActiveTab, isOpen, setIsOpen }) => {
               const Icon = item.icon;
               const isActive = activeTab === item.id;
               return (
-                <button
+                <a
                   key={item.id}
-                  onClick={() => {
+                  href={`#${item.id}`}
+                  onClick={(e) => {
+                    e.preventDefault();
                     setActiveTab(item.id);
                     if (window.innerWidth < 1024) setIsOpen(false);
                   }}
                   className={`
-                    w-full flex items-center justify-between px-3 py-2.5 rounded-lg text-xs font-medium transition-all duration-150 outline-none
+                    w-full flex items-center justify-between px-3 py-2.5 rounded-lg text-xs font-medium transition-all duration-150 outline-none cursor-pointer
                     ${isActive 
                       ? 'bg-teal-500/15 text-teal-300 border border-teal-500/30 shadow-sm font-semibold' 
                       : 'text-slate-400 hover:text-slate-200 hover:bg-vault-canvas/60 border border-transparent'}
@@ -89,7 +91,7 @@ export const Sidebar = ({ activeTab, setActiveTab, isOpen, setIsOpen }) => {
                     <Icon size={16} className={isActive ? 'text-teal-400' : 'text-slate-400'} />
                     <span className="font-sans">{item.label}</span>
                   </div>
-                </button>
+                </a>
               );
             })}
           </div>
@@ -103,14 +105,16 @@ export const Sidebar = ({ activeTab, setActiveTab, isOpen, setIsOpen }) => {
               const Icon = item.icon;
               const isActive = activeTab === item.id;
               return (
-                <button
+                <a
                   key={item.id}
-                  onClick={() => {
+                  href={`#${item.id}`}
+                  onClick={(e) => {
+                    e.preventDefault();
                     setActiveTab(item.id);
                     if (window.innerWidth < 1024) setIsOpen(false);
                   }}
                   className={`
-                    w-full flex items-center justify-between px-3 py-2.5 rounded-lg text-xs font-medium transition-all duration-150 outline-none
+                    w-full flex items-center justify-between px-3 py-2.5 rounded-lg text-xs font-medium transition-all duration-150 outline-none cursor-pointer
                     ${isActive 
                       ? 'bg-teal-500/15 text-teal-300 border border-teal-500/30 font-semibold' 
                       : 'text-slate-400 hover:text-slate-200 hover:bg-vault-canvas/60 border border-transparent'}
@@ -120,7 +124,7 @@ export const Sidebar = ({ activeTab, setActiveTab, isOpen, setIsOpen }) => {
                     <Icon size={16} className={isActive ? 'text-teal-400' : 'text-slate-400'} />
                     <span className="font-sans">{item.label}</span>
                   </div>
-                </button>
+                </a>
               );
             })}
           </div>
@@ -142,12 +146,14 @@ export const Sidebar = ({ activeTab, setActiveTab, isOpen, setIsOpen }) => {
 
           {/* Action Buttons */}
           <div className="grid grid-cols-2 gap-2">
-            <button
-              onClick={() => {
+            <a
+              href="#profile"
+              onClick={(e) => {
+                e.preventDefault();
                 setActiveTab('profile');
                 if (window.innerWidth < 1024) setIsOpen(false);
               }}
-              className={`flex items-center justify-center gap-1.5 py-2 px-2 rounded-md border text-[11px] font-medium transition-colors font-sans ${
+              className={`flex items-center justify-center gap-1.5 py-2 px-2 rounded-md border text-[11px] font-medium transition-colors font-sans cursor-pointer ${
                 activeTab === 'profile'
                   ? 'bg-teal-500/20 text-teal-300 border-teal-500/40'
                   : 'bg-vault-surface hover:bg-vault-elevated border-vault-border text-slate-300 hover:text-white'
@@ -155,7 +161,7 @@ export const Sidebar = ({ activeTab, setActiveTab, isOpen, setIsOpen }) => {
             >
               <User size={14} />
               <span>Profile</span>
-            </button>
+            </a>
 
             <button
               onClick={logout}

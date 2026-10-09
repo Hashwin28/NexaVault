@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { StaffSidebar } from '../../components/staff/StaffSidebar';
 import { StaffHeader } from '../../components/staff/StaffHeader';
 import { StaffDashboardView } from './StaffDashboardView';
@@ -9,22 +9,66 @@ import { StaffAuditTrailView } from './StaffAuditTrailView';
 import { StaffProfileView } from './StaffProfileView';
 import { StaffProjectDetailView } from './StaffProjectDetailView';
 
+const VALID_STAFF_TABS = ['dashboard', 'workspaces', 'review-queue', 'search', 'audit', 'profile', 'project-detail'];
+
+const parseStaffUrlHash = () => {
+  if (typeof window === 'undefined') return { tab: 'dashboard', workspaceId: null, projectId: null };
+  const rawHash = window.location.hash.replace(/^#\/?/, '');
+  const [tabPart, queryPart] = rawHash.split('?');
+  const tab = VALID_STAFF_TABS.includes(tabPart) ? tabPart : 'dashboard';
+  const searchParams = new URLSearchParams(queryPart || '');
+  const workspaceId = searchParams.get('workspaceId') || searchParams.get('workspace') || null;
+  const projectId = searchParams.get('projectId') || searchParams.get('project') || null;
+  return { tab, workspaceId, projectId };
+};
+
 export const StaffDashboard = () => {
-  const [activeTab, setActiveTab] = useState('dashboard');
+  const initial = parseStaffUrlHash();
+  const [activeTab, setActiveTabState] = useState(initial.tab);
   const [sidebarOpen, setSidebarOpen] = useState(false);
-  const [selectedWorkspaceId, setSelectedWorkspaceId] = useState(null);
-  const [selectedProjectId, setSelectedProjectId] = useState(null);
+  const [selectedWorkspaceId, setSelectedWorkspaceId] = useState(initial.workspaceId);
+  const [selectedProjectId, setSelectedProjectId] = useState(initial.projectId);
+
+  const setActiveTab = (tab, params = {}) => {
+    if (!VALID_STAFF_TABS.includes(tab)) return;
+    setActiveTabState(tab);
+    const searchParams = new URLSearchParams();
+    if (params.workspaceId) searchParams.set('workspaceId', params.workspaceId);
+    if (params.projectId) searchParams.set('projectId', params.projectId);
+    const queryString = searchParams.toString();
+    window.location.hash = queryString ? `#${tab}?${queryString}` : `#${tab}`;
+  };
+
+  useEffect(() => {
+    const handleHashChange = () => {
+      const { tab, workspaceId, projectId } = parseStaffUrlHash();
+      setActiveTabState(tab);
+      if (workspaceId) setSelectedWorkspaceId(workspaceId);
+      if (projectId) setSelectedProjectId(projectId);
+    };
+
+    if (!window.location.hash) {
+      window.location.hash = '#dashboard';
+    } else {
+      handleHashChange();
+    }
+
+    window.addEventListener('hashchange', handleHashChange);
+    return () => window.removeEventListener('hashchange', handleHashChange);
+  }, []);
 
   const handleNavigate = (tab, workspaceId = null) => {
-    setActiveTab(tab);
     if (workspaceId) {
       setSelectedWorkspaceId(workspaceId);
+      setActiveTab(tab, { workspaceId });
+    } else {
+      setActiveTab(tab);
     }
   };
 
   const handleSelectProject = (projectId) => {
     setSelectedProjectId(projectId);
-    setActiveTab('project-detail');
+    setActiveTab('project-detail', { projectId });
   };
 
   return (

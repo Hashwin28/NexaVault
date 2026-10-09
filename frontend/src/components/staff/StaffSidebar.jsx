@@ -96,10 +96,14 @@ export const StaffSidebar = ({ activeTab, setActiveTab, isOpen, setIsOpen }) => 
           {navItems.map((item) => {
             const isActive = activeTab === item.id;
             return (
-              <button
+              <a
                 key={item.id}
-                onClick={() => handleItemClick(item.id)}
-                className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-all duration-200 ${
+                href={`#${item.id}`}
+                onClick={(e) => {
+                  e.preventDefault();
+                  handleItemClick(item.id);
+                }}
+                className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-all duration-200 cursor-pointer ${
                   isActive
                     ? 'bg-teal-500/15 text-teal-300 border border-teal-500/30 shadow-sm'
                     : 'text-slate-400 hover:text-slate-200 hover:bg-[#11181C]'
@@ -109,7 +113,7 @@ export const StaffSidebar = ({ activeTab, setActiveTab, isOpen, setIsOpen }) => 
                   {item.icon}
                 </span>
                 <span>{item.label}</span>
-              </button>
+              </a>
             );
           })}
         </div>
@@ -120,9 +124,13 @@ export const StaffSidebar = ({ activeTab, setActiveTab, isOpen, setIsOpen }) => 
             System / Account
           </div>
 
-          <button
-            onClick={() => handleItemClick('profile')}
-            className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-all duration-200 ${
+          <a
+            href="#profile"
+            onClick={(e) => {
+              e.preventDefault();
+              handleItemClick('profile');
+            }}
+            className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-all duration-200 cursor-pointer ${
               activeTab === 'profile'
                 ? 'bg-teal-500/15 text-teal-300 border border-teal-500/30 shadow-sm'
                 : 'text-slate-400 hover:text-slate-200 hover:bg-[#11181C]'
@@ -132,7 +140,7 @@ export const StaffSidebar = ({ activeTab, setActiveTab, isOpen, setIsOpen }) => 
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.75} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
             </svg>
             <span>Profile</span>
-          </button>
+          </a>
 
           <button
             onClick={logout}

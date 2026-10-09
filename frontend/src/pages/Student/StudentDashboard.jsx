@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Sidebar } from '../../components/student/Sidebar';
 import { Header } from '../../components/student/Header';
 import { DashboardView } from './DashboardView';
@@ -11,14 +11,57 @@ import { SmartSearchView } from './SmartSearchView';
 import { AuditTrailView } from './AuditTrailView';
 import { ProfileView } from './ProfileView';
 
+const VALID_TABS = ['dashboard', 'workspaces', 'groups', 'projects', 'submissions', 'results', 'search', 'audit', 'profile'];
+
+const parseUrlHash = () => {
+  if (typeof window === 'undefined') return { tab: 'dashboard', projectId: null };
+  const rawHash = window.location.hash.replace(/^#\/?/, '');
+  const [tabPart, queryPart] = rawHash.split('?');
+  const tab = VALID_TABS.includes(tabPart) ? tabPart : 'dashboard';
+  const searchParams = new URLSearchParams(queryPart || '');
+  const projectId = searchParams.get('projectId') || searchParams.get('project') || null;
+  return { tab, projectId };
+};
+
 export const StudentDashboard = () => {
-  const [activeTab, setActiveTab] = useState('dashboard');
+  const initial = parseUrlHash();
+  const [activeTab, setActiveTabState] = useState(initial.tab);
   const [sidebarOpen, setSidebarOpen] = useState(false);
-  const [selectedProjectId, setSelectedProjectId] = useState(null);
+  const [selectedProjectId, setSelectedProjectId] = useState(initial.projectId);
+
+  const setActiveTab = (tab, projectId = null) => {
+    if (!VALID_TABS.includes(tab)) return;
+    setActiveTabState(tab);
+    if (projectId) {
+      setSelectedProjectId(projectId);
+      window.location.hash = `#${tab}?projectId=${projectId}`;
+    } else {
+      window.location.hash = `#${tab}`;
+    }
+  };
+
+  useEffect(() => {
+    const handleHashChange = () => {
+      const { tab, projectId } = parseUrlHash();
+      setActiveTabState(tab);
+      if (projectId) {
+        setSelectedProjectId(projectId);
+      }
+    };
+
+    if (!window.location.hash) {
+      window.location.hash = '#dashboard';
+    } else {
+      handleHashChange();
+    }
+
+    window.addEventListener('hashchange', handleHashChange);
+    return () => window.removeEventListener('hashchange', handleHashChange);
+  }, []);
 
   const handleSelectProjectFromWorkspace = (projectId) => {
     setSelectedProjectId(projectId);
-    setActiveTab('projects');
+    setActiveTab('projects', projectId);
   };
 
   return (
