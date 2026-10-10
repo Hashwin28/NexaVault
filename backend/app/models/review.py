@@ -104,6 +104,7 @@ class ResultEntry(Base):
     student_id = Column(Integer, ForeignKey("users.id", ondelete="CASCADE"), nullable=False, index=True)
     round_id = Column(Integer, ForeignKey("review_rounds.id", ondelete="CASCADE"), nullable=False, index=True)
     score = Column(Numeric(6, 2), nullable=False)
+    feedback = Column(Text, nullable=True)
     is_released = Column(Boolean, default=False, nullable=False, index=True)
     released_at = Column(DateTime(timezone=True), nullable=True)
     created_at = Column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc), nullable=False)

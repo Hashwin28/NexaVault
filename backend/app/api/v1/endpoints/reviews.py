@@ -312,17 +312,19 @@ def evaluate_submission(
             )
             if existing_result:
                 existing_result.score = s_in.score
+                existing_result.feedback = s_in.feedback or payload.feedback
             else:
                 res_entry = ResultEntry(
                     review_id=review.id,
                     student_id=s_in.user_id,
                     round_id=round_obj.id,
                     score=s_in.score,
+                    feedback=s_in.feedback or payload.feedback,
                     is_released=False,
                 )
                 db.add(res_entry)
 
-            created_scores.append({"student_id": s_in.user_id, "score": s_in.score})
+            created_scores.append({"student_id": s_in.user_id, "score": s_in.score, "feedback": s_in.feedback or payload.feedback})
 
         version.status = "APPROVED"
 

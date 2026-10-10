@@ -1,6 +1,8 @@
 from datetime import datetime
-from typing import Optional
+from typing import Optional, List, Dict, Any
 from pydantic import BaseModel, ConfigDict
+
+# --- EXISTING SCHEMAS (STUDENT / CORRECTION) ---
 
 class StudentResultResponse(BaseModel):
     id: int
@@ -37,3 +39,56 @@ class ResultCorrectionResponse(BaseModel):
     created_at: datetime
 
     model_config = ConfigDict(from_attributes=True)
+
+# --- DEDICATED RESULTS SECTION SCHEMAS ---
+
+class RoundColumnHeader(BaseModel):
+    id: int
+    title: str
+    order_index: int
+    max_score: float
+    is_open: bool
+
+class StudentRoundScoreDetail(BaseModel):
+    round_id: int
+    round_title: str
+    score: Optional[float] = None
+    max_score: float
+    percentage: Optional[float] = None
+    feedback: Optional[str] = None
+    reviewer_id: Optional[int] = None
+    reviewer_name: Optional[str] = None
+    review_date: Optional[datetime] = None
+    status: str  # "GRADED", "SUBMITTED", "IN_REVIEW", "REVISION_REQUESTED", "MISSING", "NOT_SUBMITTED"
+    result_entry_id: Optional[int] = None
+
+class WorkspaceStudentResultItem(BaseModel):
+    student_id: int
+    student_name: str
+    student_email: str
+    roll_number: str
+    group_id: int
+    group_name: str
+    group_code: str
+    project_id: Optional[int] = None
+    project_topic: str
+    rounds: Dict[str, StudentRoundScoreDetail] = {}
+    total_marks: float
+    max_marks: float
+    percentage: float
+    review_completion_status: str  # "COMPLETED", "IN_PROGRESS", "PENDING"
+    final_result_status: str  # "PASSED", "FAILED", "INCOMPLETE", "PENDING"
+
+class WorkspaceResultsSummaryStats(BaseModel):
+    total_students: int
+    total_groups: int
+    completed_students: int
+    average_percentage: float
+    pass_rate: float
+
+class WorkspaceResultsResponse(BaseModel):
+    workspace_id: str
+    workspace_name: str
+    rounds: List[RoundColumnHeader]
+    students: List[WorkspaceStudentResultItem]
+    summary: WorkspaceResultsSummaryStats

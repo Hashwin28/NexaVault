@@ -8,8 +8,9 @@ import { StaffSmartSearchView } from './StaffSmartSearchView';
 import { StaffAuditTrailView } from './StaffAuditTrailView';
 import { StaffProfileView } from './StaffProfileView';
 import { StaffProjectDetailView } from './StaffProjectDetailView';
+import { StaffResultsView } from './StaffResultsView';
 
-const VALID_STAFF_TABS = ['dashboard', 'workspaces', 'review-queue', 'search', 'audit', 'profile', 'project-detail'];
+const VALID_STAFF_TABS = ['dashboard', 'workspaces', 'review-queue', 'results', 'search', 'audit', 'profile', 'project-detail'];
 
 const parseStaffUrlHash = () => {
   if (typeof window === 'undefined') return { tab: 'dashboard', workspaceId: null, projectId: null };
@@ -112,6 +113,12 @@ export const StaffDashboard = () => {
           {visitedTabs.has('review-queue') && (
             <div className={activeTab === 'review-queue' ? 'block' : 'hidden'}>
               <StaffReviewQueueView />
+            </div>
+          )}
+
+          {visitedTabs.has('results') && (
+            <div className={activeTab === 'results' ? 'block' : 'hidden'}>
+              <StaffResultsView selectedWorkspaceId={selectedWorkspaceId} />
             </div>
           )}
 

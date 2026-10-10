@@ -27,6 +27,7 @@ class QueueItemResponse(BaseModel):
 class StudentScoreInput(BaseModel):
     user_id: int
     score: float = Field(..., ge=0.0)
+    feedback: Optional[str] = None
 
 class ReviewEvaluationInput(BaseModel):
     verdict: str = Field(..., description="'APPROVED' or 'REVISION_REQUESTED'")
