@@ -413,19 +413,19 @@ def test_totals_percentages_and_completion_status(setup_results_env):
     bob = next(s for s in data["students"] if s["student_id"] == env["student_b"].id)
     charlie = next(s for s in data["students"] if s["student_id"] == env["student_c"].id)
 
-    # Alice: 38 + 58 = 96 / 100 = 96.0% -> COMPLETED, PASSED
+    # Alice: 38 + 58 = 96 / 100 = 96.0% -> COMPLETED, PASS
     assert alice["total_marks"] == 96.0
     assert alice["max_marks"] == 100.0
     assert alice["percentage"] == 96.0
     assert alice["review_completion_status"] == "COMPLETED"
-    assert alice["final_result_status"] == "PASSED"
+    assert alice["final_result_status"] == "PASS"
 
-    # Bob: 28.5 + 52.0 = 80.5 / 100 = 80.5% -> COMPLETED, PASSED
+    # Bob: 28.5 + 52.0 = 80.5 / 100 = 80.5% -> COMPLETED, PASS
     assert bob["total_marks"] == 80.5
     assert bob["max_marks"] == 100.0
     assert bob["percentage"] == 80.5
     assert bob["review_completion_status"] == "COMPLETED"
-    assert bob["final_result_status"] == "PASSED"
+    assert bob["final_result_status"] == "PASS"
 
     # Charlie: 0 / 100 -> IN_PROGRESS, INCOMPLETE
     assert charlie["total_marks"] == 0.0
@@ -469,12 +469,19 @@ def test_csv_export_formatting_and_escaping(setup_results_env):
 
     header_row = reader[0]
     assert "Group Number" in header_row
+    assert "Group Name" in header_row
+    assert "Project Topic" in header_row
     assert "Student Name" in header_row
     assert "Roll Number" in header_row
-    assert "Milestone 1: Design & Architecture Marks" in header_row
-    assert "Milestone 1: Design & Architecture Teacher Feedback" in header_row
-    assert "Milestone 2: Final Implementation Marks" in header_row
+    assert "Review Round 1 Marks" in header_row
+    assert any(h in header_row for h in ["Review Round 1 Teacher Feedback", "Review Round 1 Feedback"])
+    assert "Review Round 1 Reviewer" in header_row
+    assert "Review Round 1 Review Date" in header_row
+    assert "Review Round 2 Marks" in header_row
     assert "Individual Total Marks" in header_row
+    assert "Maximum Possible Marks" in header_row
+    assert "Percentage" in header_row
+    assert "Review Completion Status" in header_row
     assert "Final Result Status" in header_row
 
     # 3 student data rows
@@ -487,13 +494,13 @@ def test_csv_export_formatting_and_escaping(setup_results_env):
     assert "38.00" in alice_row
     assert "58.00" in alice_row
     assert "96.00" in alice_row
-    assert "PASSED" in alice_row
+    assert "PASS" in alice_row
 
     # Find Charlie's row
     charlie_row = next(r for r in data_rows if env["student_c"].full_name in r[3])
     # Round 1 is graded 0.00
-    r1_score_idx = header_row.index("Milestone 1: Design & Architecture Marks")
-    r2_score_idx = header_row.index("Milestone 2: Final Implementation Marks")
+    r1_score_idx = header_row.index("Review Round 1 Marks")
+    r2_score_idx = header_row.index("Review Round 2 Marks")
 
     assert charlie_row[r1_score_idx] == "0.00"
     # Round 2 is MISSING, strictly an empty string, NOT "0.00"

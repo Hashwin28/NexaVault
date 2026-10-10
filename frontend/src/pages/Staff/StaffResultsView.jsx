@@ -108,8 +108,15 @@ export const StaffResultsView = ({ selectedWorkspaceId }) => {
       }
 
       // 2. Final Result Status filter
-      if (filterFinalStatus !== 'ALL' && student.final_result_status !== filterFinalStatus) {
-        return false;
+      if (filterFinalStatus !== 'ALL') {
+        const sStatus = student.final_result_status;
+        if (filterFinalStatus === 'PASSED' && sStatus !== 'PASSED' && sStatus !== 'PASS') {
+          return false;
+        } else if (filterFinalStatus === 'FAILED' && sStatus !== 'FAILED' && sStatus !== 'FAIL') {
+          return false;
+        } else if (filterFinalStatus !== 'PASSED' && filterFinalStatus !== 'FAILED' && sStatus !== filterFinalStatus) {
+          return false;
+        }
       }
 
       // 3. Completion Status filter

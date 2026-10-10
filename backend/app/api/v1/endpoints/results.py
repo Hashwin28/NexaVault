@@ -154,13 +154,13 @@ def build_workspace_results(
             re = result_entry_by_round_student.get((r.id, user.id))
             latest_v = latest_version_by_proj_round.get((project_id, r.id)) if project_id else None
 
-            if re:
+            if re and re.score is not None:
                 score_val = float(re.score)
                 total_student_marks += score_val
                 graded_rounds_count += 1
                 pct = round((score_val / r_max * 100.0), 2) if r_max > 0 else 0.0
-                fb = re.feedback or (re.review.feedback if re.review else None)
-                reviewer = re.review.reviewer.full_name if (re.review and re.review.reviewer) else None
+                fb = re.feedback or (re.review.feedback if re.review else None) or (latest_v.review.feedback if (latest_v and latest_v.review) else None)
+                reviewer = (re.review.reviewer.full_name if (re.review and re.review.reviewer) else None) or (latest_v.review.reviewer.full_name if (latest_v and latest_v.review and latest_v.review.reviewer) else None)
                 rev_date = (re.review.completed_at if re.review else None) or re.created_at
 
                 student_round_results[str(r.id)] = StudentRoundScoreDetail(
@@ -176,11 +176,30 @@ def build_workspace_results(
                     status="GRADED",
                     result_entry_id=re.id,
                 )
+            elif re:
+                fb = re.feedback or (re.review.feedback if re.review else None) or (latest_v.review.feedback if (latest_v and latest_v.review) else None)
+                reviewer = (re.review.reviewer.full_name if (re.review and re.review.reviewer) else None) or (latest_v.review.reviewer.full_name if (latest_v and latest_v.review and latest_v.review.reviewer) else None)
+                rev_date = (re.review.completed_at if re.review else None) or re.created_at
+
+                student_round_results[str(r.id)] = StudentRoundScoreDetail(
+                    round_id=r.id,
+                    round_title=r.title,
+                    score=None,
+                    max_score=r_max,
+                    percentage=None,
+                    feedback=fb,
+                    reviewer_id=re.review.reviewer_id if re.review else None,
+                    reviewer_name=reviewer,
+                    review_date=rev_date,
+                    status="PENDING",
+                    result_entry_id=re.id,
+                )
             elif latest_v:
                 rev = latest_v.review
                 rev_status = rev.status if rev else latest_v.status
                 fb = rev.feedback if rev else None
                 reviewer = rev.reviewer.full_name if (rev and rev.reviewer) else None
+                rev_date = rev.completed_at if rev else None
 
                 student_round_results[str(r.id)] = StudentRoundScoreDetail(
                     round_id=r.id,
@@ -191,7 +210,7 @@ def build_workspace_results(
                     feedback=fb,
                     reviewer_id=rev.reviewer_id if rev else None,
                     reviewer_name=reviewer,
-                    review_date=None,
+                    review_date=rev_date,
                     status=rev_status or "SUBMITTED",
                     result_entry_id=None,
                 )
@@ -229,11 +248,11 @@ def build_workspace_results(
 
         # Final Result Status
         if completion_status == "COMPLETED":
-            if student_pct >= 50.0:
-                final_status = "PASSED"
+            if student_pct >= 60.0:
+                final_status = "PASS"
                 passed_count += 1
             else:
-                final_status = "FAILED"
+                final_status = "FAIL"
         else:
             final_status = "INCOMPLETE" if graded_rounds_count > 0 else "PENDING"
 
@@ -320,20 +339,18 @@ def export_workspace_results_csv(
         "Project Topic",
         "Student Name",
         "Roll Number",
-        "Student Email",
     ]
-    for r in rounds:
+    for idx, r in enumerate(rounds, 1):
         headers.extend([
-            f"{r.title} Marks",
-            f"{r.title} Max Marks",
-            f"{r.title} Teacher Feedback",
-            f"{r.title} Reviewer Name",
-            f"{r.title} Review Date",
+            f"Review Round {idx} Marks",
+            f"Review Round {idx} Teacher Feedback",
+            f"Review Round {idx} Reviewer",
+            f"Review Round {idx} Review Date",
         ])
     headers.extend([
         "Individual Total Marks",
         "Maximum Possible Marks",
-        "Percentage (%)",
+        "Percentage",
         "Review Completion Status",
         "Final Result Status",
     ])
@@ -347,32 +364,41 @@ def export_workspace_results_csv(
             s.project_topic,
             s.student_name,
             s.roll_number,
-            s.student_email,
         ]
+        has_any_score = False
         for r in rounds:
             r_res = s.rounds.get(str(r.id))
             if r_res and r_res.score is not None:
                 row.append(f"{r_res.score:.2f}")
+                has_any_score = True
             else:
                 row.append("")  # Strictly empty string for missing marks
 
-            row.append(f"{r.max_score:.2f}")
             row.append(r_res.feedback or "" if r_res else "")
             row.append(r_res.reviewer_name or "" if r_res else "")
 
             if r_res and r_res.review_date:
-                rev_d_str = r_res.review_date.strftime("%Y-%m-%d %H:%M:%S")
+                rev_d_str = r_res.review_date.strftime("%Y-%m-%d")
             else:
                 rev_d_str = ""
             row.append(rev_d_str)
 
-        row.extend([
-            f"{s.total_marks:.2f}",
-            f"{s.max_marks:.2f}",
-            f"{s.percentage:.2f}%",
-            s.review_completion_status,
-            s.final_result_status,
-        ])
+        if not has_any_score and s.review_completion_status == "PENDING":
+            row.extend([
+                "",
+                f"{s.max_marks:.2f}",
+                "",
+                "PENDING",
+                "PENDING",
+            ])
+        else:
+            row.extend([
+                f"{s.total_marks:.2f}",
+                f"{s.max_marks:.2f}",
+                f"{s.percentage:.1f}%",
+                s.review_completion_status,
+                s.final_result_status,
+            ])
         writer.writerow(row)
 
     # Prepend UTF-8 BOM for Excel / universal spreadsheet compatibility
