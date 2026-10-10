@@ -1,8 +1,17 @@
+import os
 from collections import defaultdict
-from datetime import datetime, timezone
+from datetime import datetime, timezone, timedelta
 from typing import List, Optional, Union
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, status, Request
+from fastapi.responses import FileResponse
 from sqlalchemy.orm import Session, joinedload
+from app.core.config import settings
+from app.services.storage_service import (
+    process_and_store_image,
+    delete_notice_images,
+    cleanup_expired_notices_storage,
+    get_storage_dir,
+)
 from app.api.deps import get_db, get_current_user, get_current_staff, get_current_student
 from app.models.user import User
 from app.models.workspace import (
@@ -222,11 +231,16 @@ def list_workspaces(
         )
         projects_by_ws = {p.workspace_id: p for p in all_projects}
 
-        # 2. Batch load notices with eager author joined
+        # 2. Batch load notices with eager author joined (exclude expired)
+        now_utc = datetime.now(timezone.utc)
         all_notices = (
             db.query(WorkspaceNotice)
             .options(joinedload(WorkspaceNotice.author))
-            .filter(WorkspaceNotice.workspace_id.in_(ws_ids), WorkspaceNotice.is_archived == False)
+            .filter(
+                WorkspaceNotice.workspace_id.in_(ws_ids),
+                WorkspaceNotice.is_archived == False,
+                WorkspaceNotice.expires_at > now_utc
+            )
             .order_by(WorkspaceNotice.is_pinned.desc(), WorkspaceNotice.created_at.desc())
             .all()
         )
@@ -238,10 +252,14 @@ def list_workspaces(
                     workspace_id=n.workspace_id,
                     title=n.title,
                     body=n.body,
+                    content=n.body,
                     image_url=n.image_url,
+                    image_key=n.image_key,
+                    thumbnail_url=n.thumbnail_url,
                     is_pinned=n.is_pinned,
                     is_archived=n.is_archived,
                     created_at=n.created_at,
+                    expires_at=n.expires_at,
                     author_name=n.author.full_name if n.author else "Staff"
                 )
             )
@@ -357,9 +375,14 @@ def get_workspace_details(
         .filter(Project.workspace_id == ws.id, Project.group_id == active_group.id)
         .first() if active_group else None
     )
+    now_utc = datetime.now(timezone.utc)
     notices = (
         db.query(WorkspaceNotice)
-        .filter(WorkspaceNotice.workspace_id == ws.id, WorkspaceNotice.is_archived == False)
+        .filter(
+            WorkspaceNotice.workspace_id == ws.id,
+            WorkspaceNotice.is_archived == False,
+            WorkspaceNotice.expires_at > now_utc
+        )
         .order_by(WorkspaceNotice.is_pinned.desc(), WorkspaceNotice.created_at.desc())
         .all()
     )
@@ -369,10 +392,14 @@ def get_workspace_details(
             workspace_id=n.workspace_id,
             title=n.title,
             body=n.body,
+            content=n.body,
             image_url=n.image_url,
+            image_key=n.image_key,
+            thumbnail_url=n.thumbnail_url,
             is_pinned=n.is_pinned,
             is_archived=n.is_archived,
             created_at=n.created_at,
+            expires_at=n.expires_at,
             author_name=n.author.full_name if n.author else "Staff"
         )
         for n in notices
@@ -848,6 +875,33 @@ def list_workspace_projects(
 
 # --- NOTICE BOARD ---
 
+@router.get("/notices/images/{filename}")
+def get_notice_image(filename: str):
+    """
+    Safely serves uploaded workspace notice images and thumbnails.
+    Includes strict path sanitization and public caching headers.
+    """
+    safe_filename = os.path.basename(filename)
+    file_path = os.path.join(get_storage_dir(), safe_filename)
+    if not os.path.isfile(file_path):
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Image attachment not found.")
+    return FileResponse(
+        file_path,
+        media_type="image/webp",
+        headers={"Cache-Control": "public, max-age=86400, immutable"}
+    )
+
+@router.post("/notices/cleanup-expired", status_code=status.HTTP_200_OK)
+def trigger_expired_notices_cleanup(
+    db: Session = Depends(get_db),
+    current_staff: User = Depends(get_current_staff),
+):
+    """
+    Explicit endpoint to trigger cleanup of expired notice images from storage.
+    """
+    cleaned_count = cleanup_expired_notices_storage(db)
+    return {"message": f"Successfully cleaned up {cleaned_count} expired notice image(s)."}
+
 @router.get("/{workspace_id}/notices", response_model=List[WorkspaceNoticeResponse])
 def get_workspace_notices(
     workspace_id: str,
@@ -855,8 +909,9 @@ def get_workspace_notices(
     current_user: User = Depends(get_current_user),
 ):
     """
-    Get notices for a workspace.
-    Students see non-archived notices. Staff see non-archived notices.
+    Get active notices for a workspace.
+    Enforces automatic 24-hour expiration: only notices where expires_at > now_utc are returned.
+    Expired notices are completely excluded from both regular and pinned sections.
     """
     if not can_access_workspace(db, current_user.id, workspace_id):
         raise HTTPException(
@@ -864,14 +919,20 @@ def get_workspace_notices(
             detail="Workspace not found or access denied."
         )
 
-    c_key = key_ws_notices(workspace_id)
-    cached = cache.get(c_key)
-    if cached is not None:
-        return [WorkspaceNoticeResponse(**x) for x in cached]
+    # Opportunistically clean up expired images in storage
+    try:
+        cleanup_expired_notices_storage(db)
+    except Exception:
+        pass
 
+    now_utc = datetime.now(timezone.utc)
     notices = (
         db.query(WorkspaceNotice)
-        .filter(WorkspaceNotice.workspace_id == workspace_id, WorkspaceNotice.is_archived == False)
+        .filter(
+            WorkspaceNotice.workspace_id == workspace_id,
+            WorkspaceNotice.is_archived == False,
+            WorkspaceNotice.expires_at > now_utc
+        )
         .order_by(WorkspaceNotice.is_pinned.desc(), WorkspaceNotice.created_at.desc())
         .all()
     )
@@ -882,26 +943,30 @@ def get_workspace_notices(
             workspace_id=n.workspace_id,
             title=n.title,
             body=n.body,
+            content=n.body,
             image_url=n.image_url,
+            image_key=n.image_key,
+            thumbnail_url=n.thumbnail_url,
             is_pinned=n.is_pinned,
             is_archived=n.is_archived,
             created_at=n.created_at,
+            expires_at=n.expires_at,
             author_name=n.author.full_name if n.author else "Staff"
         )
         for n in notices
     ]
-    cache.set(c_key, [r.model_dump() for r in result], ttl=300, tags=[f"workspace:{workspace_id}:notices", f"workspace:{workspace_id}"])
     return result
 
 @router.post("/{workspace_id}/notices", response_model=WorkspaceNoticeResponse, status_code=status.HTTP_201_CREATED)
-def create_notice(
+async def create_notice(
     workspace_id: str,
-    payload: WorkspaceNoticeCreate,
+    request: Request,
     db: Session = Depends(get_db),
     current_staff: User = Depends(get_current_staff),
 ):
     """
-    Staff creates a notice in the workspace.
+    Staff creates a notice in the workspace with optional direct image upload (multipart/form-data)
+    or JSON payload. Automatically assigns expires_at = created_at + 24 hours in UTC.
     """
     if not can_manage_notice(db, current_staff.id, workspace_id):
         raise HTTPException(
@@ -909,14 +974,66 @@ def create_notice(
             detail="Workspace not found or access denied."
         )
 
+    content_type = request.headers.get("content-type", "")
+
+    title = ""
+    body = ""
+    is_pinned = False
+    image_key = None
+    image_url = None
+    thumbnail_url = None
+
+    if "multipart/form-data" in content_type or "application/x-www-form-urlencoded" in content_type:
+        form = await request.form()
+        title = str(form.get("title", "")).strip()
+        body = str(form.get("body") or form.get("content") or "").strip()
+        is_pinned_val = form.get("is_pinned", False)
+        is_pinned = str(is_pinned_val).lower() in ("true", "1", "yes", "on")
+
+        file_obj = form.get("image") or form.get("file")
+        if file_obj and hasattr(file_obj, "filename") and file_obj.filename:
+            file_bytes = await file_obj.read()
+            if len(file_bytes) > 0:
+                storage_res = process_and_store_image(
+                    file_bytes=file_bytes,
+                    original_filename=file_obj.filename,
+                    content_type=getattr(file_obj, "content_type", None)
+                )
+                image_key = storage_res["image_key"]
+                image_url = storage_res["image_url"]
+                thumbnail_url = storage_res["thumbnail_url"]
+    else:
+        try:
+            data = await request.json()
+        except Exception:
+            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Invalid request payload.")
+        payload = WorkspaceNoticeCreate(**data)
+        title = payload.title.strip()
+        body = (payload.body or payload.content or "").strip()
+        is_pinned = payload.is_pinned
+        image_url = payload.image_url
+
+    if not title:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Notice title is required.")
+    if not body:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Notice content is required.")
+
+    now_utc = datetime.now(timezone.utc)
+    expires_at = now_utc + timedelta(hours=settings.NOTICE_EXPIRATION_HOURS)
+
     notice = WorkspaceNotice(
         workspace_id=workspace_id,
         author_id=current_staff.id,
-        title=payload.title,
-        body=payload.body,
-        image_url=payload.image_url,
-        is_pinned=payload.is_pinned,
+        title=title,
+        body=body,
+        image_url=image_url,
+        image_key=image_key,
+        thumbnail_url=thumbnail_url,
+        is_pinned=is_pinned,
         is_archived=False,
+        created_at=now_utc,
+        updated_at=now_utc,
+        expires_at=expires_at,
     )
     db.add(notice)
     db.flush()
@@ -928,7 +1045,7 @@ def create_notice(
         entity_type="workspace_notice",
         entity_id=notice.id,
         workspace_id=workspace_id,
-        new_value={"title": notice.title, "is_pinned": notice.is_pinned},
+        new_value={"title": notice.title, "is_pinned": notice.is_pinned, "has_image": bool(notice.image_key or notice.image_url)},
     )
 
     db.commit()
@@ -940,10 +1057,14 @@ def create_notice(
         workspace_id=notice.workspace_id,
         title=notice.title,
         body=notice.body,
+        content=notice.body,
         image_url=notice.image_url,
+        image_key=notice.image_key,
+        thumbnail_url=notice.thumbnail_url,
         is_pinned=notice.is_pinned,
         is_archived=notice.is_archived,
         created_at=notice.created_at,
+        expires_at=notice.expires_at,
         author_name=current_staff.full_name,
     )
 
@@ -979,9 +1100,16 @@ def edit_notice(
     if payload.body is not None:
         notice.body = payload.body
     if payload.image_url is not None:
+        # If removing or replacing image, delete previous image from disk if exists
+        if payload.image_url != notice.image_url and notice.image_key:
+            delete_notice_images(notice.image_key)
+            notice.image_key = None
+            notice.thumbnail_url = None
         notice.image_url = payload.image_url
     if payload.is_pinned is not None:
         notice.is_pinned = payload.is_pinned
+
+    notice.updated_at = datetime.now(timezone.utc)
 
     log_audit(
         db=db,
@@ -1003,10 +1131,14 @@ def edit_notice(
         workspace_id=notice.workspace_id,
         title=notice.title,
         body=notice.body,
+        content=notice.body,
         image_url=notice.image_url,
+        image_key=notice.image_key,
+        thumbnail_url=notice.thumbnail_url,
         is_pinned=notice.is_pinned,
         is_archived=notice.is_archived,
         created_at=notice.created_at,
+        expires_at=notice.expires_at,
         author_name=notice.author.full_name if notice.author else "Staff",
     )
 
@@ -1019,6 +1151,7 @@ def toggle_pin_notice(
 ):
     """
     Staff pins or unpins a notice.
+    Pinning is strictly forbidden on expired notices.
     """
     if not can_manage_notice(db, current_staff.id, workspace_id):
         raise HTTPException(
@@ -1033,6 +1166,13 @@ def toggle_pin_notice(
     )
     if not notice:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Notice not found.")
+
+    now_utc = datetime.now(timezone.utc)
+    if notice.expires_at and notice.expires_at <= now_utc:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Cannot pin an expired notice."
+        )
 
     notice.is_pinned = not notice.is_pinned
     action = "notice_pinned" if notice.is_pinned else "notice_unpinned"
@@ -1056,12 +1196,60 @@ def toggle_pin_notice(
         workspace_id=notice.workspace_id,
         title=notice.title,
         body=notice.body,
+        content=notice.body,
         image_url=notice.image_url,
+        image_key=notice.image_key,
+        thumbnail_url=notice.thumbnail_url,
         is_pinned=notice.is_pinned,
         is_archived=notice.is_archived,
         created_at=notice.created_at,
+        expires_at=notice.expires_at,
         author_name=notice.author.full_name if notice.author else "Staff",
     )
+
+@router.delete("/{workspace_id}/notices/{notice_id}", status_code=status.HTTP_200_OK)
+def delete_notice(
+    workspace_id: str,
+    notice_id: int,
+    db: Session = Depends(get_db),
+    current_staff: User = Depends(get_current_staff),
+):
+    """
+    Staff permanently deletes a notice.
+    Automatically deletes associated image and thumbnail files from storage.
+    """
+    if not can_manage_notice(db, current_staff.id, workspace_id):
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Workspace not found or access denied."
+        )
+
+    notice = (
+        db.query(WorkspaceNotice)
+        .filter(WorkspaceNotice.id == notice_id, WorkspaceNotice.workspace_id == workspace_id)
+        .first()
+    )
+    if not notice:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Notice not found.")
+
+    # Clean up associated stored files
+    if notice.image_key:
+        delete_notice_images(notice.image_key)
+
+    log_audit(
+        db=db,
+        actor_id=current_staff.id,
+        action_type="notice_deleted",
+        entity_type="workspace_notice",
+        entity_id=notice.id,
+        workspace_id=workspace_id,
+        old_value={"title": notice.title, "image_key": notice.image_key},
+    )
+
+    db.delete(notice)
+    db.commit()
+    invalidate_notices(workspace_id)
+    return {"message": f"Notice {notice_id} deleted successfully."}
 
 @router.post("/{workspace_id}/notices/{notice_id}/archive", status_code=status.HTTP_200_OK)
 def archive_notice(
@@ -1088,6 +1276,13 @@ def archive_notice(
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Notice not found.")
 
     notice.is_archived = True
+
+    # When archiving, safely clean up storage images to avoid unnecessary disk usage
+    if notice.image_key:
+        delete_notice_images(notice.image_key)
+        notice.image_key = None
+        notice.image_url = None
+        notice.thumbnail_url = None
 
     log_audit(
         db=db,

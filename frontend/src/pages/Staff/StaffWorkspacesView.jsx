@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { workspaceApi } from '../../api/workspaceApi';
+import { getMediaUrl } from '../../api/client';
 import { useAuth } from '../../context/AuthContext';
 
 export const StaffWorkspacesView = ({ selectedWorkspaceId, onSelectProject }) => {
@@ -31,13 +32,25 @@ export const StaffWorkspacesView = ({ selectedWorkspaceId, onSelectProject }) =>
   // Forms for workspace actions
   const [coStaffEmail, setCoStaffEmail] = useState('');
   
-  // Notice form
+  // Notice form and image upload states
   const [noticeForm, setNoticeForm] = useState({
     title: '',
     content: '',
-    image_url: '',
     is_pinned: false,
   });
+  const [selectedImageFile, setSelectedImageFile] = useState(null);
+  const [imagePreviewUrl, setImagePreviewUrl] = useState(null);
+  const [isDragging, setIsDragging] = useState(false);
+  const [uploadError, setUploadError] = useState(null);
+  const [currentTime, setCurrentTime] = useState(Date.now());
+
+  // Recalculate 24h expiration countdown every 30 seconds
+  useEffect(() => {
+    const timer = setInterval(() => {
+      setCurrentTime(Date.now());
+    }, 30000);
+    return () => clearInterval(timer);
+  }, []);
 
   // Round form
   const [roundForm, setRoundForm] = useState({
@@ -217,21 +230,85 @@ export const StaffWorkspacesView = ({ selectedWorkspaceId, onSelectProject }) =>
     }
   };
 
-  // Notices
+  // Notices helpers & handlers
+  const handleImageSelect = (file) => {
+    setUploadError(null);
+    if (!file) return;
+
+    const validTypes = ['image/jpeg', 'image/png', 'image/webp', 'image/jpg'];
+    if (!validTypes.includes(file.type.toLowerCase())) {
+      setUploadError('Invalid file type. Supported formats: JPG, PNG, WebP.');
+      return;
+    }
+
+    const maxSize = 5 * 1024 * 1024; // 5MB
+    if (file.size > maxSize) {
+      setUploadError('Selected file exceeds 5MB size limit.');
+      return;
+    }
+
+    if (imagePreviewUrl) {
+      URL.revokeObjectURL(imagePreviewUrl);
+    }
+
+    setSelectedImageFile(file);
+    setImagePreviewUrl(URL.createObjectURL(file));
+  };
+
+  const handleRemoveSelectedImage = () => {
+    if (imagePreviewUrl) {
+      URL.revokeObjectURL(imagePreviewUrl);
+    }
+    setSelectedImageFile(null);
+    setImagePreviewUrl(null);
+    setUploadError(null);
+  };
+
+  const formatTimeRemaining = (expiresAt) => {
+    if (!expiresAt) return null;
+    const diff = new Date(expiresAt).getTime() - currentTime;
+    if (diff <= 0) return 'Expired';
+    const totalMinutes = Math.floor(diff / (1000 * 60));
+    const hours = Math.floor(totalMinutes / 60);
+    const minutes = totalMinutes % 60;
+    if (hours > 0) {
+      return `Expires in ${hours}h ${minutes}m`;
+    }
+    if (minutes > 0) {
+      return `Expires in ${minutes}m`;
+    }
+    return 'Expires in < 1m';
+  };
+
   const handleCreateNotice = async (e) => {
     e.preventDefault();
     if (!activeWorkspace) return;
     try {
+      const noticeTitle = noticeForm.title.trim();
       const noticeBody = (noticeForm.content || noticeForm.body || '').trim();
-      await workspaceApi.createNotice(activeWorkspace.id, {
-        title: noticeForm.title.trim(),
-        body: noticeBody,
-        content: noticeBody,
-        image_url: noticeForm.image_url?.trim() || null,
-        is_pinned: Boolean(noticeForm.is_pinned),
-      });
-      setSuccess('Notice posted to workspace board.');
-      setNoticeForm({ title: '', content: '', image_url: '', is_pinned: false });
+      if (!noticeTitle) {
+        setError('Notice title is required.');
+        return;
+      }
+      if (!noticeBody) {
+        setError('Notice content is required.');
+        return;
+      }
+
+      const formData = new FormData();
+      formData.append('title', noticeTitle);
+      formData.append('body', noticeBody);
+      formData.append('content', noticeBody);
+      formData.append('is_pinned', String(Boolean(noticeForm.is_pinned)));
+
+      if (selectedImageFile) {
+        formData.append('image', selectedImageFile);
+      }
+
+      await workspaceApi.createNotice(activeWorkspace.id, formData);
+      setSuccess('Notice posted to workspace board (active for 24 hours).');
+      setNoticeForm({ title: '', content: '', is_pinned: false });
+      handleRemoveSelectedImage();
       loadSubTabData(activeWorkspace.id, 'notices');
     } catch (err) {
       setError(err.message || 'Failed to create notice.');
@@ -607,116 +684,261 @@ export const StaffWorkspacesView = ({ selectedWorkspaceId, onSelectProject }) =>
               )}
 
               {/* Sub-Tab 2: Notice Board */}
-              {subTab === 'notices' && (
-                <div className="space-y-6">
-                  {/* Create Notice Form */}
-                  <form onSubmit={handleCreateNotice} className="bg-[#0B0F12] p-5 rounded-lg border border-[#1B262E] space-y-3">
-                    <h4 className="text-sm font-bold text-slate-200">Post New Workspace Notice</h4>
-                    <input
-                      type="text"
-                      placeholder="Notice Title"
-                      value={noticeForm.title}
-                      onChange={(e) => setNoticeForm({ ...noticeForm, title: e.target.value })}
-                      className="w-full bg-[#11181C] border border-[#1B262E] rounded px-3 py-2 text-xs text-slate-200 focus:outline-none focus:border-teal-500"
-                      required
-                    />
-                    <textarea
-                      placeholder="Notice content..."
-                      rows={3}
-                      value={noticeForm.content}
-                      onChange={(e) => setNoticeForm({ ...noticeForm, content: e.target.value })}
-                      className="w-full bg-[#11181C] border border-[#1B262E] rounded px-3 py-2 text-xs text-slate-200 focus:outline-none focus:border-teal-500"
-                      required
-                    />
-                    <div className="flex flex-col sm:flex-row gap-3 items-center justify-between">
-                      <input
-                        type="url"
-                        placeholder="Optional Image URL (https://...)"
-                        value={noticeForm.image_url}
-                        onChange={(e) => setNoticeForm({ ...noticeForm, image_url: e.target.value })}
-                        className="w-full sm:flex-1 bg-[#11181C] border border-[#1B262E] rounded px-3 py-1.5 text-xs text-slate-200 focus:outline-none focus:border-teal-500"
-                      />
-                      <label className="flex items-center gap-2 text-xs text-slate-300 font-mono cursor-pointer shrink-0">
-                        <input
-                          type="checkbox"
-                          checked={noticeForm.is_pinned}
-                          onChange={(e) => setNoticeForm({ ...noticeForm, is_pinned: e.target.checked })}
-                          className="rounded border-[#1B262E] text-teal-500 focus:ring-0 bg-[#11181C]"
-                        />
-                        Pin Notice to Top
-                      </label>
-                      <button
-                        type="submit"
-                        className="w-full sm:w-auto px-4 py-1.5 bg-teal-600 hover:bg-teal-500 text-slate-950 font-semibold text-xs rounded"
-                      >
-                        Publish Notice
-                      </button>
-                    </div>
-                  </form>
+              {subTab === 'notices' && (() => {
+                const activeNotices = notices.filter((n) => {
+                  if (!n.expires_at) return true;
+                  return new Date(n.expires_at).getTime() > currentTime;
+                });
 
-                  {/* Notice Feed */}
-                  <div className="space-y-4">
-                    <h4 className="text-sm font-bold text-slate-200">Workspace Notices ({notices.length})</h4>
-                    {notices.length === 0 ? (
-                      <div className="py-8 text-center text-xs font-mono text-slate-500 border border-dashed border-[#1B262E] rounded-lg">
-                        No notices published for this workspace yet.
+                return (
+                  <div className="space-y-6">
+                    {/* Create Notice Form */}
+                    <form onSubmit={handleCreateNotice} className="bg-[#0B0F12] p-5 rounded-lg border border-[#1B262E] space-y-4">
+                      <div className="flex items-center justify-between">
+                        <h4 className="text-sm font-bold text-slate-200">Post New Workspace Notice</h4>
+                        <span className="text-[10px] font-mono text-teal-400 bg-teal-950/40 border border-teal-500/20 px-2 py-0.5 rounded">
+                          24-Hour Active Lifecycle
+                        </span>
                       </div>
-                    ) : (
-                      <div className="space-y-3">
-                        {notices.map((n) => (
+
+                      <input
+                        type="text"
+                        placeholder="Notice Title"
+                        value={noticeForm.title}
+                        onChange={(e) => setNoticeForm({ ...noticeForm, title: e.target.value })}
+                        className="w-full bg-[#11181C] border border-[#1B262E] rounded px-3 py-2 text-xs text-slate-200 focus:outline-none focus:border-teal-500"
+                        required
+                      />
+
+                      <textarea
+                        placeholder="Notice content..."
+                        rows={3}
+                        value={noticeForm.content}
+                        onChange={(e) => setNoticeForm({ ...noticeForm, content: e.target.value })}
+                        className="w-full bg-[#11181C] border border-[#1B262E] rounded px-3 py-2 text-xs text-slate-200 focus:outline-none focus:border-teal-500"
+                        required
+                      />
+
+                      {/* Image Upload / Preview Area */}
+                      <div className="space-y-2">
+                        <label className="text-[10px] font-mono text-slate-400 uppercase tracking-wider block">
+                          Notice Image Attachment (Optional)
+                        </label>
+
+                        {!imagePreviewUrl ? (
                           <div
-                            key={n.id}
-                            className={`p-4 rounded-lg border transition-all ${
-                              n.is_pinned
-                                ? 'bg-teal-950/20 border-teal-500/40 shadow-sm'
-                                : 'bg-[#0B0F12] border-[#1B262E]'
+                            onDragOver={(e) => {
+                              e.preventDefault();
+                              setIsDragging(true);
+                            }}
+                            onDragLeave={() => setIsDragging(false)}
+                            onDrop={(e) => {
+                              e.preventDefault();
+                              setIsDragging(false);
+                              const file = e.dataTransfer.files?.[0];
+                              if (file) handleImageSelect(file);
+                            }}
+                            className={`border-2 border-dashed rounded-lg p-5 text-center transition-all ${
+                              isDragging
+                                ? 'border-teal-400 bg-teal-950/30'
+                                : 'border-[#1B262E] hover:border-teal-500/40 bg-[#11181C]/60'
                             }`}
                           >
-                            <div className="flex justify-between items-start gap-2">
-                              <div className="flex items-center gap-2">
-                                {n.is_pinned && (
-                                  <span className="text-xs px-2 py-0.5 rounded bg-teal-500/20 text-teal-300 font-mono">
-                                    📌 Pinned
-                                  </span>
-                                )}
-                                <h5 className="font-semibold text-sm text-slate-100">{n.title}</h5>
+                            <input
+                              type="file"
+                              id="notice-image-upload"
+                              accept="image/jpeg,image/png,image/webp,image/jpg"
+                              onChange={(e) => {
+                                const file = e.target.files?.[0];
+                                if (file) handleImageSelect(file);
+                              }}
+                              className="hidden"
+                            />
+                            <div className="flex flex-col items-center justify-center gap-2">
+                              <div className="w-9 h-9 rounded-full bg-[#162026] border border-[#1B262E] flex items-center justify-center text-teal-400">
+                                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                                </svg>
                               </div>
-                              <div className="flex gap-2">
-                                <button
-                                  onClick={() => handleTogglePinNotice(n)}
-                                  className="text-xs font-mono text-slate-400 hover:text-teal-300"
+                              <p className="text-xs text-slate-300 font-medium">
+                                Drag and drop an image here, or{' '}
+                                <label
+                                  htmlFor="notice-image-upload"
+                                  className="text-teal-400 hover:text-teal-300 cursor-pointer underline font-semibold"
                                 >
-                                  {n.is_pinned ? 'Unpin' : 'Pin'}
-                                </button>
-                                <button
-                                  onClick={() => handleDeleteNotice(n.id)}
-                                  className="text-xs font-mono text-rose-400 hover:text-rose-300"
-                                >
-                                  Delete
-                                </button>
-                              </div>
-                            </div>
-
-                            <p className="text-xs text-slate-300 mt-2 whitespace-pre-wrap">{n.content}</p>
-
-                            {n.image_url && (
-                              <img
-                                src={n.image_url}
-                                alt="Notice Attachment"
-                                className="mt-3 max-h-48 rounded border border-[#1B262E] object-cover"
-                              />
-                            )}
-
-                            <div className="text-[10px] text-slate-500 font-mono mt-3 pt-2 border-t border-[#1B262E]">
-                              Posted on {new Date(n.created_at || Date.now()).toLocaleString()}
+                                  browse files
+                                </label>
+                              </p>
+                              <p className="text-[10px] font-mono text-slate-500">
+                                Supports JPG, JPEG, PNG, WebP (Max 5MB) • Auto-compressed for performance
+                              </p>
+                              <label
+                                htmlFor="notice-image-upload"
+                                className="mt-1 px-3 py-1 bg-[#162026] hover:bg-[#1f2c35] text-teal-300 border border-teal-500/30 hover:border-teal-400/50 text-xs rounded font-mono cursor-pointer transition-colors"
+                              >
+                                Upload Image
+                              </label>
                             </div>
                           </div>
-                        ))}
+                        ) : (
+                          <div className="bg-[#11181C] border border-[#1B262E] rounded-lg p-3 space-y-2">
+                            <div className="flex items-center justify-between text-xs text-slate-300">
+                              <span className="font-mono truncate max-w-xs text-teal-400">
+                                📷 {selectedImageFile?.name || 'Selected Image'} ({selectedImageFile?.size ? (selectedImageFile.size / 1024).toFixed(1) : 0} KB)
+                              </span>
+                              <div className="flex gap-3">
+                                <label
+                                  htmlFor="notice-image-replace"
+                                  className="text-[11px] font-mono text-slate-400 hover:text-teal-300 cursor-pointer"
+                                >
+                                  Replace
+                                </label>
+                                <input
+                                  type="file"
+                                  id="notice-image-replace"
+                                  accept="image/jpeg,image/png,image/webp,image/jpg"
+                                  onChange={(e) => {
+                                    const file = e.target.files?.[0];
+                                    if (file) handleImageSelect(file);
+                                  }}
+                                  className="hidden"
+                                />
+                                <button
+                                  type="button"
+                                  onClick={handleRemoveSelectedImage}
+                                  className="text-[11px] font-mono text-rose-400 hover:text-rose-300"
+                                >
+                                  Remove
+                                </button>
+                              </div>
+                            </div>
+                            <div className="relative rounded overflow-hidden max-h-52 border border-[#1B262E] bg-black/40 flex items-center justify-center">
+                              <img
+                                src={imagePreviewUrl}
+                                alt="Notice Preview"
+                                className="max-h-52 w-auto object-contain rounded"
+                              />
+                            </div>
+                          </div>
+                        )}
+
+                        {uploadError && (
+                          <p className="text-xs text-rose-400 font-mono mt-1">{uploadError}</p>
+                        )}
                       </div>
-                    )}
+
+                      <div className="flex flex-col sm:flex-row gap-3 items-center justify-between pt-2 border-t border-[#1B262E]">
+                        <label className="flex items-center gap-2 text-xs text-slate-300 font-mono cursor-pointer">
+                          <input
+                            type="checkbox"
+                            checked={noticeForm.is_pinned}
+                            onChange={(e) => setNoticeForm({ ...noticeForm, is_pinned: e.target.checked })}
+                            className="rounded border-[#1B262E] text-teal-500 focus:ring-0 bg-[#11181C]"
+                          />
+                          Pin Notice to Top
+                        </label>
+                        <button
+                          type="submit"
+                          className="w-full sm:w-auto px-4 py-1.5 bg-teal-600 hover:bg-teal-500 text-slate-950 font-semibold text-xs rounded transition-colors"
+                        >
+                          Publish Notice
+                        </button>
+                      </div>
+                    </form>
+
+                    {/* Notice Feed */}
+                    <div className="space-y-4">
+                      <div className="flex justify-between items-center">
+                        <h4 className="text-sm font-bold text-slate-200">
+                          Workspace Notices ({activeNotices.length})
+                        </h4>
+                        <span className="text-[10px] font-mono text-slate-500">
+                          Auto-expires 24h after publication
+                        </span>
+                      </div>
+
+                      {activeNotices.length === 0 ? (
+                        <div className="py-8 text-center text-xs font-mono text-slate-500 border border-dashed border-[#1B262E] rounded-lg">
+                          No active notices published for this workspace. Notices automatically expire after 24 hours.
+                        </div>
+                      ) : (
+                        <div className="space-y-3">
+                          {activeNotices.map((n) => {
+                            const timeRemaining = formatTimeRemaining(n.expires_at);
+                            const imageSource = getMediaUrl(n.thumbnail_url || n.image_url);
+
+                            return (
+                              <div
+                                key={n.id}
+                                className={`p-4 rounded-lg border transition-all ${
+                                  n.is_pinned
+                                    ? 'bg-teal-950/20 border-teal-500/40 shadow-sm'
+                                    : 'bg-[#0B0F12] border-[#1B262E]'
+                                }`}
+                              >
+                                <div className="flex justify-between items-start gap-2">
+                                  <div className="flex items-center gap-2 flex-wrap">
+                                    {n.is_pinned && (
+                                      <span className="text-xs px-2 py-0.5 rounded bg-teal-500/20 text-teal-300 font-mono">
+                                        📌 Pinned
+                                      </span>
+                                    )}
+                                    <h5 className="font-semibold text-sm text-slate-100">{n.title}</h5>
+                                    {timeRemaining && (
+                                      <span className="text-[10px] font-mono px-2 py-0.5 rounded bg-teal-500/10 text-teal-300 border border-teal-500/30">
+                                        ⏱️ {timeRemaining}
+                                      </span>
+                                    )}
+                                  </div>
+                                  <div className="flex gap-2 shrink-0">
+                                    <button
+                                      onClick={() => handleTogglePinNotice(n)}
+                                      className="text-xs font-mono text-slate-400 hover:text-teal-300"
+                                    >
+                                      {n.is_pinned ? 'Unpin' : 'Pin'}
+                                    </button>
+                                    <button
+                                      onClick={() => handleDeleteNotice(n.id)}
+                                      className="text-xs font-mono text-rose-400 hover:text-rose-300"
+                                    >
+                                      Delete
+                                    </button>
+                                  </div>
+                                </div>
+
+                                <p className="text-xs text-slate-300 mt-2 whitespace-pre-wrap">{n.content || n.body}</p>
+
+                                {imageSource && (
+                                  <div className="mt-3 rounded border border-[#1B262E] overflow-hidden max-h-60 bg-black/40 flex items-center justify-start">
+                                    <img
+                                      src={imageSource}
+                                      alt={n.title || "Notice Attachment"}
+                                      loading="lazy"
+                                      className="max-h-60 w-auto object-contain rounded"
+                                      onError={(e) => {
+                                        e.target.style.display = 'none';
+                                      }}
+                                    />
+                                  </div>
+                                )}
+
+                                <div className="text-[10px] text-slate-500 font-mono mt-3 pt-2 border-t border-[#1B262E] flex justify-between items-center">
+                                  <span>Posted on {new Date(n.created_at || Date.now()).toLocaleString()}</span>
+                                  {n.expires_at && (
+                                    <span className="text-slate-400 font-mono">
+                                      Expires {new Date(n.expires_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                                    </span>
+                                  )}
+                                </div>
+                              </div>
+                            );
+                          })}
+                        </div>
+                      )}
+                    </div>
                   </div>
-                </div>
-              )}
+                );
+              })()}
 
               {/* Sub-Tab 3: Review Rounds */}
               {subTab === 'rounds' && (

@@ -21,8 +21,10 @@ export async function apiRequest(endpoint, options = {}, retries = 0) {
   const method = (options.method || 'GET').toUpperCase();
   const isIdempotent = method === 'GET' || method === 'HEAD';
 
+  const isFormData = typeof FormData !== 'undefined' && options.body instanceof FormData;
+
   const headers = {
-    'Content-Type': 'application/json',
+    ...(isFormData ? {} : { 'Content-Type': 'application/json' }),
     ...(token ? { Authorization: `Bearer ${token}` } : {}),
     ...(options.headers || {}),
   };
@@ -34,8 +36,10 @@ export async function apiRequest(endpoint, options = {}, retries = 0) {
     headers,
   };
 
-  if (options.body && typeof options.body === 'object') {
+  if (options.body && typeof options.body === 'object' && !isFormData) {
     config.body = JSON.stringify(options.body);
+  } else if (isFormData) {
+    config.body = options.body;
   }
 
   // Set up 2.5-second timer to detect server cold boot
@@ -112,4 +116,17 @@ export async function apiRequest(endpoint, options = {}, retries = 0) {
   }
 
   return data;
+}
+
+/**
+ * Resolves a media attachment path to an absolute URL,
+ * using backend base URL if relative.
+ */
+export function getMediaUrl(path) {
+  if (!path) return null;
+  if (path.startsWith('http://') || path.startsWith('https://') || path.startsWith('data:')) {
+    return path;
+  }
+  const base = API_BASE_URL.replace(/\/api\/v1\/?$/, '');
+  return `${base}${path.startsWith('/') ? '' : '/'}${path}`;
 }

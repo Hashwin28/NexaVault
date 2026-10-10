@@ -1,4 +1,4 @@
-from datetime import datetime, timezone
+from datetime import datetime, timezone, timedelta
 from sqlalchemy import Column, Integer, String, Boolean, DateTime, ForeignKey, Text, UniqueConstraint
 from sqlalchemy.orm import relationship
 from app.db.base import Base
@@ -86,10 +86,13 @@ class WorkspaceNotice(Base):
     title = Column(String(255), nullable=False)
     body = Column(Text, nullable=False)
     image_url = Column(Text, nullable=True)
+    image_key = Column(String(255), nullable=True)
+    thumbnail_url = Column(Text, nullable=True)
     is_pinned = Column(Boolean, default=False, nullable=False)
     is_archived = Column(Boolean, default=False, nullable=False)
     created_at = Column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc), nullable=False)
     updated_at = Column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc), onupdate=lambda: datetime.now(timezone.utc), nullable=False)
+    expires_at = Column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc) + timedelta(hours=24), nullable=False, index=True)
 
     workspace = relationship("Workspace", back_populates="notices")
     author = relationship("User")

@@ -11,3 +11,5 @@ dist
 .vscode/
 .idea/
 *.log
+uploads/
+backend/uploads/

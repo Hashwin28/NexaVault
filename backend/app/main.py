@@ -16,14 +16,17 @@ app = FastAPI(
 )
 
 # Custom Middleware to enforce no-store on all authenticated and private API responses
-# preventing CDN / Vercel Edge proxies from caching private user data
+# preventing CDN / Vercel Edge proxies from caching private user data, while allowing image caching
 class NoCacheMiddleware(BaseHTTPMiddleware):
     async def dispatch(self, request: Request, call_next):
         response: Response = await call_next(request)
         if request.url.path.startswith(settings.API_V1_STR) or request.url.path.startswith("/api/"):
-            response.headers["Cache-Control"] = "no-store, no-cache, must-revalidate, max-age=0, private"
-            response.headers["Pragma"] = "no-cache"
-            response.headers["Expires"] = "0"
+            if "/notices/images/" in request.url.path:
+                response.headers["Cache-Control"] = "public, max-age=86400, immutable"
+            else:
+                response.headers["Cache-Control"] = "no-store, no-cache, must-revalidate, max-age=0, private"
+                response.headers["Pragma"] = "no-cache"
+                response.headers["Expires"] = "0"
         return response
 
 app.add_middleware(NoCacheMiddleware)
@@ -40,6 +43,12 @@ app.add_middleware(
 
 # Include API v1 routes
 app.include_router(api_router, prefix=settings.API_V1_STR)
+
+# Mount local uploads static file directory
+from fastapi.staticfiles import StaticFiles
+import os
+os.makedirs(settings.UPLOAD_DIR, exist_ok=True)
+app.mount("/uploads", StaticFiles(directory=settings.UPLOAD_DIR), name="uploads")
 
 # Throttle timestamp to ensure Neon database is pinged at most once per 60 seconds
 _last_wake_timestamp = 0.0

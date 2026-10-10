@@ -77,13 +77,23 @@ class WorkspaceNoticeResponse(BaseModel):
     workspace_id: str
     title: str
     body: str
+    content: Optional[str] = None
     image_url: Optional[str] = None
+    image_key: Optional[str] = None
+    thumbnail_url: Optional[str] = None
     is_pinned: bool
     is_archived: bool = False
     created_at: datetime
+    expires_at: Optional[datetime] = None
     author_name: str
 
     model_config = ConfigDict(from_attributes=True)
+
+    @model_validator(mode="after")
+    def populate_content(self):
+        if not self.content and self.body:
+            self.content = self.body
+        return self
 
 class ReviewRoundCreate(BaseModel):
     title: Optional[str] = Field(None, min_length=1, max_length=255)

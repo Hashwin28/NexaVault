@@ -20,6 +20,14 @@ class Settings(BaseSettings):
     CACHE_DEFAULT_TTL: int = int(os.getenv("CACHE_DEFAULT_TTL", "300"))  # 5 minutes
     CACHE_MAX_ENTRIES: int = int(os.getenv("CACHE_MAX_ENTRIES", "2000"))
     
+    # Image Storage & Upload Settings
+    UPLOAD_DIR: str = os.getenv(
+        "UPLOAD_DIR",
+        os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))), "uploads")
+    )
+    MAX_IMAGE_SIZE_BYTES: int = int(os.getenv("MAX_IMAGE_SIZE_BYTES", str(5 * 1024 * 1024)))  # 5MB
+    NOTICE_EXPIRATION_HOURS: int = int(os.getenv("NOTICE_EXPIRATION_HOURS", "24"))
+    
     # CORS Origins for Vite Frontend
     CORS_ORIGINS: Union[List[str], str] = [
         "http://localhost:3000",

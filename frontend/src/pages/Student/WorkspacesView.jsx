@@ -9,12 +9,31 @@ import {
   AlertCircle
 } from 'lucide-react';
 import { workspaceApi } from '../../api/workspaceApi';
+import { getMediaUrl } from '../../api/client';
 
 export const WorkspacesView = ({ onNavigate, onSelectProject }) => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [workspaces, setWorkspaces] = useState([]);
   const [selectedWorkspace, setSelectedWorkspace] = useState(null);
+  const [currentTime, setCurrentTime] = useState(Date.now());
+
+  useEffect(() => {
+    const timer = setInterval(() => setCurrentTime(Date.now()), 30000);
+    return () => clearInterval(timer);
+  }, []);
+
+  const formatTimeRemaining = (expiresAt) => {
+    if (!expiresAt) return null;
+    const diff = new Date(expiresAt).getTime() - currentTime;
+    if (diff <= 0) return 'Expired';
+    const totalMinutes = Math.floor(diff / (1000 * 60));
+    const hours = Math.floor(totalMinutes / 60);
+    const minutes = totalMinutes % 60;
+    if (hours > 0) return `Expires in ${hours}h ${minutes}m`;
+    if (minutes > 0) return `Expires in ${minutes}m`;
+    return 'Expires in < 1m';
+  };
 
   const loadWorkspaces = async () => {
     setLoading(true);
@@ -128,66 +147,100 @@ export const WorkspacesView = ({ onNavigate, onSelectProject }) => {
         </div>
 
         {/* Workspace Notice Board (Inside Workspace UI) */}
-        <div className="space-y-4 font-sans">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-2">
-              <Bell size={18} className="text-teal-400" />
-              <h3 className="text-xl font-bold text-white font-serif">Workspace Notice Board</h3>
-              <span className="text-[10px] font-sans font-semibold text-slate-500 uppercase">(Read-Only)</span>
-            </div>
-            <span className="text-xs text-slate-400 font-sans">
-              {selectedWorkspace.notices?.length || 0} Notices
-            </span>
-          </div>
+        {(() => {
+          const activeNotices = (selectedWorkspace.notices || []).filter(
+            (n) => !n.expires_at || new Date(n.expires_at).getTime() > currentTime
+          );
 
-          {selectedWorkspace.notices?.length === 0 ? (
-            <div className="p-6 rounded-xl bg-vault-surface/60 border border-vault-border/60 text-center text-xs text-slate-400 font-sans">
-              No faculty notices published for this workspace yet.
-            </div>
-          ) : (
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 font-sans">
-              {selectedWorkspace.notices.map((notice) => (
-                <div
-                  key={notice.id}
-                  className={`p-5 rounded-xl border transition-all space-y-3 ${
-                    notice.is_pinned
-                      ? 'bg-vault-surface border-teal-500/40 shadow-sm shadow-teal-950/20'
-                      : 'bg-vault-surface/80 border-vault-border/70'
-                  }`}
-                >
-                  <div className="flex items-start justify-between gap-2">
-                    <div className="space-y-1">
-                      {notice.is_pinned && (
-                        <div className="inline-flex items-center gap-1 text-[10px] font-sans font-semibold text-teal-400 bg-teal-950/80 px-2 py-0.5 rounded border border-teal-500/30">
-                          <Pin size={10} />
-                          <span>PINNED NOTICE</span>
-                        </div>
-                      )}
-                      <h4 className="text-sm font-bold text-white leading-snug font-sans">{notice.title}</h4>
-                    </div>
-                    <span className="text-xs font-sans text-slate-500 shrink-0">
-                      {new Date(notice.created_at).toLocaleDateString()}
-                    </span>
-                  </div>
-
-                  <p className="text-xs text-slate-300 leading-relaxed whitespace-pre-wrap font-sans">
-                    {notice.body}
-                  </p>
-
-                  {notice.image_url && (
-                    <div className="rounded-lg overflow-hidden border border-vault-border/60 max-h-48">
-                      <img src={notice.image_url} alt="Notice attachment" className="w-full h-full object-cover" />
-                    </div>
-                  )}
-
-                  <div className="pt-2 border-t border-vault-border/40 text-xs font-sans text-slate-500 flex items-center justify-between">
-                    <span>Posted by {notice.author_name}</span>
-                  </div>
+          return (
+            <div className="space-y-4 font-sans">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <Bell size={18} className="text-teal-400" />
+                  <h3 className="text-xl font-bold text-white font-serif">Workspace Notice Board</h3>
+                  <span className="text-[10px] font-sans font-semibold text-slate-500 uppercase">(Read-Only)</span>
                 </div>
-              ))}
+                <div className="flex items-center gap-3 text-xs text-slate-400 font-sans">
+                  <span>{activeNotices.length} Active Notices</span>
+                  <span className="text-[10px] font-mono text-slate-500">24h Lifecycle</span>
+                </div>
+              </div>
+
+              {activeNotices.length === 0 ? (
+                <div className="p-6 rounded-xl bg-vault-surface/60 border border-vault-border/60 text-center text-xs text-slate-400 font-sans">
+                  No active faculty notices published for this workspace. Notices automatically expire after 24 hours.
+                </div>
+              ) : (
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 font-sans">
+                  {activeNotices.map((notice) => {
+                    const timeRemaining = formatTimeRemaining(notice.expires_at);
+                    const imageSource = getMediaUrl(notice.thumbnail_url || notice.image_url);
+
+                    return (
+                      <div
+                        key={notice.id}
+                        className={`p-5 rounded-xl border transition-all space-y-3 ${
+                          notice.is_pinned
+                            ? 'bg-vault-surface border-teal-500/40 shadow-sm shadow-teal-950/20'
+                            : 'bg-vault-surface/80 border-vault-border/70'
+                        }`}
+                      >
+                        <div className="flex items-start justify-between gap-2">
+                          <div className="space-y-1">
+                            <div className="flex items-center gap-2 flex-wrap">
+                              {notice.is_pinned && (
+                                <div className="inline-flex items-center gap-1 text-[10px] font-sans font-semibold text-teal-400 bg-teal-950/80 px-2 py-0.5 rounded border border-teal-500/30">
+                                  <Pin size={10} />
+                                  <span>PINNED</span>
+                                </div>
+                              )}
+                              {timeRemaining && (
+                                <span className="text-[10px] font-mono px-2 py-0.5 rounded bg-teal-500/10 text-teal-300 border border-teal-500/30">
+                                  ⏱️ {timeRemaining}
+                                </span>
+                              )}
+                            </div>
+                            <h4 className="text-sm font-bold text-white leading-snug font-sans">{notice.title}</h4>
+                          </div>
+                          <span className="text-xs font-sans text-slate-500 shrink-0">
+                            {new Date(notice.created_at).toLocaleDateString()}
+                          </span>
+                        </div>
+
+                        <p className="text-xs text-slate-300 leading-relaxed whitespace-pre-wrap font-sans">
+                          {notice.body}
+                        </p>
+
+                        {imageSource && (
+                          <div className="rounded-lg overflow-hidden border border-vault-border/60 max-h-56 bg-black/40 flex items-center justify-start">
+                            <img
+                              src={imageSource}
+                              alt={notice.title || "Notice attachment"}
+                              loading="lazy"
+                              className="max-h-56 w-auto object-contain rounded"
+                              onError={(e) => {
+                                e.target.style.display = 'none';
+                              }}
+                            />
+                          </div>
+                        )}
+
+                        <div className="pt-2 border-t border-vault-border/40 text-[11px] font-sans text-slate-500 flex items-center justify-between">
+                          <span>Posted by {notice.author_name}</span>
+                          {notice.expires_at && (
+                            <span className="text-slate-400 font-mono text-[10px]">
+                              Expires {new Date(notice.expires_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                            </span>
+                          )}
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
             </div>
-          )}
-        </div>
+          );
+        })()}
 
         {/* Review Rounds Schedule */}
         <div className="space-y-4 font-sans">
