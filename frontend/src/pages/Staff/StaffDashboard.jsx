@@ -76,7 +76,7 @@ export const StaffDashboard = () => {
   };
 
   return (
-    <div className="min-h-screen bg-[#080C0E] text-[#ECF1F4] flex font-sans select-none">
+    <div className="min-h-screen bg-[#F4F5F7] dark:bg-[#080C0E] text-slate-900 dark:text-[#ECF1F4] flex font-sans select-none transition-colors">
       {/* Staff Sidebar */}
       <StaffSidebar
         activeTab={activeTab}
@@ -151,12 +151,12 @@ export const StaffDashboard = () => {
         </main>
 
         {/* Global Staff Footer */}
-        <footer className="p-6 border-t border-[#1B262E] text-center text-xs font-mono text-slate-500 flex flex-col sm:flex-row justify-between items-center max-w-7xl w-full mx-auto gap-2">
+        <footer className="p-6 border-t border-slate-200 dark:border-[#1B262E] text-center text-xs font-mono text-slate-500 dark:text-slate-400 flex flex-col sm:flex-row justify-between items-center max-w-7xl w-full mx-auto gap-2">
           <p>© 2026 NexaVault Academic Engine. Staff Oversight Portal.</p>
           <div className="flex items-center gap-4">
-            <span className="text-teal-400">• Role: Staff / Oversight</span>
+            <span className="text-teal-600 dark:text-teal-400">• Role: Staff / Oversight</span>
             <span>•</span>
-            <span className="text-emerald-400">API Connection: PostgreSQL Active</span>
+            <span className="text-emerald-600 dark:text-emerald-400">API Connection: PostgreSQL Active</span>
           </div>
         </footer>
       </div>

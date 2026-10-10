@@ -1,5 +1,6 @@
 /** @type {import('tailwindcss').Config} */
 export default {
+  darkMode: 'class',
   content: [
     "./index.html",
     "./src/**/*.{js,ts,jsx,tsx}",
@@ -8,14 +9,15 @@ export default {
     extend: {
       colors: {
         vault: {
-          bg: '#080C0E',         // Very dark charcoal background
-          canvas: '#0B0F12',     // Subtly lighter canvas background
-          surface: '#11181C',    // Card/Container surface
-          elevated: '#162026',   // Input / button background
-          border: '#1B262E',     // Neutral border
-          'border-teal': 'rgba(20, 184, 166, 0.22)', // Subtle teal border
-          muted: '#81939E',      // Muted neutral text
-          heading: '#ECF1F4',    // Primary text
+          bg: 'var(--color-vault-bg)',
+          canvas: 'var(--color-vault-canvas)',
+          surface: 'var(--color-vault-surface)',
+          elevated: 'var(--color-vault-elevated)',
+          border: 'var(--color-vault-border)',
+          'border-teal': 'var(--color-vault-border-teal)',
+          muted: 'var(--color-vault-muted)',
+          heading: 'var(--color-vault-heading)',
+          text: 'var(--color-vault-text)',
         },
         teal: {
           950: '#041C1A',

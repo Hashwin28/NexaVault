@@ -5,6 +5,7 @@ import { HeroVaultGraphic } from '../../components/layout/HeroVaultGraphic';
 import { Input } from '../../components/ui/Input';
 import { Button } from '../../components/ui/Button';
 import { Alert } from '../../components/ui/Alert';
+import { ThemeToggle } from '../../components/ui/ThemeToggle';
 import { useAuth } from '../../context/AuthContext';
 import { authApi } from '../../api/authApi';
 import './Login.css';
@@ -23,7 +24,6 @@ export const Login = () => {
   const [alert, setAlert] = useState(null);
   const [fieldErrors, setFieldErrors] = useState({});
 
-  // Pre-warm backend and Neon database early while user enters credentials
   useEffect(() => {
     authApi.prewarm(true);
 
@@ -103,7 +103,7 @@ export const Login = () => {
   const isLoading = isSubmitting || authLoading;
 
   return (
-    <div className="min-h-screen w-full bg-vault-bg text-vault-heading flex flex-col justify-between relative overflow-hidden font-sans">
+    <div className="min-h-screen w-full bg-vault-bg text-vault-heading flex flex-col justify-between relative overflow-hidden font-sans transition-colors">
       {/* Background Graphic Layer */}
       <HeroVaultGraphic />
 
@@ -111,19 +111,22 @@ export const Login = () => {
       <div className="relative z-10 w-full max-w-7xl mx-auto px-6 lg:px-12 py-8 flex-1 flex flex-col justify-between">
         
         {/* Top Header Row */}
-        <header className="flex items-center justify-between w-full pb-6 border-b border-vault-border/40">
-          <NexaLogo size="md" />
+        <header className="flex items-center justify-between w-full pb-6 border-b border-vault-border">
+          <NexaLogo size="xl" />
 
-          {/* Header motto line */}
-          <div className="hidden md:flex items-center gap-3 text-xs tracking-widest font-display text-vault-muted uppercase">
-            <span>PEOPLE</span>
-            <span className="text-teal-500/50">•</span>
-            <span>PROJECTS</span>
-            <span className="text-teal-500/50">•</span>
-            <span>PROGRESS</span>
-            <span className="text-teal-500/50">•</span>
-            <span>TOGETHER</span>
-            <div className="w-8 h-[2px] bg-teal-500/60 ml-1 rounded-full" />
+          {/* Header motto line & Theme Toggle */}
+          <div className="flex items-center gap-6">
+            <div className="hidden md:flex items-center gap-3 text-xs tracking-widest font-display text-vault-muted uppercase">
+              <span>PEOPLE</span>
+              <span className="text-teal-500/50">•</span>
+              <span>PROJECTS</span>
+              <span className="text-teal-500/50">•</span>
+              <span>PROGRESS</span>
+              <span className="text-teal-500/50">•</span>
+              <span>TOGETHER</span>
+              <div className="w-8 h-[2px] bg-teal-500/60 ml-1 rounded-full" />
+            </div>
+            <ThemeToggle />
           </div>
         </header>
 
@@ -134,40 +137,40 @@ export const Login = () => {
           <div className="lg:col-span-6 space-y-8 pr-0 lg:pr-8">
             
             {/* Tagline Badge */}
-            <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-teal-950/60 border border-teal-500/20 text-[11px] font-display italic tracking-widest text-teal-400 uppercase">
-              <span className="w-1.5 h-1.5 rounded-full bg-teal-400 animate-pulse" />
+            <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-teal-500/10 border border-teal-500/30 text-[11px] font-display italic tracking-widest text-teal-600 dark:text-teal-400 uppercase">
+              <span className="w-1.5 h-1.5 rounded-full bg-teal-500 animate-pulse" />
               ACADEMIC WORKSPACE
             </div>
 
             {/* Main Statement */}
             <div className="space-y-4">
-              <h1 className="text-4xl sm:text-5xl lg:text-6xl font-extrabold tracking-tight leading-[1.1] text-white font-display italic">
+              <h1 className="text-4xl sm:text-5xl lg:text-6xl font-extrabold tracking-tight leading-[1.1] text-vault-heading font-display italic">
                 Build <br />
-                <span className="text-teal-400 underline decoration-teal-500/30 underline-offset-8">Collaborate</span> <br />
+                <span className="text-teal-500 underline decoration-teal-500/30 underline-offset-8">Collaborate</span> <br />
                 Achieve
               </h1>
               
               <div className="w-12 h-1 bg-teal-500 rounded-full" />
 
-              <p className="font-serif italic text-slate-200 text-xl sm:text-2xl tracking-normal leading-relaxed max-w-lg pt-3">
+              <p className="font-serif italic text-vault-muted text-xl sm:text-2xl tracking-normal leading-relaxed max-w-lg pt-3">
                 Plan better. Work together. Deliver on time.
               </p>
             </div>
 
             {/* Bottom Stacked Motto */}
-            <div className="pt-8 border-t border-vault-border/30 max-w-xs">
-              <div className="font-display text-[11px] tracking-widest text-slate-500 uppercase leading-snug space-y-0.5">
+            <div className="pt-8 border-t border-vault-border max-w-xs">
+              <div className="font-display text-[11px] tracking-widest text-vault-muted uppercase leading-snug space-y-0.5">
                 <p>KNOWLEDGE</p>
-                <p className="text-slate-400">BUILDS</p>
-                <p className="text-slate-300">BRIGHTER</p>
-                <p className="text-teal-400 font-semibold">TOMORROWS</p>
+                <p>BUILDS</p>
+                <p>BRIGHTER</p>
+                <p className="text-teal-500 dark:text-teal-400 font-semibold">TOMORROWS</p>
               </div>
             </div>
           </div>
 
           {/* Right Column: Auth Card */}
           <div className="lg:col-span-6 flex justify-center lg:justify-end">
-            <div className="w-full max-w-md bg-vault-surface/85 login-card-blur border border-teal-500/20 rounded-2xl p-7 sm:p-9 shadow-card-subtle relative group transition-all duration-300 hover:border-teal-500/30">
+            <div className="w-full max-w-md bg-vault-surface login-card-blur border border-vault-border rounded-2xl p-7 sm:p-9 shadow-card-subtle relative group transition-all duration-300 hover:border-teal-500/40">
               
               {/* Card Subtle Accent Highlight */}
               <div className="absolute top-0 left-8 right-8 h-[1px] bg-gradient-to-r from-transparent via-teal-500/40 to-transparent" />
@@ -175,10 +178,10 @@ export const Login = () => {
               {/* Title & Mode Switcher */}
               <div className="mb-6 flex items-center justify-between">
                 <div>
-                  <h2 className="text-2xl font-bold text-white tracking-tight">
+                  <h2 className="text-2xl font-bold text-vault-heading tracking-tight font-display">
                     {isAuthenticated ? 'Authenticated Session' : mode === 'register' ? 'Student Registration' : 'Welcome back'}
                   </h2>
-                  <p className="text-xs text-slate-400 mt-1">
+                  <p className="text-xs text-vault-muted mt-1">
                     {isAuthenticated 
                       ? 'Connected to NexaVault API Security Core' 
                       : mode === 'register'
@@ -201,20 +204,20 @@ export const Login = () => {
               {/* If Authenticated: Active Profile */}
               {isAuthenticated && user ? (
                 <div className="space-y-6">
-                  <div className="p-4 rounded-xl bg-teal-950/40 border border-teal-500/30 space-y-3">
+                  <div className="p-4 rounded-xl bg-vault-canvas border border-vault-border space-y-3">
                     <div className="flex items-center gap-3">
-                      <div className="w-10 h-10 rounded-full bg-teal-500/20 border border-teal-400/40 flex items-center justify-center text-teal-300 font-bold">
+                      <div className="w-10 h-10 rounded-full bg-teal-500/20 border border-teal-400/40 flex items-center justify-center text-teal-600 dark:text-teal-300 font-bold">
                         <User size={20} />
                       </div>
                       <div>
-                        <h3 className="text-sm font-semibold text-white">{user.full_name}</h3>
-                        <p className="text-xs text-slate-400 font-mono">{user.email}</p>
+                        <h3 className="text-sm font-semibold text-vault-heading">{user.full_name}</h3>
+                        <p className="text-xs text-vault-muted font-mono">{user.email}</p>
                       </div>
                     </div>
 
-                    <div className="pt-2 border-t border-teal-500/20 flex items-center justify-between text-xs font-mono text-slate-300">
-                      <span>Role: <strong className="text-teal-400 uppercase">{user.role}</strong></span>
-                      <span className="flex items-center gap-1 text-teal-400">
+                    <div className="pt-2 border-t border-vault-border flex items-center justify-between text-xs font-mono text-vault-muted">
+                      <span>Role: <strong className="text-teal-600 dark:text-teal-400 uppercase">{user.role}</strong></span>
+                      <span className="flex items-center gap-1 text-teal-600 dark:text-teal-400">
                         <ShieldCheck size={14} /> Active
                       </span>
                     </div>
@@ -225,7 +228,7 @@ export const Login = () => {
                     variant="outline"
                     onClick={logout}
                     endIcon={LogOut}
-                    className="w-full py-2.5 text-xs text-rose-300 hover:text-rose-200 border-rose-500/30 hover:border-rose-500/50"
+                    className="w-full py-2.5 text-xs text-rose-500 hover:text-rose-600 border-rose-500/30 hover:border-rose-500/50"
                   >
                     Sign Out Session
                   </Button>
@@ -234,8 +237,8 @@ export const Login = () => {
                 <>
                   {/* Cold Boot Waking Notice */}
                   {isWaking && (
-                    <div className="mb-4 p-3 rounded-lg bg-teal-950/60 border border-teal-500/40 flex items-center gap-3 text-xs text-teal-300 font-mono animate-pulse">
-                      <Loader2 size={16} className="animate-spin text-teal-400 shrink-0" />
+                    <div className="mb-4 p-3 rounded-lg bg-teal-500/10 border border-teal-500/40 flex items-center gap-3 text-xs text-teal-600 dark:text-teal-300 font-mono animate-pulse">
+                      <Loader2 size={16} className="animate-spin text-teal-500 shrink-0" />
                       <span>Resuming backend & database cluster (~10–20s on first load)...</span>
                     </div>
                   )}
@@ -265,8 +268,8 @@ export const Login = () => {
                   <Input
                     id="email"
                     type="email"
-                    label="Email"
-                    placeholder="student@nexavault.edu"
+                    label="Department Email"
+                    placeholder="student1@nexavault.edu"
                     value={email}
                     onChange={(e) => {
                       setEmail(e.target.value);
@@ -280,40 +283,41 @@ export const Login = () => {
                   />
 
                   {/* Password Field */}
-                  <Input
-                    id="password"
-                    type={showPassword ? 'text' : 'password'}
-                    label="Password"
-                    placeholder="Enter password (min 6 characters)"
-                    value={password}
-                    onChange={(e) => {
-                      setPassword(e.target.value);
-                      if (fieldErrors.password) setFieldErrors(prev => ({ ...prev, password: null }));
-                    }}
-                    icon={Lock}
-                    error={fieldErrors.password}
-                    required
-                    autoComplete={mode === 'register' ? 'new-password' : 'current-password'}
-                    disabled={isLoading}
-                    endAdornment={
-                      <button
-                        type="button"
-                        onClick={() => setShowPassword(!showPassword)}
-                        tabIndex={-1}
-                        className="text-slate-400 hover:text-slate-200 transition-colors p-1"
-                        aria-label={showPassword ? 'Hide password' : 'Show password'}
-                      >
-                        {showPassword ? <EyeOff size={16} /> : <Eye size={16} />}
-                      </button>
-                    }
-                  />
+                  <div className="relative">
+                    <Input
+                      id="password"
+                      type={showPassword ? 'text' : 'password'}
+                      label="Password"
+                      placeholder="••••••••"
+                      value={password}
+                      onChange={(e) => {
+                        setPassword(e.target.value);
+                        if (fieldErrors.password) setFieldErrors(prev => ({ ...prev, password: null }));
+                      }}
+                      icon={Lock}
+                      error={fieldErrors.password}
+                      required
+                      autoComplete={mode === 'register' ? 'new-password' : 'current-password'}
+                      disabled={isLoading}
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setShowPassword(!showPassword)}
+                      className="absolute right-3.5 top-[34px] text-vault-muted hover:text-vault-heading transition-colors cursor-pointer p-1"
+                      title={showPassword ? "Hide password" : "Show password"}
+                      aria-label={showPassword ? "Hide password" : "Show password"}
+                    >
+                      {showPassword ? <EyeOff size={16} /> : <Eye size={16} />}
+                    </button>
+                  </div>
 
+                  {/* Confirm Password (Register Mode only) */}
                   {mode === 'register' && (
                     <Input
                       id="confirmPassword"
                       type={showPassword ? 'text' : 'password'}
                       label="Confirm Password"
-                      placeholder="Repeat password"
+                      placeholder="Re-enter password"
                       value={confirmPassword}
                       onChange={(e) => {
                         setConfirmPassword(e.target.value);
@@ -334,13 +338,13 @@ export const Login = () => {
                     size="md"
                     isLoading={isLoading}
                     endIcon={mode === 'register' ? UserPlus : ArrowRight}
-                    className="w-full mt-4 py-3 text-sm font-semibold tracking-wide"
+                    className="w-full mt-4 py-3 text-sm font-semibold tracking-wide bg-teal-500 hover:bg-teal-600 text-black shadow-teal-glow"
                   >
                     {mode === 'register' ? 'Create Student Account' : 'Sign In'}
                   </Button>
 
                   {/* Mode Toggle */}
-                  <div className="pt-4 border-t border-vault-border/40 text-center text-xs text-slate-400">
+                  <div className="pt-4 border-t border-vault-border text-center text-xs text-vault-muted">
                     {mode === 'login' ? (
                       <>
                         <span>New to NexaVault? </span>
@@ -351,7 +355,7 @@ export const Login = () => {
                             setAlert(null);
                             setFieldErrors({});
                           }}
-                          className="text-teal-400 hover:text-teal-300 font-semibold underline underline-offset-2 transition-colors ml-1"
+                          className="text-teal-600 dark:text-teal-400 hover:underline font-semibold transition-colors ml-1 cursor-pointer"
                         >
                           Create a student account
                         </button>
@@ -366,7 +370,7 @@ export const Login = () => {
                             setAlert(null);
                             setFieldErrors({});
                           }}
-                          className="text-teal-400 hover:text-teal-300 font-semibold underline underline-offset-2 transition-colors ml-1"
+                          className="text-teal-600 dark:text-teal-400 hover:underline font-semibold transition-colors ml-1 cursor-pointer"
                         >
                           Sign in instead
                         </button>
@@ -374,6 +378,39 @@ export const Login = () => {
                     )}
                   </div>
                 </form>
+
+                {/* Quick Demo Fill Buttons */}
+                <div className="mt-5 pt-4 border-t border-vault-border">
+                  <span className="text-[10px] font-mono uppercase tracking-wider text-vault-muted block mb-2 font-semibold">
+                    ⚡ Demo Quick Login
+                  </span>
+                  <div className="grid grid-cols-2 gap-2">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setEmail('student1@nexavault.edu');
+                        setPassword('password123');
+                        setMode('login');
+                      }}
+                      className="px-2.5 py-1.5 rounded-lg bg-vault-canvas hover:bg-vault-elevated border border-vault-border text-[11px] font-medium text-vault-heading transition-colors text-left truncate cursor-pointer hover:border-teal-500/40"
+                    >
+                      <span className="block font-semibold truncate">Student</span>
+                      <span className="text-[10px] text-vault-muted">Alex Chen</span>
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setEmail('prof.jenkins@nexavault.edu');
+                        setPassword('password123');
+                        setMode('login');
+                      }}
+                      className="px-2.5 py-1.5 rounded-lg bg-vault-canvas hover:bg-vault-elevated border border-vault-border text-[11px] font-medium text-vault-heading transition-colors text-left truncate cursor-pointer hover:border-teal-500/40"
+                    >
+                      <span className="block font-semibold truncate">Staff</span>
+                      <span className="text-[10px] text-vault-muted">Prof. Jenkins</span>
+                    </button>
+                  </div>
+                </div>
                 </>
               )}
 
@@ -383,12 +420,12 @@ export const Login = () => {
         </main>
 
         {/* Footer info line */}
-        <footer className="py-4 text-center md:text-left text-[11px] font-mono text-slate-600 flex flex-col sm:flex-row justify-between items-center border-t border-vault-border/20 gap-2">
+        <footer className="py-4 text-center md:text-left text-[11px] font-mono text-vault-muted flex flex-col sm:flex-row justify-between items-center border-t border-vault-border gap-2">
           <p>© 2026 NexaVault Platform. Academic Workspace & Deliverable Lifecycle Core.</p>
           <div className="flex items-center gap-4">
-            <span className="text-slate-500">PostgreSQL Secured</span>
+            <span>PostgreSQL Secured</span>
             <span>•</span>
-            <span className="text-slate-500">Student Domain</span>
+            <span>Student Domain</span>
           </div>
         </footer>
 

@@ -21,15 +21,15 @@ export const Input = forwardRef(({
       {label && (
         <label 
           htmlFor={id} 
-          className="block text-xs font-medium text-slate-300 tracking-wide select-none"
+          className="block text-xs font-medium text-vault-heading tracking-wide select-none"
         >
-          {label} {required && <span className="text-teal-400">*</span>}
+          {label} {required && <span className="text-teal-500">*</span>}
         </label>
       )}
 
       <div className="relative flex items-center">
         {Icon && (
-          <div className="absolute left-3.5 top-1/2 -translate-y-1/2 pointer-events-none text-slate-400 transition-colors group-focus-within:text-teal-400">
+          <div className="absolute left-3.5 top-1/2 -translate-y-1/2 pointer-events-none text-vault-muted transition-colors">
             <Icon size={18} strokeWidth={1.8} />
           </div>
         )}
@@ -46,11 +46,11 @@ export const Input = forwardRef(({
           autoComplete={autoComplete}
           aria-invalid={!!error}
           className={`
-            w-full bg-vault-canvas/90 text-vault-heading placeholder-slate-500 text-sm font-sans rounded-lg
+            w-full bg-vault-canvas text-vault-heading placeholder:text-vault-muted/60 text-sm font-sans rounded-xl
             py-2.5 transition-all duration-150 outline-none
             ${Icon ? 'pl-10' : 'pl-3.5'}
             ${endAdornment ? 'pr-10' : 'pr-3.5'}
-            border ${error ? 'border-rose-500/80 focus:border-rose-500 focus:ring-1 focus:ring-rose-500/40' : 'border-vault-border hover:border-slate-700 focus:border-teal-500/80 focus:ring-2 focus:ring-teal-500/20 focus:bg-vault-canvas'}
+            border ${error ? 'border-rose-500/80 focus:border-rose-500 focus:ring-1 focus:ring-rose-500/40' : 'border-vault-border hover:border-vault-muted focus:border-teal-500 focus:ring-2 focus:ring-teal-500/20'}
             disabled:opacity-50 disabled:cursor-not-allowed
           `}
           {...props}
@@ -64,7 +64,7 @@ export const Input = forwardRef(({
       </div>
 
       {error && (
-        <p className="text-xs text-rose-400 flex items-center gap-1 mt-1 font-medium">
+        <p className="text-xs text-rose-500 dark:text-rose-400 flex items-center gap-1 mt-1 font-medium">
           <span>{error}</span>
         </p>
       )}

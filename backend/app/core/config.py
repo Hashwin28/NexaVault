@@ -12,8 +12,8 @@ class Settings(BaseSettings):
     ALGORITHM: str = "HS256"
     ACCESS_TOKEN_EXPIRE_MINUTES: int = 60 * 24  # 24 hours
     
-    # PostgreSQL Database URL
-    DATABASE_URL: str = os.getenv("DATABASE_URL", "postgresql://postgres:postgres@localhost:5432/nexavault_db")
+    # Database URL: uses SQLite by default for immediate local runs, or PostgreSQL if configured
+    DATABASE_URL: str = os.getenv("DATABASE_URL", "sqlite:///./nexavault.db")
     
     # In-memory Cache settings
     CACHE_ENABLED: bool = os.getenv("CACHE_ENABLED", "true").lower() in ("1", "true", "yes")
@@ -63,7 +63,11 @@ class Settings(BaseSettings):
                 delimiter = "&" if "?" in self.DATABASE_URL else "?"
                 self.DATABASE_URL += f"{delimiter}sslmode=require"
 
-    model_config = SettingsConfigDict(case_sensitive=True)
+    model_config = SettingsConfigDict(
+        case_sensitive=True,
+        env_file=os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))), ".env"),
+        extra="ignore"
+    )
 
 settings = Settings()
 

@@ -1,4 +1,23 @@
 :root {
+  /* NexaVault Light Theme Colors */
+  --color-vault-bg: #F4F5F7;
+  --color-vault-canvas: #FFFFFF;
+  --color-vault-surface: #FFFFFF;
+  --color-vault-elevated: #F8FAFC;
+  --color-vault-border: #E2E8F0;
+  --color-vault-border-teal: rgba(13, 148, 136, 0.25);
+  --color-vault-muted: #64748B;
+  --color-vault-heading: #0F172A;
+  --color-vault-text: #1E293B;
+
+  /* Deep Teal Accents */
+  --color-teal-500: #0D9488;
+  --color-teal-400: #14B8A6;
+  --color-teal-600: #0F766E;
+  --color-teal-700: #115E59;
+}
+
+.dark {
   /* NexaVault Dark Theme Colors */
   --color-vault-bg: #080C0E;
   --color-vault-canvas: #0B0F12;
@@ -8,6 +27,7 @@
   --color-vault-border-teal: rgba(20, 184, 166, 0.22);
   --color-vault-muted: #81939E;
   --color-vault-heading: #ECF1F4;
+  --color-vault-text: #ECF1F4;
 
   /* Deep Teal Accents */
   --color-teal-500: #14B8A6;
