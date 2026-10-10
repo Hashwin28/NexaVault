@@ -63,10 +63,28 @@ def get_current_student(
     return current_user
 
 def get_current_staff(
+    db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user)
 ) -> User:
     """Verifies that the authenticated user has the 'staff' role."""
     if current_user.role.lower() not in ["staff", "teacher"]:
+        try:
+            from app.services.audit_service import log_audit_event
+            log_audit_event(
+                db=db,
+                action_type="ACCESS_DENIED",
+                category="SECURITY",
+                status="FAILURE",
+                actor_id=current_user.id,
+                resource_type="endpoint",
+                resource_name="Staff Endpoint",
+                description=f"Unauthorized staff area access attempt by {current_user.email} (role: {current_user.role})",
+                error_reason="Access forbidden: Staff role required.",
+                metadata={"user_role": current_user.role, "email": current_user.email}
+            )
+            db.commit()
+        except Exception:
+            pass
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Access forbidden: Staff role required."

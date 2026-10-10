@@ -66,7 +66,25 @@ def login_user(credentials: UserLogin, request: Request, db: Session = Depends(g
     email_clean = credentials.email.lower().strip()
     user = db.query(User).filter(User.email == email_clean).first()
 
+    client_ip = request.client.host if request.client else None
+
     if not user or not verify_password(credentials.password, user.hashed_password):
+        log_audit(
+            db=db,
+            actor_id=user.id if user else None,
+            action_type="USER_LOGIN_FAILED",
+            category="SECURITY",
+            status="FAILURE",
+            entity_type="USER",
+            resource_type="USER",
+            resource_name=email_clean,
+            description=f"Failed login attempt for {email_clean}",
+            entity_id=user.id if user else None,
+            error_reason="Invalid email or password",
+            new_value={"attempted_email": email_clean},
+            ip_address=client_ip,
+        )
+        db.commit()
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="The email or password you entered is incorrect. Please try again.",
@@ -74,19 +92,32 @@ def login_user(credentials: UserLogin, request: Request, db: Session = Depends(g
         )
 
     if not user.is_active:
+        log_audit(
+            db=db,
+            actor_id=user.id,
+            action_type="USER_LOGIN_FAILED",
+            entity_type="USER",
+            entity_id=user.id,
+            status="FAILURE",
+            error_reason="User account is inactive",
+            new_value={"email": email_clean},
+            ip_address=client_ip,
+        )
+        db.commit()
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="Your user account is inactive. Please contact support."
         )
 
-    client_ip = request.client.host if request.client else None
     log_audit(
         db=db,
         actor_id=user.id,
-        action_type="USER_LOGIN",
+        action_type="USER_LOGIN_SUCCESS",
         entity_type="USER",
         entity_id=user.id,
-        ip_address=client_ip
+        status="SUCCESS",
+        new_value={"email": user.email, "role": user.role},
+        ip_address=client_ip,
     )
     db.commit()
 

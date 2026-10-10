@@ -12,13 +12,21 @@ class AuditLog(Base):
 
     id = Column(BigInteger, primary_key=True, index=True, autoincrement=True)
     actor_id = Column(Integer, ForeignKey("users.id", ondelete="SET NULL"), nullable=True, index=True)
+    category = Column(String(50), default="SYSTEM", nullable=False, index=True)
     action_type = Column(String(100), nullable=False, index=True)
+    action_name = Column(String(150), nullable=True)
     entity_type = Column(String(100), nullable=False, index=True)
     entity_id = Column(Integer, nullable=True, index=True)
+    resource_type = Column(String(100), nullable=True, index=True)
+    resource_name = Column(String(255), nullable=True)
     workspace_id = Column(String(100), ForeignKey("workspaces.id", ondelete="SET NULL"), nullable=True, index=True)
+    status = Column(String(20), default="SUCCESS", nullable=False, index=True)  # "SUCCESS" | "FAILURE"
+    description = Column(Text, nullable=True)
+    error_reason = Column(Text, nullable=True)
     old_value = Column(JSONType, nullable=True)
     new_value = Column(JSONType, nullable=True)
     ip_address = Column(String(50), nullable=True)
+    request_id = Column(String(100), nullable=True)
     created_at = Column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc), nullable=False, index=True)
 
     actor = relationship("User")
