@@ -68,6 +68,7 @@ def build_workspace_results(
             order_index=r.order_index,
             max_score=float(r.max_score),
             is_open=r.is_open,
+            weight=float(r.weight) if r.weight is not None else 20.0,
         )
         for r in rounds
     ]

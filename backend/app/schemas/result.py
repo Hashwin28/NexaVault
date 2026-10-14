@@ -48,6 +48,7 @@ class RoundColumnHeader(BaseModel):
     order_index: int
     max_score: float
     is_open: bool
+    weight: Optional[float] = 20.0
 
 class StudentRoundScoreDetail(BaseModel):
     round_id: int

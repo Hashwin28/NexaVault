@@ -89,6 +89,7 @@ def get_review_queue(
                 round_id=round_obj.id,
                 round_title=round_obj.title,
                 round_due_date=round_obj.due_date,
+                round_max_score=float(round_obj.max_score) if round_obj and round_obj.max_score is not None else 100.0,
                 version_number=ver.version_number,
                 status=ver.status,
                 submitted_by=ver.submitted_by,

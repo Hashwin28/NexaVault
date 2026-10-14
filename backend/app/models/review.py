@@ -20,6 +20,7 @@ class ReviewRound(Base):
     max_score = Column(Numeric(6, 2), default=100.0, nullable=False)
     is_open = Column(Boolean, default=True, nullable=False)
     created_at = Column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc), nullable=False)
+    weight = Column(Numeric(5, 2), default=20.0, nullable=True)
 
     workspace = relationship("Workspace", back_populates="review_rounds")
     submissions = relationship("Submission", back_populates="round", cascade="all, delete-orphan")

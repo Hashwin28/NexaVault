@@ -105,7 +105,7 @@ class ReviewRoundCreate(BaseModel):
     max_score: float = Field(..., ge=1.0, description="Max score must be >= 1")
     is_open: Optional[bool] = True
     is_active: Optional[bool] = True
-    weight: Optional[float] = None
+    weight: Optional[float] = Field(None, ge=0.0, le=100.0, description="Round weight percentage (0-100)")
 
 class ReviewRoundUpdate(BaseModel):
     title: Optional[str] = Field(None, min_length=1, max_length=255)
@@ -117,7 +117,7 @@ class ReviewRoundUpdate(BaseModel):
     max_score: Optional[float] = Field(None, ge=1.0, description="Max score must be >= 1")
     is_open: Optional[bool] = None
     is_active: Optional[bool] = None
-    weight: Optional[float] = None
+    weight: Optional[float] = Field(None, ge=0.0, le=100.0, description="Round weight percentage (0-100)")
 
 class ReviewRoundResponse(BaseModel):
     id: int

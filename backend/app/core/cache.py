@@ -385,10 +385,15 @@ def invalidate_project(project_id: int, workspace_id: Optional[str] = None) -> N
         cache.invalidate_tag(f"workspace:{workspace_id}:projects")
 
 def invalidate_rounds(workspace_id: str) -> None:
-    """Invalidates review rounds and project progress calculations for a workspace."""
+    """Invalidates review rounds, student/staff workspace views, review queues, and project progress calculations for a workspace."""
     cache.invalidate_tag(f"workspace:{workspace_id}:rounds")
     cache.invalidate_tag(f"workspace:{workspace_id}")
+    cache.invalidate_prefix(f"ws:rounds:{workspace_id}")
+    cache.invalidate_prefix(f"ws:detail:student:{workspace_id}")
+    cache.invalidate_prefix(f"ws:detail:staff:{workspace_id}")
+    cache.invalidate_prefix("ws:list:student:")
     cache.invalidate_prefix("project:progress:")
+    cache.invalidate_prefix("review:queue")
 
 def invalidate_notices(workspace_id: str) -> None:
     """Invalidates notice board and student views for a workspace."""

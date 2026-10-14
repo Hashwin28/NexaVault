@@ -52,16 +52,45 @@ export const StaffWorkspacesView = ({ selectedWorkspaceId, onSelectProject }) =>
     return () => clearInterval(timer);
   }, []);
 
-  // Round form
+  const getDefaultDueDate = () => {
+    const d = new Date();
+    d.setDate(d.getDate() + 14);
+    d.setHours(23, 59, 0, 0);
+    const tzOffset = d.getTimezoneOffset() * 60000;
+    return new Date(d.getTime() - tzOffset).toISOString().slice(0, 16);
+  };
+
+  const formatDateForInput = (isoDate) => {
+    if (!isoDate) return getDefaultDueDate();
+    const d = new Date(isoDate);
+    if (isNaN(d.getTime())) return getDefaultDueDate();
+    const tzOffset = d.getTimezoneOffset() * 60000;
+    return new Date(d.getTime() - tzOffset).toISOString().slice(0, 16);
+  };
+
+  // Round create form
   const [roundForm, setRoundForm] = useState({
     round_number: 1,
     name: '',
     description: '',
     weight: 20,
     max_score: 100,
-    due_date: '',
+    due_date: getDefaultDueDate(),
     is_active: true,
   });
+
+  // Edit Round modal state
+  const [editingRound, setEditingRound] = useState(null);
+  const [editRoundForm, setEditRoundForm] = useState({
+    name: '',
+    round_number: 1,
+    weight: 20,
+    max_score: 100,
+    due_date: getDefaultDueDate(),
+    description: '',
+    is_active: true,
+  });
+  const [updatingRound, setUpdatingRound] = useState(false);
 
   useEffect(() => {
     fetchWorkspaces();
@@ -96,7 +125,7 @@ export const StaffWorkspacesView = ({ selectedWorkspaceId, onSelectProject }) =>
     try {
       const wsDetails = await workspaceApi.getWorkspace(wsId);
       setActiveWorkspace(wsDetails);
-      loadSubTabData(wsId, subTab, wsDetails);
+      await loadSubTabData(wsId, subTab, wsDetails);
     } catch (err) {
       setError(err.message || 'Failed to load workspace details.');
     }
@@ -106,23 +135,34 @@ export const StaffWorkspacesView = ({ selectedWorkspaceId, onSelectProject }) =>
     const isOwner = wsDetails ? wsDetails.owner_id === user?.id : false;
     try {
       if (tab === 'overview' && isOwner) {
-        const reqs = await workspaceApi.getStaffRequests(wsId).catch(() => []);
+        const reqs = await workspaceApi.getStaffRequests(wsId);
         setStaffRequests(reqs || []);
       } else if (tab === 'notices') {
-        const res = await workspaceApi.getNotices(wsId).catch(() => []);
+        const res = await workspaceApi.getNotices(wsId);
         setNotices(res || []);
       } else if (tab === 'rounds') {
-        const res = await workspaceApi.getRounds(wsId).catch(() => []);
+        const res = await workspaceApi.getRounds(wsId);
         setRounds(res || []);
+        // Dynamically compute next sequential round number
+        const existingRounds = res || [];
+        const nextRoundNum = existingRounds.length > 0
+          ? Math.max(...existingRounds.map((r) => r.round_number || r.order_index || 0)) + 1
+          : 1;
+        setRoundForm((prev) => ({
+          ...prev,
+          round_number: nextRoundNum,
+          due_date: prev.due_date || getDefaultDueDate(),
+        }));
       } else if (tab === 'groups') {
-        const res = await workspaceApi.getWorkspaceGroups(wsId).catch(() => []);
+        const res = await workspaceApi.getWorkspaceGroups(wsId);
         setGroups(res || []);
       } else if (tab === 'projects') {
-        const res = await workspaceApi.getWorkspaceProjects(wsId).catch(() => []);
+        const res = await workspaceApi.getWorkspaceProjects(wsId);
         setProjects(res || []);
       }
     } catch (err) {
       console.error(`Error loading ${tab} tab:`, err);
+      setError(err.message || `Failed to load ${tab} data.`);
     }
   };
 
@@ -337,15 +377,38 @@ export const StaffWorkspacesView = ({ selectedWorkspaceId, onSelectProject }) =>
     }
   };
 
-  // Review Rounds
+  // Review Rounds Handlers
   const handleCreateRound = async (e) => {
     e.preventDefault();
     if (!activeWorkspace) return;
+    setError(null);
     try {
       const orderIndex = parseInt(roundForm.round_number, 10) || 1;
-      const roundWeight = parseFloat(roundForm.weight) || 20;
-      const roundMaxScore = parseFloat(roundForm.max_score) || 100;
-      const roundDueDate = roundForm.due_date ? new Date(roundForm.due_date).toISOString() : new Date().toISOString();
+      const roundWeight = parseFloat(roundForm.weight);
+      const roundMaxScore = parseFloat(roundForm.max_score);
+      if (isNaN(roundMaxScore) || roundMaxScore < 1.0) {
+        setError('Maximum score must be at least 1.0.');
+        return;
+      }
+      if (isNaN(roundWeight) || roundWeight < 0 || roundWeight > 100) {
+        setError('Weight percentage must be between 0 and 100%.');
+        return;
+      }
+      if (!roundForm.name.trim()) {
+        setError('Round name is required.');
+        return;
+      }
+      if (!roundForm.due_date) {
+        setError('Due date deadline is required.');
+        return;
+      }
+
+      const dueDateTime = new Date(roundForm.due_date);
+      if (isNaN(dueDateTime.getTime())) {
+        setError('Please enter a valid due date.');
+        return;
+      }
+
       const isActive = Boolean(roundForm.is_active);
 
       await workspaceApi.createRound(activeWorkspace.id, {
@@ -356,34 +419,117 @@ export const StaffWorkspacesView = ({ selectedWorkspaceId, onSelectProject }) =>
         round_number: orderIndex,
         weight: roundWeight,
         max_score: roundMaxScore,
-        due_date: roundDueDate,
+        due_date: dueDateTime.toISOString(),
         is_open: isActive,
         is_active: isActive,
       });
-      setSuccess('Review round created.');
+      setSuccess(`Review round "${roundForm.name.trim()}" created successfully.`);
       setRoundForm({
-        round_number: (rounds.length || 0) + 2,
+        round_number: orderIndex + 1,
         name: '',
         description: '',
         weight: 20,
         max_score: 100,
-        due_date: '',
+        due_date: getDefaultDueDate(),
         is_active: true,
       });
-      loadSubTabData(activeWorkspace.id, 'rounds');
+      await loadSubTabData(activeWorkspace.id, 'rounds');
+      await fetchWorkspaceDetails(activeWorkspace.id);
     } catch (err) {
       setError(err.message || 'Failed to create review round.');
     }
   };
 
+  const handleOpenEditRoundModal = (round) => {
+    setEditingRound(round);
+    setEditRoundForm({
+      name: round.name || round.title || '',
+      round_number: round.round_number ?? round.order_index ?? 1,
+      weight: round.weight ?? 20,
+      max_score: round.max_score ?? 100,
+      due_date: formatDateForInput(round.due_date),
+      description: round.description || '',
+      is_active: round.is_active !== undefined ? round.is_active : (round.is_open ?? true),
+    });
+  };
+
+  const handleCloseEditRoundModal = () => {
+    setEditingRound(null);
+  };
+
+  const handleUpdateRound = async (e) => {
+    e.preventDefault();
+    if (!activeWorkspace || !editingRound) return;
+    setError(null);
+    setUpdatingRound(true);
+    try {
+      const orderIndex = parseInt(editRoundForm.round_number, 10) || 1;
+      const roundWeight = parseFloat(editRoundForm.weight);
+      const roundMaxScore = parseFloat(editRoundForm.max_score);
+      if (isNaN(roundMaxScore) || roundMaxScore < 1.0) {
+        setError('Maximum score must be at least 1.0.');
+        setUpdatingRound(false);
+        return;
+      }
+      if (isNaN(roundWeight) || roundWeight < 0 || roundWeight > 100) {
+        setError('Weight percentage must be between 0 and 100%.');
+        setUpdatingRound(false);
+        return;
+      }
+      if (!editRoundForm.name.trim()) {
+        setError('Round name is required.');
+        setUpdatingRound(false);
+        return;
+      }
+      if (!editRoundForm.due_date) {
+        setError('Due date deadline is required.');
+        setUpdatingRound(false);
+        return;
+      }
+
+      const dueDateTime = new Date(editRoundForm.due_date);
+      if (isNaN(dueDateTime.getTime())) {
+        setError('Please enter a valid due date.');
+        setUpdatingRound(false);
+        return;
+      }
+
+      const payload = {
+        title: editRoundForm.name.trim(),
+        name: editRoundForm.name.trim(),
+        order_index: orderIndex,
+        round_number: orderIndex,
+        weight: roundWeight,
+        max_score: roundMaxScore,
+        due_date: dueDateTime.toISOString(),
+        description: editRoundForm.description?.trim() || '',
+        is_open: Boolean(editRoundForm.is_active),
+        is_active: Boolean(editRoundForm.is_active),
+      };
+
+      await workspaceApi.updateRound(activeWorkspace.id, editingRound.id, payload);
+      setSuccess(`Review round "${payload.title}" updated successfully.`);
+      setEditingRound(null);
+      await loadSubTabData(activeWorkspace.id, 'rounds');
+      await fetchWorkspaceDetails(activeWorkspace.id);
+    } catch (err) {
+      setError(err.message || 'Failed to update review round.');
+    } finally {
+      setUpdatingRound(false);
+    }
+  };
+
   const handleToggleRoundActive = async (round) => {
+    setError(null);
     try {
       const currentActive = round.is_active !== undefined ? round.is_active : (round.is_open ?? true);
       await workspaceApi.updateRound(activeWorkspace.id, round.id, {
         is_active: !currentActive,
         is_open: !currentActive,
       });
-      loadSubTabData(activeWorkspace.id, 'rounds');
+      setSuccess(`Review round #${round.order_index || round.round_number} is now ${!currentActive ? 'Active' : 'Closed'}.`);
+      await loadSubTabData(activeWorkspace.id, 'rounds');
+      await fetchWorkspaceDetails(activeWorkspace.id);
     } catch (err) {
       setError(err.message || 'Failed to update round.');
     }
@@ -391,10 +537,12 @@ export const StaffWorkspacesView = ({ selectedWorkspaceId, onSelectProject }) =>
 
   const handleDeleteRound = async (roundId) => {
     if (!window.confirm('Delete this review round?')) return;
+    setError(null);
     try {
       await workspaceApi.deleteRound(activeWorkspace.id, roundId);
       setSuccess('Review round deleted.');
-      loadSubTabData(activeWorkspace.id, 'rounds');
+      await loadSubTabData(activeWorkspace.id, 'rounds');
+      await fetchWorkspaceDetails(activeWorkspace.id);
     } catch (err) {
       setError(err.message || 'Failed to delete round.');
     }
@@ -1091,6 +1239,12 @@ export const StaffWorkspacesView = ({ selectedWorkspaceId, onSelectProject }) =>
                                   </td>
                                   <td className="py-2.5 px-3 text-right space-x-2">
                                     <button
+                                      onClick={() => handleOpenEditRoundModal(r)}
+                                      className="text-xs font-mono text-teal-400 hover:text-teal-300 font-semibold"
+                                    >
+                                      Edit
+                                    </button>
+                                    <button
                                       onClick={() => handleToggleRoundActive(r)}
                                       className="text-xs font-mono text-slate-400 hover:text-teal-300"
                                     >
@@ -1337,6 +1491,128 @@ export const StaffWorkspacesView = ({ selectedWorkspaceId, onSelectProject }) =>
                 >
                   Submit Request
                 </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* Modal: Edit Review Round */}
+      {editingRound && (
+        <div className="fixed inset-0 z-50 bg-slate-950/80 backdrop-blur-sm flex items-center justify-center p-4">
+          <div className="bg-[#11181C] border border-[#1B262E] rounded-xl max-w-lg w-full p-6 space-y-4">
+            <div className="flex justify-between items-center border-b border-[#1B262E] pb-3">
+              <h3 className="text-base font-bold text-slate-100 font-serif">
+                Edit Review Round #{editingRound.order_index || editingRound.round_number}
+              </h3>
+              <button
+                onClick={handleCloseEditRoundModal}
+                className="text-slate-400 hover:text-slate-200 text-sm font-mono"
+              >
+                ✕
+              </button>
+            </div>
+
+            <form onSubmit={handleUpdateRound} className="space-y-4 font-sans">
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                <div>
+                  <label className="text-[10px] font-mono text-slate-400 uppercase">Round #</label>
+                  <input
+                    type="number"
+                    min="1"
+                    value={editRoundForm.round_number}
+                    onChange={(e) => setEditRoundForm({ ...editRoundForm, round_number: e.target.value })}
+                    className="w-full bg-[#0B0F12] border border-[#1B262E] rounded px-3 py-1.5 text-xs text-slate-200 focus:outline-none focus:border-teal-500 font-mono"
+                    required
+                  />
+                </div>
+                <div className="sm:col-span-2">
+                  <label className="text-[10px] font-mono text-slate-400 uppercase">Round Name</label>
+                  <input
+                    type="text"
+                    value={editRoundForm.name}
+                    onChange={(e) => setEditRoundForm({ ...editRoundForm, name: e.target.value })}
+                    className="w-full bg-[#0B0F12] border border-[#1B262E] rounded px-3 py-1.5 text-xs text-slate-200 focus:outline-none focus:border-teal-500"
+                    required
+                  />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                <div>
+                  <label className="text-[10px] font-mono text-slate-400 uppercase">Weight %</label>
+                  <input
+                    type="number"
+                    step="0.1"
+                    min="0"
+                    max="100"
+                    value={editRoundForm.weight}
+                    onChange={(e) => setEditRoundForm({ ...editRoundForm, weight: e.target.value })}
+                    className="w-full bg-[#0B0F12] border border-[#1B262E] rounded px-3 py-1.5 text-xs text-slate-200 focus:outline-none focus:border-teal-500 font-mono"
+                    required
+                  />
+                </div>
+                <div>
+                  <label className="text-[10px] font-mono text-slate-400 uppercase">Max Score</label>
+                  <input
+                    type="number"
+                    min="1"
+                    value={editRoundForm.max_score}
+                    onChange={(e) => setEditRoundForm({ ...editRoundForm, max_score: e.target.value })}
+                    className="w-full bg-[#0B0F12] border border-[#1B262E] rounded px-3 py-1.5 text-xs text-slate-200 focus:outline-none focus:border-teal-500 font-mono"
+                    required
+                  />
+                </div>
+                <div>
+                  <label className="text-[10px] font-mono text-slate-400 uppercase">Due Date</label>
+                  <input
+                    type="datetime-local"
+                    value={editRoundForm.due_date}
+                    onChange={(e) => setEditRoundForm({ ...editRoundForm, due_date: e.target.value })}
+                    className="w-full bg-[#0B0F12] border border-[#1B262E] rounded px-3 py-1.5 text-xs text-slate-200 focus:outline-none focus:border-teal-500 font-mono"
+                    required
+                  />
+                </div>
+              </div>
+
+              <div>
+                <label className="text-[10px] font-mono text-slate-400 uppercase">Instructions / Rubric</label>
+                <textarea
+                  rows={3}
+                  value={editRoundForm.description}
+                  onChange={(e) => setEditRoundForm({ ...editRoundForm, description: e.target.value })}
+                  placeholder="Round instructions, deliverables, or rubric..."
+                  className="w-full bg-[#0B0F12] border border-[#1B262E] rounded px-3 py-2 text-xs text-slate-200 focus:outline-none focus:border-teal-500"
+                />
+              </div>
+
+              <div className="flex items-center justify-between pt-2">
+                <label className="flex items-center gap-2 text-xs text-slate-300 font-mono cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={editRoundForm.is_active}
+                    onChange={(e) => setEditRoundForm({ ...editRoundForm, is_active: e.target.checked })}
+                    className="rounded border-[#1B262E] text-teal-500 focus:ring-0 bg-[#0B0F12]"
+                  />
+                  <span>Active Round (Accepting Submissions)</span>
+                </label>
+
+                <div className="flex gap-2">
+                  <button
+                    type="button"
+                    onClick={handleCloseEditRoundModal}
+                    className="px-3 py-1.5 text-xs text-slate-400 hover:text-slate-200 font-mono"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    type="submit"
+                    disabled={updatingRound}
+                    className="px-4 py-1.5 bg-teal-500 hover:bg-teal-400 text-slate-950 font-semibold text-xs rounded transition-colors disabled:opacity-50"
+                  >
+                    {updatingRound ? 'Saving...' : 'Save Changes'}
+                  </button>
+                </div>
               </div>
             </form>
           </div>

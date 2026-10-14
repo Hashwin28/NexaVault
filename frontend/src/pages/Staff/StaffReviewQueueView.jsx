@@ -60,10 +60,10 @@ export const StaffReviewQueueView = () => {
     setVerdict('APPROVED');
     setFeedback('');
     
-    // Initialize default member scores to max_score or 0
+    // Initialize default member scores to configured max_score
     const initialScores = {};
     const roster = item.roster_snapshot || item.members || [];
-    const maxScore = item.round_max_score || item.round?.max_score || 100;
+    const maxScore = item.round_max_score != null ? Number(item.round_max_score) : (item.round?.max_score != null ? Number(item.round.max_score) : 100);
     
     roster.forEach((m) => {
       const mId = m.id || m.user_id;
@@ -91,11 +91,17 @@ export const StaffReviewQueueView = () => {
 
     // Preserve validation requiring a score for every roster member when APPROVED
     const roster = selectedVersion.roster_snapshot || selectedVersion.members || [];
+    const maxScore = selectedVersion.round_max_score != null ? Number(selectedVersion.round_max_score) : 100;
     if (verdict === 'APPROVED' && roster.length > 0) {
       for (const m of roster) {
         const mId = m.id || m.user_id;
-        if (memberScores[mId] === undefined || memberScores[mId] === null || isNaN(memberScores[mId])) {
+        const sVal = memberScores[mId];
+        if (sVal === undefined || sVal === null || isNaN(sVal)) {
           setError(`Score is required for member ${m.full_name || m.name || m.email || mId}.`);
+          return;
+        }
+        if (sVal < 0 || sVal > maxScore) {
+          setError(`Score ${sVal} for ${m.full_name || m.name || mId} must be between 0 and ${maxScore}.`);
           return;
         }
       }

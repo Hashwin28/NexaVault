@@ -12,6 +12,7 @@ class QueueItemResponse(BaseModel):
     round_id: int
     round_title: str
     round_due_date: datetime
+    round_max_score: Optional[float] = 100.0
     version_number: int
     status: str
     submitted_by: int
