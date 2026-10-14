@@ -474,9 +474,9 @@ def test_csv_export_formatting_and_escaping(setup_results_env):
     assert "Student Name" in header_row
     assert "Roll Number" in header_row
     assert "Review Round 1 Marks" in header_row
-    assert any(h in header_row for h in ["Review Round 1 Teacher Feedback", "Review Round 1 Feedback"])
+    assert "Review Round 1 Feedback" in header_row
     assert "Review Round 1 Reviewer" in header_row
-    assert "Review Round 1 Review Date" in header_row
+    assert "Review Round 1 Date" in header_row
     assert "Review Round 2 Marks" in header_row
     assert "Individual Total Marks" in header_row
     assert "Maximum Possible Marks" in header_row
@@ -488,16 +488,30 @@ def test_csv_export_formatting_and_escaping(setup_results_env):
     data_rows = reader[1:]
     assert len(data_rows) == 3
 
-    # Find Alice's row
+    # Find Alice's row (first student of Group 1)
     alice_row = next(r for r in data_rows if env["student_a"].full_name in r[3])
-    # Alice's Round 1 score = 38.00, Round 2 score = 58.00, Total = 96.00
+    assert alice_row[0] == "1"
+    assert alice_row[1] == "Alpha Devs"
+    assert alice_row[2] == "Distributed Consensus Engine"
     assert "38.00" in alice_row
     assert "58.00" in alice_row
     assert "96.00" in alice_row
     assert "PASS" in alice_row
 
-    # Find Charlie's row
+    # Find Bob's row (second student in Group 1, grouped as one whole)
+    bob_row = next(r for r in data_rows if env["student_b"].full_name in r[3])
+    assert bob_row[0] == ""
+    assert bob_row[1] == ""
+    assert bob_row[2] == ""
+    assert "28.50" in bob_row
+    assert "52.00" in bob_row
+    assert "PASS" in bob_row
+
+    # Find Charlie's row (first student of Group 2)
     charlie_row = next(r for r in data_rows if env["student_c"].full_name in r[3])
+    assert charlie_row[0] == "2"
+    assert charlie_row[1] == "Beta Innovators"
+    assert charlie_row[2] == "Quantum Cryptography Simulator"
     # Round 1 is graded 0.00
     r1_score_idx = header_row.index("Review Round 1 Marks")
     r2_score_idx = header_row.index("Review Round 2 Marks")

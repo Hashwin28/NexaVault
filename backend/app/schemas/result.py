@@ -68,6 +68,7 @@ class WorkspaceStudentResultItem(BaseModel):
     student_email: str
     roll_number: str
     group_id: int
+    group_number: Optional[int] = None
     group_name: str
     group_code: str
     project_id: Optional[int] = None

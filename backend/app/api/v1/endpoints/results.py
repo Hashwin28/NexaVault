@@ -78,9 +78,11 @@ def build_workspace_results(
         db.query(WorkspaceGroup)
         .options(joinedload(WorkspaceGroup.group))
         .filter(WorkspaceGroup.workspace_id == workspace_id)
+        .order_by(WorkspaceGroup.id.asc())
         .all()
     )
     group_ids = [eg.group_id for eg in enrolled_groups if eg.group and not eg.group.is_deleted]
+    group_num_by_id = {gid: idx for idx, gid in enumerate(group_ids, 1)}
 
     # 4. Workspace projects
     projects = (
@@ -125,8 +127,8 @@ def build_workspace_results(
         .filter(GroupMembership.group_id.in_(group_ids))
         .all()
     )
-    # Order predictably by group ID then user name
-    memberships.sort(key=lambda m: (m.group_id, m.user.full_name if m.user else ""))
+    # Order predictably by group sequence index then student full name
+    memberships.sort(key=lambda m: (group_num_by_id.get(m.group_id, 9999), m.user.full_name if m.user else ""))
 
     students_list = []
     total_pct_sum = 0.0
@@ -263,6 +265,7 @@ def build_workspace_results(
                 student_email=user.email,
                 roll_number=roll_num,
                 group_id=group.id,
+                group_number=group_num_by_id.get(group.id, 1),
                 group_name=group.name,
                 group_code=group.code,
                 project_id=project_id,
@@ -343,9 +346,9 @@ def export_workspace_results_csv(
     for idx, r in enumerate(rounds, 1):
         headers.extend([
             f"Review Round {idx} Marks",
-            f"Review Round {idx} Teacher Feedback",
+            f"Review Round {idx} Feedback",
             f"Review Round {idx} Reviewer",
-            f"Review Round {idx} Review Date",
+            f"Review Round {idx} Date",
         ])
     headers.extend([
         "Individual Total Marks",
@@ -357,14 +360,31 @@ def export_workspace_results_csv(
     writer.writerow(headers)
 
     # Student Data Rows (One row per student)
+    # Group rows so that the group metadata appears on the first student of the group,
+    # grouping the group as one whole (matching reference layout).
+    seen_groups = set()
     for s in students:
-        row = [
-            s.group_code or f"Group #{s.group_id}",
-            s.group_name,
-            s.project_topic,
-            s.student_name,
-            s.roll_number,
-        ]
+        is_first_in_group = s.group_id not in seen_groups
+        seen_groups.add(s.group_id)
+
+        group_num_val = str(s.group_number or s.group_id)
+
+        if is_first_in_group:
+            row = [
+                group_num_val,
+                s.group_name,
+                s.project_topic,
+                s.student_name,
+                s.roll_number,
+            ]
+        else:
+            row = [
+                "",
+                "",
+                "",
+                s.student_name,
+                s.roll_number,
+            ]
         has_any_score = False
         for r in rounds:
             r_res = s.rounds.get(str(r.id))

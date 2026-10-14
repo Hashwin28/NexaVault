@@ -420,26 +420,28 @@ export const StaffResultsView = ({ selectedWorkspaceId }) => {
                 </tr>
               </thead>
               <tbody className="divide-y divide-[#1B262E]">
-                {filteredStudents.map((student) => {
+                {filteredStudents.map((student, idx) => {
+                  const isFirstInGroup = idx === 0 || filteredStudents[idx - 1].group_id !== student.group_id;
+                  const groupNumDisplay = student.group_number ? `#${student.group_number}` : (student.group_code || `#${student.group_id}`);
                   return (
                     <tr
                       key={`${student.group_id}-${student.student_id}`}
-                      className="hover:bg-[#162026] transition-colors group cursor-pointer"
+                      className={`hover:bg-[#162026] transition-colors group cursor-pointer ${isFirstInGroup && idx !== 0 ? 'border-t-2 border-[#1E2C35]' : ''}`}
                       onClick={() => setInspectStudent(student)}
                     >
                       {/* Group Code */}
                       <td className="py-3 px-3 font-mono text-slate-400 whitespace-nowrap text-[11px]">
-                        {student.group_code || `#${student.group_id}`}
+                        {isFirstInGroup ? groupNumDisplay : ''}
                       </td>
 
                       {/* Group Name */}
                       <td className="py-3 px-3 font-medium text-slate-200 whitespace-nowrap">
-                        {student.group_name}
+                        {isFirstInGroup ? student.group_name : ''}
                       </td>
 
                       {/* Project Topic */}
                       <td className="py-3 px-3 text-slate-300 max-w-xs truncate" title={student.project_topic}>
-                        {student.project_topic}
+                        {isFirstInGroup ? student.project_topic : ''}
                       </td>
 
                       {/* Student Name */}
