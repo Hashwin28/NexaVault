@@ -1,8 +1,17 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import { authApi } from '../api/authApi';
 
+/**
+ * Authentication Context
+ * Provides centralized authentication state (user, token, session validation)
+ * and authentication methods (login, register, logout) across the application.
+ */
 const AuthContext = createContext(null);
 
+/**
+ * AuthProvider Component
+ * Manages token persistence in localStorage and automatically verifies sessions on mount.
+ */
 export const AuthProvider = ({ children }) => {
   const [user, setUser] = useState(null);
   const [token, setToken] = useState(() => localStorage.getItem('nexavault_jwt_token'));
