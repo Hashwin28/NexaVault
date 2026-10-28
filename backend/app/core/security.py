@@ -1,3 +1,10 @@
+"""
+Security and Cryptography Utilities Module.
+
+Provides cryptographic functions for bcrypt-based password hashing,
+password verification with length handling, and JSON Web Token (JWT) encoding/decoding.
+"""
+
 import bcrypt
 from datetime import datetime, timedelta, timezone
 from typing import Union, Optional
