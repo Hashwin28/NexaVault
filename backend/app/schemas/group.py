@@ -1,3 +1,10 @@
+"""
+Academic Group Pydantic Schemas Module.
+
+Handles validation and formatting for group creation, alphanumeric code generation,
+invitation joins, and team membership responses.
+"""
+
 from datetime import datetime
 from typing import Optional, List
 import re
@@ -6,6 +13,7 @@ from pydantic import BaseModel, Field, field_validator, ConfigDict
 ALPHANUMERIC_REGEX = re.compile(r"^[A-Za-z0-9]+$")
 
 class GroupMemberResponse(BaseModel):
+    """Sanitized student profile representation within a group membership list."""
     id: int
     full_name: str
     email: str
