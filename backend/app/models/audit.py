@@ -1,3 +1,10 @@
+"""
+Audit Logging and Cryptographic Verification Models Module.
+
+Provides SQLAlchemy models for structured administrative audit trails,
+actor attribution, differential JSON payload state changes, and Merkle tree roots.
+"""
+
 from datetime import datetime, timezone
 from sqlalchemy import Column, Integer, BigInteger, String, DateTime, ForeignKey, Text
 from sqlalchemy.dialects.postgresql import JSONB
@@ -8,6 +15,9 @@ from app.db.base import Base
 JSONType = JSON().with_variant(JSONB, "postgresql")
 
 class AuditLog(Base):
+    """
+    Audit log entry recording actions, actor identities, IP addresses, and state diffs.
+    """
     __tablename__ = "audit_logs"
 
     id = Column(BigInteger, primary_key=True, index=True, autoincrement=True)
