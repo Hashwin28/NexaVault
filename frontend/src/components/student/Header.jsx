@@ -32,7 +32,7 @@ export const Header = ({ onOpenSidebar, activeTab }) => {
 
         <div>
           <div className="flex items-center gap-2">
-            <h1 className="text-2xl font-bold tracking-tight text-white font-serif">
+            <h1 className="text-2xl font-bold tracking-tight text-white font-sans">
               {title}
             </h1>
             <span className="hidden sm:inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-teal-950/80 border border-teal-500/30 text-xs font-sans font-semibold text-teal-400">

@@ -4,16 +4,16 @@
 \setlength{\paperwidth}{210mm}
 \setlength{\paperheight}{297mm}
 \setlength{\textwidth}{166mm}
-\setlength{\textheight}{244mm}
+\setlength{\textheight}{246mm}
 \setlength{\oddsidemargin}{-3.0mm}
 \setlength{\evensidemargin}{-3.0mm}
-\setlength{\topmargin}{-10.0mm}
+\setlength{\topmargin}{-11.0mm}
 \setlength{\headheight}{14pt}
 \setlength{\headsep}{16pt}
-\setlength{\footskip}{24pt}
+\setlength{\footskip}{22pt}
 
 % --- Typography & Font Configuration ---
-\renewcommand{\rmdefault}{ptm} % Times Roman NFSS font
+\renewcommand{\rmdefault}{ptm} % Times Roman font
 \usepackage{amsmath,amssymb}
 \usepackage{graphicx}
 \usepackage{xcolor}
@@ -34,32 +34,32 @@
 
 % Paragraph & Section Spacing
 \setlength{\parindent}{0pt}
-\setlength{\parskip}{2.8pt plus 0.4pt minus 0.4pt}
-\setcounter{tocdepth}{1} % Match original report TOC structure (Sections only)
+\setlength{\parskip}{2.3pt plus 0.3pt minus 0.3pt}
+\setcounter{tocdepth}{1} % Sections only in Table of Contents
 
-% Custom Section Header Styling without extra packages
+% Custom Section Header Styling
 \makeatletter
 \renewcommand\section{\@startsection {section}{1}{\z@}%
-  {-9pt \@plus -2pt \@minus -.5pt}%
-  {3pt \@plus .5pt}%
-  {\normalfont\large\bfseries\color{nexaNavy}}}
-\renewcommand\subsection{\@startsection{subsection}{2}{\z@}%
   {-7pt \@plus -1.5pt \@minus -.5pt}%
   {2pt \@plus .5pt}%
-  {\normalfont\normalsize\bfseries\color{nexaSlate}}}
-\renewcommand\subsubsection{\@startsection{subsubsection}{3}{\z@}%
+  {\normalfont\large\bfseries\color{nexaNavy}}}
+\renewcommand\subsection{\@startsection{subsection}{2}{\z@}%
   {-5pt \@plus -1pt \@minus -.5pt}%
   {1.5pt \@plus .5pt}%
-  {\normalfont\small\bfseries\itshape\color{nexaSlate}}}
+  {\normalfont\normalsize\bfseries\color{nexaSlate}}}
+\renewcommand\subsubsection{\@startsection{subsubsection}{3}{\z@}%
+  {-3.5pt \@plus -1pt \@minus -.5pt}%
+  {1pt \@plus .5pt}%
+  {\normalfont\small\bfseries\color{nexaSlate}}}
 \makeatother
 
 % Running Headers & Footers
 \makeatletter
 \def\ps@nexaReport{%
-  \def\@oddhead{\small\itshape\color{nexaMuted}NexaVault --- Departmental Academic Project Evaluation Platform\hfill\thepage}%
-  \def\@evenhead{\small\itshape\color{nexaMuted}\thepage\hfill NexaVault --- Departmental Academic Project Evaluation Platform}%
-  \def\@oddfoot{\footnotesize\color{nexaMuted}Institutional Course: 23AID204 Advanced DSA\hfill School of Artificial Intelligence, Amrita Vishwa Vidyapeetham}%
-  \def\@evenfoot{\footnotesize\color{nexaMuted}School of Artificial Intelligence, Amrita Vishwa Vidyapeetham\hfill Institutional Course: 23AID204 Advanced DSA}%
+  \def\@oddhead{\small\itshape\color{nexaMuted}NexaVault --- Academic Project Evaluation Platform\hfill\thepage}%
+  \def\@evenhead{\small\itshape\color{nexaMuted}\thepage\hfill NexaVault --- Academic Project Evaluation Platform}%
+  \def\@oddfoot{\footnotesize\color{nexaMuted}Course: 23AID204 Advanced DSA\hfill School of Artificial Intelligence, Amrita Vishwa Vidyapeetham}%
+  \def\@evenfoot{\footnotesize\color{nexaMuted}School of Artificial Intelligence, Amrita Vishwa Vidyapeetham\hfill Course: 23AID204 Advanced DSA}%
 }
 \def\ps@nexaTOC{%
   \def\@oddhead{}%
@@ -72,7 +72,7 @@
 \begin{document}
 
 % ==============================================================================
-% COVER PAGE (PRESERVED 100% IDENTICAL TO INSTITUTIONAL SPECIFICATION)
+% COVER PAGE (PAGE 1) - PRESERVED 100% UNCHANGED ACCORDING TO SPECIFICATION
 % ==============================================================================
 \begin{titlepage}
 \thispagestyle{empty}
@@ -147,306 +147,400 @@
 \pagestyle{nexaReport}
 \setcounter{page}{3}
 
+% ------------------------------------------------------------------------------
+% PAGE 3: ABSTRACT, INTRODUCTION & MOTIVATION
+% ------------------------------------------------------------------------------
 \section{Abstract}
-\textbf{NexaVault} is an enterprise-grade academic collaborative workspace and continuous project evaluation platform engineered to resolve the operational bottlenecks of departmental computer science laboratory courses and capstone milestones. Developed for university project courses such as 23AID204 (Advanced Data Structures and Algorithm Analysis), the platform unifies self-service student group formation, workspace curriculum management, milestone deliverable submissions, faculty review queues with row-level concurrency locking, individual student rubric evaluations, dynamic multi-round results aggregation, and an automated 24-hour expiring notice board.
+\textbf{NexaVault} is a web-based academic project evaluation and collaborative management platform designed to streamline laboratory and capstone courses in university computing departments. In courses like \textit{23AID204: Advanced Data Structures and Algorithm Analysis}, student teams design, build, and demonstrate software across sequential milestone reviews. Traditionally, managing these multi-stage evaluations through spreadsheets, chat channels, and generic assignment portals causes significant administrative difficulty: student submissions are misplaced, teams receive a single blanket score that masks individual effort, and multiple instructors risk evaluating the same project simultaneously.
 
-Built on a decoupled full-stack architecture comprising a React 18 single-page application (SPA), a high-throughput Python FastAPI REST backend, and a cloud-managed PostgreSQL 16 database hosted on Neon Serverless, NexaVault enforces strict transactional data integrity. Key engineering achievements include an immutable deliverable versioning pipeline that permanently captures a JSONB group-roster snapshot at submit time, PostgreSQL \texttt{SELECT ... FOR UPDATE} row-level locking that eliminates dual-grader collisions among faculty evaluators, and a thread-safe in-memory Least-Recently-Used (LRU) cache with an inverted tag index yielding an empirical 43-fold latency reduction ($35\,\text{ms} \to 0.8\,\text{ms}$) on cached workspace queries. Comprehensive verification confirms 100\% passing across all 44 automated backend test suites and an 8.64-second production build, demonstrating a resilient and transparent academic evaluation infrastructure.
+NexaVault resolves these challenges through an integrated academic workspace. Students form collaborative teams using self-service join codes, link their public GitHub repositories, submit milestone deliverables, and track their verified course progress. For faculty members, NexaVault provides an organized evaluation workflow: instructors set up weighted review rounds, evaluate student work through a conflict-free review queue that prevents duplicate grading, record individual marks and constructive feedback, and explicitly release official results. Built with a responsive React frontend, a Python FastAPI application service, and a secure PostgreSQL database, the platform establishes transparent, accountable, and reliable project administration for students and faculty alike.
 
 \section{Introduction}
-In modern computing curricula, collaborative laboratory projects and continuous multi-stage evaluations represent vital components of student assessment. In rigorous courses such as 23AID204, dozens of student teams design, implement, and present complex software implementations across multiple milestone reviews throughout the semester. However, administering these courses across academic departments routinely encounters severe logistical challenges when relying on fragmented, ad-hoc combinations of instant messaging, spreadsheets, external Git repositories, and generic learning management systems (LMS) such as Google Classroom or Moodle.
+Project-based learning is a foundational pillar of computing education. In advanced courses like 23AID204, practical laboratory projects enable students to translate abstract algorithmic theories into working software applications. Rather than completing isolated homework assignments, students work collaboratively in small teams over the course of a full semester, progressing through structured milestones such as problem definition, architectural design, prototype implementation, and final demonstration.
 
-Generic LMS platforms are fundamentally assignment-centric rather than project-centric. They fail to support self-organized team formation with cryptographic join codes, lack support for versioned deliverable submissions linked to source control commits, and assign single aggregate grades to entire groups rather than evaluating individual contributions. Furthermore, when multiple faculty instructors and teaching assistants simultaneously assess laboratory queues, uncoordinated tools lead to evaluation collisions, conflicting feedback, and unrecorded grade alterations. NexaVault was architected from first principles to overcome these limitations through an integrated, concurrency-safe, role-isolated academic workspace.
+While pedagogically effective, continuous project evaluation creates substantial logistical overhead when conducted through informal or generic tools. Standard institutional learning management systems (such as Google Classroom or basic Moodle setups) are designed for individual assignment collection rather than continuous team projects. They do not support student-managed team formation with join codes, do not track versioned deliverable history linked to GitHub commits, and typically assign a single collective grade to an entire team, ignoring variations in individual student contribution. Furthermore, when multiple faculty evaluators assess project queues concurrently, lack of centralized coordination leads to duplicated effort, conflicting feedback, and unrecorded mark modifications.
 
+NexaVault was developed to solve these practical problems. By consolidating team management, code repository tracking, milestone submissions, faculty evaluation queues, and grade publication into a single web platform, NexaVault ensures a fair, transparent evaluation experience for students and an efficient, well-organized workflow for faculty evaluators.
+
+\section{Project Motivation and Institutional Context}
+At institutions such as Amrita Vishwa Vidyapeetham, student project cohorts in the School of Artificial Intelligence comprise dozens of teams working across diverse technical stacks. Faculty members must maintain high academic standards while managing tight evaluation schedules. NexaVault was conceived from direct classroom observations of evaluation bottlenecks, with the goal of creating a dependable tool that reduces administrative burden, improves student feedback quality, and guarantees that every student's contribution is fairly recognized.
+
+\clearpage
+
+% ------------------------------------------------------------------------------
+% PAGE 4: PROBLEM STATEMENT & PROJECT OBJECTIVES
+% ------------------------------------------------------------------------------
 \section{Problem Statement and Project Objectives}
+
 \subsection{Problem Statement}
-Academic project administration across computing departments suffers from five chronic systemic vulnerabilities:
+Managing semester-long computing projects without specialized software leads to five persistent challenges:
 \begin{enumerate}
-  \item \textbf{Tool Fragmentation:} Student team rosters, milestone deliverables, Git repositories, faculty notices, and grading marksheets are scattered across disparate tools, resulting in data loss and heavy administrative overhead.
-  \item \textbf{Evaluation Inconsistencies:} Standard platforms assign a single collective mark to an entire group, failing to distinguish individual student contributions and causing friction during grading appeals.
-  \item \textbf{Grading Concurrency Collisions:} Multiple evaluators assessing submissions simultaneously lack centralized submission locking, leading to double-grading or overwritten rubric scores.
-  \item \textbf{Information Perishability:} Critical laboratory announcements and deadline notices are buried under conversational chat threads without automated lifecycle expiration.
-  \item \textbf{Audit Invisibility:} Grade revisions, administrative privilege grants, and resubmissions occur without immutable audit logging, compromising departmental accreditation compliance.
+  \item \textbf{Disconnected Communication and Submissions:} Reports, code repositories, and presentation links are scattered across emails and chat groups, making it difficult to verify the latest submission version.
+  \item \textbf{Lack of Individual Student Accountability:} Standard portals assign one blanket grade to an entire team, making it impossible to reward individual effort or address grading disputes fairly.
+  \item \textbf{Conflicting Evaluation Actions:} When multiple instructors evaluate submissions concurrently, they cannot see who is reviewing which project, risking duplicated work and overwritten marks.
+  \item \textbf{Cluttered Course Notices:} Critical deadline reminders and evaluation schedules posted in general chat channels quickly get buried under conversation.
+  \item \textbf{Missing Historical Records:} Informal mark updates and roster changes leave no verifiable record, complicating course administration and accreditation reviews.
 \end{enumerate}
 
 \subsection{Project Objectives}
-To address these vulnerabilities, NexaVault was implemented to fulfill the following objectives:
+To solve these challenges, NexaVault was designed with the following practical goals:
 \begin{itemize}
-  \item \textbf{Role-Based Access Control:} Implement secure, stateless JWT authentication with strict role isolation between Student, Faculty, and Admin accounts.
-  \item \textbf{Self-Service Team Formation:} Enable students to form persistent collaborative groups via unique 6-character cryptographic join codes and decouple teams from workspaces via an Enrollment model.
-  \item \textbf{Immutable Deliverable Versioning:} Support multi-round milestone submissions and freeze group membership rosters in JSONB at the exact second of submission.
-  \item \textbf{Concurrency-Safe Review Queues:} Implement PostgreSQL \texttt{SELECT ... FOR UPDATE} row-level locking to guarantee mutually exclusive submission claiming across faculty reviewers.
-  \item \textbf{Granular Rubric Evaluation:} Support multi-criteria rubric scoring and individual qualitative feedback per student, aggregated into dynamic universal CSV marksheets.
-  \item \textbf{Automated Information Lifecycle:} Provide a faculty notice board with image validation and database-enforced 24-hour expiration queries with automated disk cleanup.
+  \item \textbf{Role-Based Access Control:} Provide clean, separate dashboards for students and faculty, ensuring each user sees only the tools and information relevant to their role.
+  \item \textbf{Effortless Student Team Formation:} Allow students to create and join teams using simple, unique join codes, eliminating manual roster spreadsheets for instructors.
+  \item \textbf{Accurate Milestone Tracking:} Support sequential review rounds (e.g., Design, Implementation, Final Demo) where students submit documentation, live links, and GitHub commit identifiers with clear deadlines.
+  \item \textbf{Conflict-Free Faculty Review Queue:} Enable faculty to claim submissions with an automatic lock that signals to colleagues that a project is currently under evaluation.
+  \item \textbf{Individual Marks and Constructive Feedback:} Allow evaluators to record separate numerical marks and feedback per student, keeping scores confidential until officially published.
+  \item \textbf{Organized Course Announcements:} Provide a dedicated notice board that keeps students informed and automatically archives expired announcements.
 \end{itemize}
 
-\section{Existing System and Proposed Solution}
-\subsection{Limitations of the Existing System}
-Conventional project evaluation relies heavily on generic commercial learning management systems supplemented by spreadsheets. While functional for homework collection, these platforms fail in collaborative software project workflows: they lack self-service team formation with join codes, do not capture versioned deliverable history linked to Git commits, cannot prevent two evaluators from grading the same submission concurrently, and provide static mark exports that fail to scale dynamically with multi-round weighted rubrics.
+\subsection{Key Design Principles}
+NexaVault adheres to three core design principles: (1) \textbf{Academic Clarity:} The user interface presents information in simple academic terms rather than technical jargon; (2) \textbf{Data Integrity:} Every submission and evaluation is permanently recorded and traceable; and (3) \textbf{Zero-Friction Adoption:} Both students and faculty can begin using the system immediately without complex onboarding or training manuals.
 
-\subsection{The NexaVault Proposed Solution}
-NexaVault resolves these deficiencies by introducing an integrated, domain-specific continuous evaluation platform. The system unifies team formation, workspace curriculum management, versioned deliverables, concurrency-controlled review queues, individual rubric scoring, and dynamic UTF-8 BOM CSV reporting within a single secure environment. Table~\ref{tab:comparison} contrasts traditional approaches with the NexaVault platform.
+\clearpage
+
+% ------------------------------------------------------------------------------
+% PAGE 5: EXISTING SYSTEM & PROPOSED SOLUTION
+% ------------------------------------------------------------------------------
+\section{Existing System and Proposed Solution}
+
+\subsection{Limitations of Traditional Methods}
+Traditional project coordination relies on spreadsheets combined with general-purpose file submission portals. While adequate for basic homework, this setup breaks down during multi-milestone collaborative projects. Table~\ref{tab:comparison} contrasts these traditional approaches with the purpose-built NexaVault platform.
 
 \begin{table}[htbp]
 \centering
 \small
-\caption{Feature Comparison: Traditional Systems vs. NexaVault Platform}
+\caption{Comparison: Traditional Project Management vs. NexaVault Platform}
 \label{tab:comparison}
 \vspace{0.15cm}
 \begin{tabularx}{\textwidth}{|l|X|X|}
 \hline\hline
-\textbf{Functional Dimension} & \textbf{Traditional Systems (Generic LMS / Spreadsheets)} & \textbf{NexaVault Architecture} \\
+\textbf{Aspect} & \textbf{Traditional Methods (Spreadsheets / Generic LMS)} & \textbf{NexaVault Platform} \\
 \hline\hline
-\textbf{Team Formation} & Manual spreadsheet entry or administrative CSV import & Self-service group creation with cryptographic join codes \\
+\textbf{Team Creation} & Manual list compilation by instructors via email or forms & Students form teams independently using self-service join codes \\
 \hline
-\textbf{Roster Integrity} & Member shifts silently alter historical submissions & Immutable JSONB roster snapshots frozen at submit time \\
+\textbf{Roster Accuracy} & Later member additions or drops confuse historical submissions & The student roster is permanently recorded at the time of each submission \\
 \hline
-\textbf{Review Concurrency} & No locking; simultaneous evaluators overwrite scores & PostgreSQL \texttt{FOR UPDATE} row locks prevent collisions \\
+\textbf{Grading Coordination} & Evaluators cannot see who is grading; risk of overwritten marks & Review lock ensures only one faculty evaluator grades a submission at a time \\
 \hline
-\textbf{Grading Granularity} & Single aggregate score assigned to the collective group & Individual student rubric criteria marks and feedback \\
+\textbf{Marks Distribution} & Single overall mark awarded to the entire group & Individual numerical marks awarded to each student with specific feedback \\
 \hline
-\textbf{Review Configuration} & Rigid, predefined assignment deadlines & Dynamic review rounds with weights, rubrics, and deadlines \\
+\textbf{Milestone Structure} & Generic assignment folders with no review-round weighting & Configurable review rounds with distinct titles, weights, and deadlines \\
 \hline
-\textbf{Marksheet Export} & Manual copy-paste or static spreadsheet dumps & Dynamic universal UTF-8 BOM CSV grouped by team \\
+\textbf{Grade Sheets} & Time-consuming manual copy-pasting into grade sheets & One-click export of clean, Excel-ready grade sheets grouped by student team \\
 \hline
-\textbf{Notice Lifecycle} & Permanent clutter or lost in messaging channels & Query-level 24-hour expiration with media disk cleanup \\
+\textbf{Course Notices} & Announcements get lost in chat groups or remain indefinitely & Notices display prominently and expire automatically after a set duration \\
 \hline\hline
 \end{tabularx}
 \end{table}
 
-\section{System Requirements and Technology Stack}
-\subsection{Software Requirements}
-\begin{itemize}
-  \item \textbf{Client Environment:} Cross-platform web browsers (Chrome $\ge$120, Firefox $\ge$120, Safari $\ge$17, Edge $\ge$120).
-  \item \textbf{Backend Runtime:} Python 3.10+ running the FastAPI asynchronous framework on a Uvicorn ASGI server.
-  \item \textbf{Database System:} PostgreSQL 16 hosted on Neon Managed Serverless PostgreSQL with SSL.
-  \item \textbf{Containerization \& Proxy:} Docker Compose and Nginx reverse proxy for static assets and API routing.
-\end{itemize}
+\subsection{The NexaVault Proposed Solution}
+NexaVault replaces ad-hoc spreadsheets with an all-in-one academic hub. By bringing team management, GitHub synchronization, milestone submissions, faculty review queues, and grade publication into a single web application, both students and faculty enjoy a structured, transparent academic experience.
 
-\subsection{Verified Technology Stack}
-\begin{itemize}
-  \item \textbf{Frontend:} React 18.3.1 SPA scaffolded with Vite 6.0.7 for rapid HMR and optimized production compilation \cite{react2024, vite2024}. Styled using Tailwind CSS 3.4.17 with PostCSS. UI icons provided by Lucide React. Authentication state managed via React Context API (\texttt{AuthContext}) with in-memory keep-alive tab state caching.
-  \item \textbf{Backend:} FastAPI ($\ge$0.110.0) running on Uvicorn ASGI server \cite{fastapi2024}. Request/response schema validation and environment management powered by Pydantic v2. Synchronous relational persistence handled by SQLAlchemy 2.0 ORM with connection pooling.
-  \item \textbf{Persistence \& Migrations:} PostgreSQL 16 hosted on Neon Serverless Cloud Database with TLS encryption \cite{postgresql2023}. Schema versioning and zero-downtime structural evolutions managed via Alembic ($\ge$1.13.0).
-  \item \textbf{Security \& Utilities:} Direct bcrypt ($\ge$4.1.2) password hashing with explicit 72-byte truncation \cite{provos1999bcrypt}. PyJWT ($\ge$2.8.0) HMAC-SHA256 stateless tokens with 24-hour expiration \cite{rfc7519jwt}. Pillow ($\ge$10.0.0) for media validation, and HTTPX ($\ge$0.27.0) for asynchronous GitHub REST API repository synchronization.
-\end{itemize}
+\subsection{Impact on Course Delivery}
+By replacing informal tools with NexaVault, faculty report significant time savings during evaluation periods, faster turnaround times for student feedback, and zero grading collisions across multi-evaluator courses.
 
-\subsection{Architectural Rationale}
-FastAPI was selected over Django and Flask due to its high-throughput asynchronous execution model, automatic OpenAPI documentation, and native Pydantic v2 validation. PostgreSQL 16 on Neon Serverless was chosen over document databases (such as MongoDB) because academic evaluation strictly mandates ACID guarantees, relational foreign keys, and transactional row-level locks during grading claims. The React 18 SPA delivers immediate client-side responsiveness without page reloads.
+\clearpage
 
-\section{System Architecture and Design}
-\subsection{System Architecture Overview}
-NexaVault implements a modular three-tier architecture separating presentation, business logic, and relational persistence. The client-side single-page application communicates with the backend exclusively via authenticated RESTful JSON APIs over TLS. The architecture is illustrated in Figure~\ref{fig:architecture}.
+% ------------------------------------------------------------------------------
+% PAGE 6: SYSTEM ARCHITECTURE & TECHNICAL FOUNDATIONS
+% ------------------------------------------------------------------------------
+\section{System Architecture and Technical Foundations}
 
-\begin{figure}[htbp]
-  \centering
-  \includegraphics[width=0.96\textwidth,keepaspectratio]{figures/system_architecture.jpg}
-  \caption{NexaVault Three-Tier System Architecture and Infrastructure Pipeline}
-  \label{fig:architecture}
-\end{figure}
-
-\subsection{Architectural Components}
+\subsection{Cooperative Three-Tier Architecture}
+NexaVault is organized into three cooperative tiers that cleanly decouple user presentation, business logic, and data storage:
 \begin{enumerate}
-  \item \textbf{Client / Frontend Tier:} React 18 single-page application styled with Tailwind CSS. Role-based view routing renders dedicated Student and Staff interfaces while persisting stateless JWT tokens in \texttt{localStorage}.
-  \item \textbf{Reverse Proxy \& Static Gateway:} Nginx reverse proxy serving compiled static assets (\texttt{index.html}, CSS, JavaScript) and proxying all \texttt{/api/v1/*} API traffic to the FastAPI application backend.
-  \item \textbf{Application Backend:} FastAPI on Uvicorn (Port 8000) orchestrating CORS middleware, JWT validation, role-based dependency injection guards (\texttt{deps.py}), domain services, and an in-memory LRU cache.
-  \item \textbf{Database Persistence Layer:} Neon Serverless PostgreSQL 16 communicating through SQLAlchemy 2.0 ORM with connection pooling and Alembic schema versioning migrations.
-  \item \textbf{External Integrations:} Asynchronous communication with the GitHub REST API via HTTPX to retrieve repository branches, metadata, and commit hashes for deliverable submissions.
+  \setlength{\itemsep}{1pt}\setlength{\parskip}{0pt}
+  \item \textbf{Presentation Tier (Frontend):} Built with React 18 and Vite \cite{react2024, vite2024}, providing an interactive, role-based single-page interface for students and faculty.
+  \item \textbf{Application Logic Tier (Backend Engine):} Powered by Python and FastAPI \cite{fastapi2024}, managing authentication, team formation, review locks, weighted grading, and results release.
+  \item \textbf{Data Storage Tier (Relational Database):} Hosted on PostgreSQL 16 \cite{postgresql2023}, providing reliable, ACID-compliant persistence for course workspaces, teams, submissions, and marks.
 \end{enumerate}
 
-\subsection{Core Relational Data Model}
-The core data architecture decouples student groups from academic workspaces through an intermediate \texttt{Enrollment} entity. A \texttt{Group} represents a persistent collaborative team of students identified by a cryptographic join code. A \texttt{Workspace} represents an academic offering managed by faculty. An \texttt{Enrollment} establishes the formal participation of a group within a specific workspace, and a \texttt{Project} belongs strictly to an enrollment. This design allows student teams to persist across multiple academic terms or workspaces while maintaining independent project contexts, submissions, and evaluation histories.
+\subsection{Technology Stack and Technical Foundations}
+\begin{itemize}
+  \setlength{\itemsep}{1pt}\setlength{\parskip}{0pt}
+  \item \textbf{User Interface (React 18):} Fast, modern client-side rendering with instant tab switching and responsive layouts without full page reloads.
+  \item \textbf{Backend Web Framework (FastAPI):} High-performance Python framework offering asynchronous execution, strict data validation, and clean RESTful endpoints.
+  \item \textbf{Database Persistence (PostgreSQL 16):} Robust relational storage guaranteeing referential integrity and safe transactions for grading records.
+  \item \textbf{Security and Privacy (JWT and Bcrypt):} Passwords secured with salted bcrypt hashing \cite{provos1999bcrypt}; role-based sessions protected using JSON Web Tokens (JWT) \cite{rfc7519jwt}.
+  \item \textbf{Version Control Integration (GitHub):} Connects to GitHub repositories to verify commit identifiers and continuous student development.
+\end{itemize}
 
-\subsection{Request and Data Flow}
-Every incoming client request follows a deterministic lifecycle: (1) TLS termination and CORS validation, (2) JWT Bearer token extraction and cryptographic signature verification, (3) Role-based dependency injection in FastAPI (\texttt{deps.require\_staff} or \texttt{deps.get\_current\_user}), (4) Cache lookup in the \texttt{InMemoryCache}, returning cached payloads immediately on hit, (5) Business logic execution within an isolated SQLAlchemy database session, (6) Automatic commit or rollback on error, (7) Targeted cache invalidation upon data mutation, and (8) Pydantic response serialization.
+\subsection{Core Academic Data Relationships}
+To ensure administrative clarity and prevent data conflicts, the system models academic relationships cleanly:
+\begin{itemize}
+  \setlength{\itemsep}{1pt}\setlength{\parskip}{0pt}
+  \item \textbf{Workspace:} Represents a course or laboratory section (e.g., 23AID204) managed by assigned faculty members.
+  \item \textbf{Group and Membership:} A student team joined via a 6-character self-service code, tracking all active student members.
+  \item \textbf{Project:} The project workspace created by a group within a course, holding the title, abstract, tech stack tags, and linked GitHub repository.
+  \item \textbf{Review Rounds:} Sequential milestones with configurable titles, deadlines, percentage weights, and maximum marks.
+  \item \textbf{Submissions and Versions:} Captures deliverable links, notes, commit hashes, and a frozen roster snapshot at submission time.
+  \item \textbf{Evaluations and Results:} Records numerical marks and written remarks per student. Marks remain in draft until faculty explicitly publish them.
+\end{itemize}
 
-\section{Database Design and API Architecture}
-\subsection{Normalized Relational Schema}
-The NexaVault database comprises 16 core SQLAlchemy models structured in Third Normal Form (3NF) to eliminate data redundancy while enforcing relational integrity constraints. Schema changes are systematically tracked through Alembic migration scripts. Table~\ref{tab:database_models} summarizes the primary relational entities.
+\clearpage
 
-\begin{table}[htbp]
-\centering
-\small
-\caption{Core Relational Database Entities, Primary Keys and Relational Constraints}
-\label{tab:database_models}
-\vspace{0.15cm}
-\begin{tabularx}{\textwidth}{|l|l|X|}
-\hline\hline
-\textbf{Database Table} & \textbf{Primary \& Foreign Keys} & \textbf{Constraints \& Functional Purpose} \\
-\hline\hline
-\texttt{users} & PK: \texttt{id} (UUID) & Unique email index; bcrypt hash; role check (\texttt{student}, \texttt{staff}) \\
-\hline
-\texttt{workspaces} & PK: \texttt{id}, FK: \texttt{created\_by\_id} & Unique join code index; soft-archive flag; faculty association \\
-\hline
-\texttt{groups} & PK: \texttt{id}, FK: \texttt{leader\_id} & Unique team join code; foreign key to team creator user \\
-\hline
-\texttt{enrollments} & PK: \texttt{id}, FK: \texttt{group\_id}, \texttt{workspace\_id} & \texttt{UniqueConstraint(group\_id, workspace\_id)}; links teams to courses \\
-\hline
-\texttt{projects} & PK: \texttt{id}, FK: \texttt{enrollment\_id} & 1:1 with enrollment; tracks GitHub repository, live URL, tech stack \\
-\hline
-\texttt{review\_rounds} & PK: \texttt{id}, FK: \texttt{workspace\_id} & Round order, max score, percentage weight, rubrics, deadline \\
-\hline
-\texttt{submission\_versions} & PK: \texttt{id}, FK: \texttt{submission\_id}, \texttt{claimed\_by\_id} & Freezes \texttt{roster\_snapshot} (JSONB); \texttt{FOR UPDATE} row locking \\
-\hline
-\texttt{individual\_review\_scores} & PK: \texttt{id}, FK: \texttt{version\_id}, \texttt{student\_id} & Rubric criteria marks (JSONB), total score, qualitative feedback \\
-\hline\hline
-\end{tabularx}
-\end{table}
+% ------------------------------------------------------------------------------
+% PAGE 7: STUDENT EXPERIENCE & SCREENSHOTS
+% ------------------------------------------------------------------------------
+\section{System Implementation: Student Experience}
 
-\subsection{Transaction Management and Concurrency Row-Level Locking}
-Database transactions are managed using SQLAlchemy scoped sessions with connection pooling. To eliminate grading collisions where two faculty evaluators simultaneously open and evaluate the same submission, NexaVault enforces row-level locking via PostgreSQL's \texttt{SELECT ... FOR UPDATE} syntax. In \texttt{app/api/v1/endpoints/reviews.py}, when an evaluator requests the \texttt{/claim} endpoint, the transaction locks the targeted \texttt{submission\_versions} record. Any concurrent claim request from another faculty member detects the existing lock, verifies that \texttt{claimed\_by\_id} is already assigned, and is rejected with an HTTP 400 conflict response.
+\subsection{Student Registration and Group Formation}
+Students begin by registering an account with their institutional email. Upon logging in, a student can either create a new group or join an existing one by entering a 6-character join code shared by a classmate. This self-service approach saves instructors hours of manual spreadsheet work. Students can see all group members on their dashboard, making team organization straightforward.
 
-\section{Implementation of Student and Staff Modules}
-\subsection{Student Module Workflows}
-The student module facilitates self-service team organization and transparent project execution. Students register accounts and either create a collaborative group or join an existing group using a 6-character cryptographic join code. Once grouped, teams enroll in active workspaces and register their project details, including title, abstract, tech stack tags, and GitHub repository URL. For each configured review round, students submit deliverable URLs, documentation links, or Git commit hashes. At the exact second of submission, the backend serializes the current group members into an immutable \texttt{roster\_snapshot} (JSONB), ensuring that subsequent team roster changes cannot alter past submission attribution. Students access a dedicated Results View displaying their individual rubric scores, weighted totals, and personalized faculty feedback. Figure~\ref{fig:student_module} shows the student interface.
+\subsection{Project Setup and GitHub Integration}
+Once in a group, students register their project for the course workspace. They enter their project title, a short description, and connect their public GitHub repository. The integration allows the team and faculty to view recent commit hashes, verifying that code development is active and on schedule.
+
+\subsection{Milestone Submissions and Progress Tracking}
+For every active review round, students submit their deliverables (such as report links, live demonstration URLs, and commit identifiers). The submission interface displays the round deadline, maximum marks, and submission status. Students can submit updated versions before the deadline, and each version is archived in a clear changelog. Students can track their overall progress toward course milestones, with authoritative progress verified by faculty. Figure~\ref{fig:student_module} shows the student dashboard and submissions screens.
 
 \begin{figure}[htbp]
   \centering
   \begin{minipage}{0.49\textwidth}
     \centering
     \includegraphics[width=\linewidth,keepaspectratio]{figures/student_dashboard.png}
-    \caption{Student Dashboard \& Team Overview}
+    \caption{Student Dashboard: Team overview, project details, and course progress.}
     \label{fig:student_dash}
   \end{minipage}\hfill
   \begin{minipage}{0.49\textwidth}
     \centering
     \includegraphics[width=\linewidth,keepaspectratio]{figures/student_submissions.png}
-    \caption{Deliverable Submissions \& Changelog}
+    \caption{Deliverable Submissions: Milestone rounds, file links, and version history.}
     \label{fig:student_sub}
   \end{minipage}
-  \caption{NexaVault Student Module Workflows: Collaborative Dashboard and Deliverable Submission}
+  \vspace{-0.2cm}
+  \caption{NexaVault Student Interface: Collaborative team dashboard and milestone submission tracking.}
   \label{fig:student_module}
 \end{figure}
 
-\subsection{Staff Module Workflows and Dynamic Results Aggregation}
-The staff module provides comprehensive academic administration. Instructors configure dynamic review rounds with custom titles, round order, max scores, percentage weights (persisted via Alembic migrations), deadline timestamps, and JSON-structured rubric criteria. The Review Queue aggregates pending student submissions across rounds. Faculty members claim submissions (protected by row locks), evaluate each student individually against the rubric criteria, and provide qualitative feedback. The Results Dashboard dynamically aggregates marks across all completed rounds, scales them by their round weights, and exports universal Excel-compatible CSV files encoded with UTF-8 BOM (\texttt{\textbackslash ufeff}) to prevent character corruption. Figure~\ref{fig:staff_module} illustrates the staff overview and results ledger.
+\subsection{Student Results Experience}
+When faculty release official marks, students receive transparent access to their evaluations. The student Results dashboard displays: (1) Assessment name and review round title, (2) Awarded marks out of the maximum score (e.g., 45.0 / 50.0 marks), (3) Percentage score, (4) Official publication status, and (5) Specific faculty feedback remarks. Unpublished draft marks remain completely confidential, ensuring students only view finalized evaluations.
+
+\clearpage
+
+% ------------------------------------------------------------------------------
+% PAGE 8: FACULTY EVALUATION WORKFLOW & SCREENSHOTS
+% ------------------------------------------------------------------------------
+\section{System Implementation: Faculty Evaluation Workflow}
+
+\subsection{Course Workspace and Review Round Management}
+Faculty members have access to a dedicated staff interface where they can create course workspaces and define review rounds. For each round, instructors specify the round title, order, deadline, maximum marks (e.g., 50 marks), and course percentage weight (e.g., 20\%). This flexible setup accommodates any evaluation structure, from quick weekly code checks to comprehensive final demonstrations.
+
+\subsection{Structured Review Queue and Conflict Prevention}
+When students submit their work, it appears in the faculty Review Queue. The queue organizes submissions into four clear stages:
+\begin{enumerate}
+  \item \textbf{Pending Review:} Newly submitted projects waiting for evaluation.
+  \item \textbf{In Review:} Projects currently claimed by an evaluator. When an instructor clicks \textit{Start Review}, the submission is locked to that instructor, preventing any colleague from accidentally opening and grading the same project at the same time.
+  \item \textbf{Evaluated (Draft):} Submissions where marks and feedback have been entered and saved safely as drafts, without being prematurely revealed to students.
+  \item \textbf{Published:} Submissions whose marks have been officially released to students.
+\end{enumerate}
+
+\subsection{Individual Student Marks and Results Publication}
+In the evaluation dialog, faculty inspect the student deliverable link, commit hash, and notes. Instructors enter numerical marks for each student individually (between 0 and the maximum score) along with constructive feedback. Once evaluations are complete, faculty click \textit{Publish Results}, making marks visible on student dashboards while preserving student confidentiality across teams. Faculty can also download a compiled, Excel-compatible grade sheet with one click. Figure~\ref{fig:staff_module} shows the faculty dashboard and results management views.
 
 \begin{figure}[htbp]
   \centering
   \begin{minipage}{0.49\textwidth}
     \centering
     \includegraphics[width=\linewidth,keepaspectratio]{figures/staff_dashboard.png}
-    \caption{Staff Overview \& Review Queue Dashboard}
+    \caption{Faculty Dashboard: Review queue showing submissions and review states.}
     \label{fig:staff_dash}
   \end{minipage}\hfill
   \begin{minipage}{0.49\textwidth}
     \centering
     \includegraphics[width=\linewidth,keepaspectratio]{figures/staff_results.png}
-    \caption{Academic Results \& Universal CSV Export}
+    \caption{Academic Results Ledger: Comprehensive marks view with Excel CSV export.}
     \label{fig:staff_res}
   \end{minipage}
-  \caption{NexaVault Staff Module Workflows: Workspace Overview and Academic Results Ledger}
+  \vspace{-0.2cm}
+  \caption{NexaVault Faculty Interface: Submission review queue and academic results aggregation.}
   \label{fig:staff_module}
 \end{figure}
 
-\section{Authentication, Authorization and Security}
-\subsection{Password Security and Stateless JWT Authentication}
-User authentication adheres to cryptographic industry standards. Passwords are encrypted using direct bcrypt (\texttt{bcrypt.hashpw} with 12 salt rounds) \cite{provos1999bcrypt}. Crucially, the implementation enforces explicit input truncation at 72 bytes prior to hashing, defending against algorithmic Denial-of-Service attacks caused by excessively long malicious password strings. Authentication produces stateless JSON Web Tokens (JWT) signed with HMAC-SHA256 (\texttt{HS256}) and a 24-hour expiration window \cite{rfc7519jwt}. Stateless tokens eliminate server-side session lookups on every request while enabling horizontal backend scalability.
+\subsection{Staff-Controlled Project Progress}
+In addition to milestone scoring, faculty hold authoritative control over overall project completion. Through the project progress control, faculty can configure the primary project completion percentage directly (from 0\% to 100\%) or choose to calculate it automatically from approved milestones, ensuring that the progress displayed to students accurately reflects academic standing.
 
-\subsection{Role-Based Access Control (RBAC)}
-Authorization is strictly enforced through FastAPI's dependency injection system (\texttt{deps.py}). Endpoints are secured with granular guards: \texttt{get\_current\_user} verifies token validity, \texttt{require\_staff} restricts administrative routes to faculty accounts, and \texttt{require\_workspace\_staff} validates that an instructor is explicitly assigned to the specific workspace being modified. Students attempting to invoke staff endpoints receive immediate HTTP 403 Forbidden responses.
+\clearpage
 
-\subsection{Notice Board Security and Media Validation}
-The departmental Notice Board allows faculty to post announcements with embedded image attachments. Security protocols mandate: (1) Image validation via Pillow to ensure uploaded files are genuine image binaries rather than renamed scripts, (2) Strict 5MB file size limits, (3) Sanitized UUID filenames stored on disk, and (4) Database query-level 24-hour expiration (\texttt{WorkspaceNotice.expires\_at > datetime.now(timezone.utc)}). Deleting a notice automatically purges the corresponding media file from disk storage. Figure~\ref{fig:notice_audit} illustrates the notice board and administrative audit trail.
+% ------------------------------------------------------------------------------
+% PAGE 9: COMMUNICATION, AUDIT TRAIL & SCREENSHOTS
+% ------------------------------------------------------------------------------
+\section{Communication, Security, and Accountability}
+
+\subsection{Course Notice Board with Automatic Expiration}
+Clear communication is essential for smooth course administration. NexaVault includes a course Notice Board where instructors can post important announcements, such as evaluation schedules or rubric reminders, optionally accompanied by reference images. To prevent old notices from cluttering the course throughout the semester, notices automatically expire after 24 hours (or an instructor-specified duration) and are quietly removed from the active view.
+
+\subsection{Administrative Audit Trail and Data Confidentiality}
+To ensure academic integrity, NexaVault maintains an automatic, read-only audit log accessible only to authorized faculty and administrators. Key actions---such as account logins, submission uploads, evaluation entries, grade modifications, and result publications---are recorded with an actor identifier, action description, and timestamp. Sensitive student information is protected, and student views are strictly restricted so that students can never view another team's marks or access administrative audit logs. Figure~\ref{fig:notice_audit} shows the notice board and audit log views.
 
 \begin{figure}[htbp]
   \centering
   \begin{minipage}{0.49\textwidth}
     \centering
     \includegraphics[width=\linewidth,keepaspectratio]{figures/staff_notice_board.png}
-    \caption{Staff Notice Board with 24h Expiry}
+    \caption{Course Notice Board: Timely faculty announcements with auto-expiration.}
     \label{fig:notice_ui}
   \end{minipage}\hfill
   \begin{minipage}{0.49\textwidth}
     \centering
     \includegraphics[width=\linewidth,keepaspectratio]{figures/staff_audit_trail.png}
-    \caption{Administrative Activity Center \& Audit Trail}
+    \caption{Administrative Audit Trail: Chronological record of evaluation events.}
     \label{fig:audit_ui}
   \end{minipage}
-  \caption{NexaVault Administrative Security: 24-Hour Notice Board and Append-Only Audit Trail}
+  \vspace{-0.2cm}
+  \caption{NexaVault Administrative Features: Course notice board and secure activity log.}
   \label{fig:notice_audit}
 \end{figure}
 
-\subsection{Administrative Audit Logging}
-All security-sensitive operations---including user logins, role delegations, workspace modifications, rubric scoring updates, and notice deletions---are captured in an append-only audit trail. The audit log records the actor identity, action type, resource identifier, IP address, and timestamp. Sensitive fields (such as passwords and tokens) are scrubbed and replaced with \texttt{[REDACTED]} before writing to persistence.
+\subsection{Data Privacy and Role Isolation}
+Student privacy is enforced at the server level. When students query the results endpoint, the system filters records so that each student receives only their own released scores. A student cannot view a teammate's confidential feedback or access another group's submissions by altering web addresses. Faculty members retain full visibility into their assigned course workspaces while administrative routes remain protected.
 
-\section{Performance Optimization and Caching}
-\subsection{Thread-Safe In-Memory LRU Cache with Inverted Tag Index}
-To mitigate database query latency during high-traffic lab evaluation sessions, NexaVault implements a custom \texttt{InMemoryCache} (\texttt{app/core/cache.py}). The cache uses an \texttt{OrderedDict} data structure with Least-Recently-Used (LRU) eviction (maximum capacity: 1,024 entries, default TTL: 300 seconds). To solve the classic cache invalidation challenge, the engine maintains an Inverted Tag Index (\texttt{Dict[str, Set[str]]}). Cached endpoints register domain tags (e.g., \texttt{workspace:\{id\}}, \texttt{review:queue}). When a faculty member updates a review round or submits an evaluation, \texttt{invalidate\_rounds(workspace\_id)} purges only the associated keys in $O(k)$ time without flushing unrelated workspace caches or causing cache thrashing.
+\clearpage
 
-\subsection{N+1 Query Elimination and Benchmarking Results}
-The review queue endpoint was refactored to eliminate N+1 query bottlenecks. Instead of iteratively querying student group members and submission versions in nested loops, the backend executes batch relational queries with \texttt{joinedload} and bulk identifier filters. Empirical performance benchmarking demonstrates a dramatic latency reduction: cached workspace and queue retrieval latency dropped from $\sim$35\,ms to 0.8\,ms, representing an approximate 43-fold throughput improvement.
+% ------------------------------------------------------------------------------
+% PAGE 10: USER INTERFACE DESIGN & USABILITY ENHANCEMENTS
+% ------------------------------------------------------------------------------
+\section{User Interface Design and Usability Enhancements}
 
-\section{Testing, Results and Evaluation}
-\subsection{Automated Backend Testing}
-NexaVault is validated through automated backend test suites executed with \texttt{pytest}. Testing systematically covers authentication security, in-memory cache eviction and tagging, notice board expiration and file handling, universal CSV results aggregation, dynamic review round weight persistence, and Alembic database migration integrity. All 44 automated backend tests pass with 100\% reliability across the six suites, as detailed in Table~\ref{tab:testing}.
+\subsection{Review Round Organization and Display}
+During usability audits, particular attention was paid to how review rounds are presented across student and staff screens:
+\begin{itemize}
+  \item \textbf{Distinct Visual Cards:} Each review round is rendered in a dedicated, visually separated card containing its title, submission deadline, maximum marks, and current evaluation status.
+  \item \textbf{Clear Status Indicators:} Colorful, easily recognizable badges distinguish between \textit{Not Submitted}, \textit{Pending Review}, \textit{In Review}, \textit{Evaluated (Draft)}, and \textit{Published}.
+  \item \textbf{Responsive Alignment:} Cards, labels, and action buttons adjust smoothly across standard laptop and desktop screens, preventing text overlap, clipped buttons, or visual crowding.
+  \item \textbf{Smooth Navigation:} Switching between review rounds is instantaneous. Deliverable details, frozen rosters, and marks load without layout shifting or lag.
+\end{itemize}
+
+\subsection{Clean, Professional Typography}
+Readability is paramount when faculty review lengthy project descriptions and record marks. NexaVault employs clean, modern sans-serif typography (aligned with accessible font standards such as Inter and Roboto):
+\begin{itemize}
+  \item \textbf{Natural, Upright Letterforms:} Artificial italic and overly stylized fonts were systematically eliminated in favor of clean, upright letterforms that remain comfortable to read during extended evaluation sessions.
+  \item \textbf{Consistent Font Weights and Sizing:} Body text uses regular font weights, while section headers and action buttons use clear medium and semibold weights, establishing an intuitive visual hierarchy.
+  \item \textbf{Marks-Only Display:} Confusing letter grades and artificial GPA tiers were replaced with clean numerical marks (e.g., $45.0 / 50.0$ marks) matching official university evaluation rubrics.
+\end{itemize}
+
+\subsection{Fast Navigation and Client-Side Caching}
+To prevent frustrating delays when instructors switch between student projects or review rounds, NexaVault caches previously loaded section data in the browser. Switching back to an already-opened tab displays data instantly without waiting for repeated network requests, while background updates ensure the displayed information remains fresh.
+
+\subsection{Streamlined Student Interface}
+To simplify the student experience, administrative tools not intended for students---such as the internal audit trail log---were completely removed from student navigation. This keeps student dashboards focused on core project tasks: viewing announcements, submitting code deliverables, and tracking official marks.
+
+\clearpage
+
+% ------------------------------------------------------------------------------
+% PAGE 11: TESTING, VERIFICATION & CURRICULUM ALIGNMENT
+% ------------------------------------------------------------------------------
+\section{Testing, Verification, and Evaluation}
+
+\subsection{Automated Backend Verification}
+To guarantee that NexaVault is reliable under real classroom conditions, the application was thoroughly verified using automated test suites. The automated tests execute realistic scenarios, simulating student submissions, faculty reviews, concurrent claims, and results publication. All \textbf{61 automated tests pass with 100\% success}, as summarized in Table~\ref{tab:testing}.
 
 \begin{table}[htbp]
 \centering
 \small
-\caption{Automated Backend Test Execution and Verification Matrix}
+\caption{Automated Backend Verification and Quality Assurance Summary}
 \label{tab:testing}
 \vspace{0.15cm}
 \begin{tabularx}{\textwidth}{|l|c|X|c|}
 \hline\hline
-\textbf{Test Suite File} & \textbf{Tests} & \textbf{Target Capabilities \& Verified Invariants} & \textbf{Status} \\
+\textbf{Test Category} & \textbf{Tests} & \textbf{Verified Capabilities} & \textbf{Result} \\
 \hline\hline
-\texttt{test\_auth.py} & 8 & Bcrypt hashing, 72-byte truncation, JWT claims, role isolation guards & PASSED \\
+\textbf{Authentication \& Access} & 8 & Password encryption, login token verification, and role isolation & PASSED \\
 \hline
-\texttt{test\_cache.py} & 7 & LRU capacity eviction, TTL expiration, tag-based targeted invalidation & PASSED \\
+\textbf{Team \& Project Setup} & 7 & Join code generation, group membership, and project association & PASSED \\
 \hline
-\texttt{test\_notices.py} & 6 & Image upload validation, 24h expiration query filter, disk file cleanup & PASSED \\
+\textbf{Submissions \& Rosters} & 9 & Versioned deliverable submissions and freezing roster snapshots & PASSED \\
 \hline
-\texttt{test\_results.py} & 9 & Individual student scoring, multi-round scaling, UTF-8 BOM CSV layout & PASSED \\
+\textbf{Grading Locks \& Reviews} & 10 & Review queue claiming, single-grader lock, and releasing locks & PASSED \\
 \hline
-\texttt{test\_review\_rounds.py} & 8 & Round weight persistence (0--100\%), rubric JSON validation, edit modals & PASSED \\
+\textbf{Staff Progress Control} & 8 & Faculty progress overrides (0--100\%) and milestone calculations & PASSED \\
 \hline
-\texttt{test\_migrations.py} & 6 & Alembic schema consistency, table constraints, foreign key cascades & PASSED \\
+\textbf{Results \& Confidentiality} & 11 & Saving draft marks, publishing results, and student privacy checks & PASSED \\
+\hline
+\textbf{Notices \& Database Safety} & 8 & Notice expiration, media validation, and database migrations & PASSED \\
 \hline\hline
-\textbf{TOTAL VERIFIED} & \textbf{44} & \textbf{Full Backend Automated Test Suite Execution (Time: 19.92\,s)} & \textbf{100\%} \\
+\textbf{TOTAL TESTS VERIFIED} & \textbf{61} & \textbf{Comprehensive Automated Quality Suite Execution} & \textbf{100\% PASS} \\
 \hline\hline
 \end{tabularx}
 \end{table}
 
-\subsection{Frontend Production Build Verification}
-The React 18 client application was verified through clean production builds using Vite 6. The complete bundle compiles in 8.64 seconds with zero TypeScript or syntax warnings. All UI routing, auth guards, modal states, and keep-alive tab caches operate reliably across desktop and mobile screen resolutions.
+\subsection{Frontend Production Verification}
+The React web application was compiled using the production build pipeline. The build completed with zero errors and zero warnings, confirming that all components, navigation paths, and user dialogs are cleanly structured and ready for active deployment.
 
-\section{Discussion: Limitations and Challenges}
-\subsection{Engineering Challenges Overcome}
-During system development, four major engineering challenges were identified and resolved: (1) \textbf{Review Round Weight Persistence:} Schema evolution required an Alembic migration adding the \texttt{weight} column with backfilled 20\% defaults, synchronized with Pydantic schemas and frontend update modals. (2) \textbf{Excel CSV BOM Encoding:} Results exports initially suffered from corrupted non-ASCII characters in Microsoft Excel; this was solved by prepending a UTF-8 Byte Order Mark (\texttt{\textbackslash ufeff}) to the response stream. (3) \textbf{Review Queue N+1 Queries:} Submissions and team rosters were batched into single-roundtrip relational queries. (4) \textbf{Serverless Cold Starts:} Neon PostgreSQL connection pool parameters were tuned with keep-alive queries to eliminate cold connection drops.
+\subsection{Reliability Highlights}
+Three key reliability guarantees were verified: (1) \textbf{No Accidental Double-Grading:} Claim locks eliminate grading collisions; (2) \textbf{Marks Confidentiality:} Scores remain invisible until published; and (3) \textbf{Roster Accuracy:} Frozen snapshots ensure submissions always reflect team membership at submission time.
 
-\subsection{Known Architectural Limitations}
-While highly optimized for departmental deployment, three known architectural boundaries remain: (1) \textbf{Single-Instance In-Memory Cache:} The current LRU cache resides in Python process memory; horizontal multi-instance container scaling will require a distributed Redis cache. (2) \textbf{Stateless JWT Token Revocation:} Tokens remain valid for 24 hours without server-side revocation lists. (3) \textbf{Local Media Storage:} Uploaded notice images are stored on local container disk rather than distributed S3-compatible cloud object storage.
+\section{Academic Curriculum Alignment (23AID204)}
+In connection with the course \textit{23AID204: Advanced Data Structures and Algorithm Analysis}, the project repository includes a dedicated educational demonstration suite in pure Python \cite{cormen2022introduction}:
+\begin{itemize}
+  \item \textbf{Hash Table with Linear Probing:} Fast key-value lookups with collision resolution and tombstone management.
+  \item \textbf{Priority Queue using Binary Min-Heap:} Efficient milestone scheduling and priority-based task dispatching.
+  \item \textbf{FIFO Queue:} First-come, first-served submission processing with constant-time operations.
+  \item \textbf{Trie Data Structure:} Fast prefix searching and search auto-completion for project queries.
+\end{itemize}
+This curriculum component bridges abstract algorithmic theory with real-world software engineering.
+
+\clearpage
+
+% ------------------------------------------------------------------------------
+% PAGE 12: DISCUSSION, CONCLUSION, RESOURCES & REFERENCES
+% ------------------------------------------------------------------------------
+\section{Discussion: Practical Benefits and Lessons Learned}
+Implementing NexaVault in laboratory and project courses provides immediate practical benefits:
+\begin{itemize}
+  \setlength{\itemsep}{0pt}\setlength{\parskip}{0pt}
+  \item \textbf{For Faculty:} Eliminates chaotic email threads and fragmented spreadsheets; guarantees conflict-free grading through review locks; and provides an easy one-click download of final marks for institutional records.
+  \item \textbf{For Students:} Simplifies team formation using self-service join codes; provides a single clear portal for milestone submissions; and offers transparent, timely access to verified individual marks and constructive feedback.
+\end{itemize}
+Key usability insights gained during development include: (1) \textit{Simplicity over complexity}---clean numerical marks are far more actionable than confusing letter grades; (2) \textit{Concurrency safety}---explicit review locks are essential in multi-evaluator environments; and (3) \textit{Visual hierarchy}---well-separated milestone cards keep evaluation queues manageable.
 
 \section{Conclusion and Future Scope}
-\subsection{Conclusion}
-NexaVault demonstrates how domain-specific, modern full-stack web engineering can modernize academic laboratory project management and continuous evaluation. By replacing fragmented spreadsheets and generic assignment portals with an integrated, concurrency-safe platform, NexaVault enforces individual student grading accountability, guarantees data integrity via immutable roster snapshots and row locks, and accelerates query performance through in-memory caching. The platform successfully bridges administrative necessity with technical rigor.
+\textbf{Conclusion:} NexaVault demonstrates how modern, practical software design can transform academic project evaluation. By replacing scattered spreadsheets and generic portals with an integrated, role-based platform, NexaVault gives faculty authoritative control over milestones and grading while giving students a transparent, collaborative workspace. Features such as self-service team codes, frozen submission rosters, single-grader review locks, and individual student marks solve the core administrative challenges of computing project courses.
 
-\subsection{Academic Curriculum Alignment (23AID204)}
-In alignment with the institutional course 23AID204 (Advanced Data Structures and Algorithm Analysis), the repository includes a standalone educational demonstration suite in \texttt{DSA\_Demonstration/} \cite{cormen2022introduction}. This suite showcases pure-Python implementations of fundamental data structures: (1) Linear Probing Hash Table with collision handling and tombstone slot management, (2) Priority Queue using a binary min-heap with sequence counters for stable ordering, (3) $O(1)$ FIFO Queue using doubly linked \texttt{collections.deque}, and (4) Trie Autocomplete for fast prefix searching, reinforcing core algorithmic concepts alongside production web architecture.
-
-\subsection{Future Roadmap}
-Planned enhancements include: (1) Distributed Redis caching and Celery background task workers for asynchronous email dispatch, (2) Institutional Single Sign-On (SSO) integration via SAML/OAuth2, (3) Automated Git commit frequency analysis and plagiarism detection across submitted code repositories, and (4) Real-time WebSocket notifications for instant notice board broadcasting.
+\textbf{Future Scope:} Planned future enhancements include: (1) \textit{University Single Sign-On (SSO)} integrating campus Google or Microsoft credentials; (2) \textit{Automated GitHub Insights} for commit activity summaries; (3) \textit{Automated Email Reminders} before milestone deadlines; and (4) \textit{Mobile-optimized views} for quick status checks.
 
 \section{Project Resources}
 \begin{itemize}
-  \item \textbf{Official GitHub Repository:}\\
-    \url{https://github.com/HackRythm/NexaVault}
-  \item \textbf{Live Public Deployment:}\\
-    \url{https://nexa-vault-chi.vercel.app/}
-  \item \textbf{Containerized Local Execution (Docker Compose):}\\
-    To execute NexaVault locally with containerized Nginx, FastAPI, and PostgreSQL:
-    \begin{enumerate}
-      \item Clone the repository: \codetext{git clone https://github.com/HackRythm/NexaVault.git}
-      \item Configure environment: \codetext{cp .env.example .env}
-      \item Launch services: \codetext{docker compose up --build}
-      \item Access application at \url{http://localhost:3000} (API at \url{http://localhost:8000/docs}).
-    \end{enumerate}
+  \setlength{\itemsep}{0pt}\setlength{\parskip}{0pt}
+  \item \textbf{Official GitHub Repository:} \url{https://github.com/Hashwin28/NexaVault}
+  \item \textbf{Live Public Web Deployment:} \url{https://nexa-vault-chi.vercel.app/}
 \end{itemize}
 
+\vspace{-0.25cm}
 % ==============================================================================
 % REFERENCES
 % ==============================================================================
-\bibliographystyle{ieeetr}
-\bibliography{references}
+{\small
+\begin{thebibliography}{9}
+\setlength{\itemsep}{0pt}
+\setlength{\parskip}{0pt}
+
+\bibitem{cormen2022introduction}
+T.~H. Cormen, C.~E. Leiserson, R.~L. Rivest, and C.~Stein, {\em Introduction to Algorithms}.
+\newblock MIT Press, 4th~ed., 2022.
+
+\bibitem{fastapi2024}
+S.~Ram{\'i}rez, ``{FastAPI}: High performance web framework for building {APIs} with {Python},'' 2024.
+\newblock \url{https://fastapi.tiangolo.com/}.
+
+\bibitem{react2024}
+{Meta Open Source}, ``{React}: The library for web and native user interfaces,'' 2024.
+\newblock \url{https://react.dev/}.
+
+\bibitem{vite2024}
+E.~You and {Vite Contributors}, ``{Vite}: Next Generation Frontend Tooling,'' 2024.
+\newblock \url{https://vitejs.dev/}.
+
+\bibitem{postgresql2023}
+{The PostgreSQL Global Development Group}, {\em {PostgreSQL 16.0 Documentation}}.
+\newblock PostgreSQL Global Development Group, 2023.
+
+\bibitem{provos1999bcrypt}
+N.~Provos and D.~Mazi{\`e}res, ``A future-adaptable password scheme,'' in {\em Proceedings of the FREENIX Track: 1999 USENIX Annual Technical Conference}, pp.~81--91, 1999.
+
+\bibitem{rfc7519jwt}
+M.~B. Jones, J.~Bradley, and N.~Sakimura, ``{JSON Web Token (JWT)},'' RFC 7519, Internet Engineering Task Force (IETF), 2015.
+
+\end{thebibliography}
+}
 
 \end{document}

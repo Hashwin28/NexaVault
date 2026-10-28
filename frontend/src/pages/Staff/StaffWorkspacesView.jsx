@@ -555,7 +555,7 @@ export const StaffWorkspacesView = ({ selectedWorkspaceId, onSelectProject }) =>
       {/* View Header & Quick Actions */}
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 border-b border-[#1B262E] pb-4">
         <div>
-          <h2 className="text-xl font-bold text-slate-100 font-serif">Managed Academic Workspaces</h2>
+          <h2 className="text-xl font-bold text-slate-100 font-sans">Managed Academic Workspaces</h2>
           <p className="text-xs text-slate-400 font-sans">
             Create, manage co-staff, configure notice boards, set review rounds, and oversee group projects.
           </p>
@@ -1502,7 +1502,7 @@ export const StaffWorkspacesView = ({ selectedWorkspaceId, onSelectProject }) =>
         <div className="fixed inset-0 z-50 bg-slate-950/80 backdrop-blur-sm flex items-center justify-center p-4">
           <div className="bg-[#11181C] border border-[#1B262E] rounded-xl max-w-lg w-full p-6 space-y-4">
             <div className="flex justify-between items-center border-b border-[#1B262E] pb-3">
-              <h3 className="text-base font-bold text-slate-100 font-serif">
+              <h3 className="text-base font-bold text-slate-100 font-sans">
                 Edit Review Round #{editingRound.order_index || editingRound.round_number}
               </h3>
               <button

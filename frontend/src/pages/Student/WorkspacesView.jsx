@@ -110,7 +110,7 @@ export const WorkspacesView = ({ onNavigate, onSelectProject }) => {
                   {selectedWorkspace.is_open ? 'Enrollment & Rounds Open' : 'Closed'}
                 </span>
               </div>
-              <h2 className="text-3xl font-bold text-white font-serif">{selectedWorkspace.name}</h2>
+              <h2 className="text-3xl font-bold text-white font-sans">{selectedWorkspace.name}</h2>
               <p className="text-xs text-slate-400 mt-1 font-sans">Term: {selectedWorkspace.term}</p>
             </div>
 
@@ -157,7 +157,7 @@ export const WorkspacesView = ({ onNavigate, onSelectProject }) => {
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-2">
                   <Bell size={18} className="text-teal-400" />
-                  <h3 className="text-xl font-bold text-white font-serif">Workspace Notice Board</h3>
+                  <h3 className="text-xl font-bold text-white font-sans">Workspace Notice Board</h3>
                   <span className="text-[10px] font-sans font-semibold text-slate-500 uppercase">(Read-Only)</span>
                 </div>
                 <div className="flex items-center gap-3 text-xs text-slate-400 font-sans">
@@ -247,7 +247,7 @@ export const WorkspacesView = ({ onNavigate, onSelectProject }) => {
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2">
               <Calendar size={18} className="text-teal-400" />
-              <h3 className="text-xl font-bold text-white font-serif">Evaluation Review Rounds</h3>
+              <h3 className="text-xl font-bold text-white font-sans">Evaluation Review Rounds</h3>
             </div>
             <span className="text-xs text-slate-400 font-sans">
               Independent Milestones
@@ -310,7 +310,7 @@ export const WorkspacesView = ({ onNavigate, onSelectProject }) => {
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-6 border-b border-vault-border/40 font-sans">
         <div>
-          <h2 className="text-3xl font-bold text-white tracking-tight font-serif">
+          <h2 className="text-3xl font-bold text-white tracking-tight font-sans">
             Enrolled Workspaces
           </h2>
           <p className="text-xs text-slate-400 mt-1 font-sans">

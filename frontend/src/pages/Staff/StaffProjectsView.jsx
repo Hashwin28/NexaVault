@@ -107,7 +107,7 @@ export const StaffProjectsView = ({ onSelectProject }) => {
       {/* Header */}
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 border-b border-[#1B262E] pb-5">
         <div>
-          <h2 className="text-xl font-bold text-slate-100 font-serif">Staff Projects Oversight</h2>
+          <h2 className="text-xl font-bold text-slate-100 font-sans">Staff Projects Oversight</h2>
           <p className="text-xs text-slate-400 font-sans mt-0.5">
             Monitor all student cohort projects, submissions, milestones, code repositories, and grade publication statuses.
           </p>
@@ -241,7 +241,7 @@ export const StaffProjectsView = ({ onSelectProject }) => {
                 {/* Project Header Info */}
                 <div className="space-y-1">
                   <div className="flex items-center gap-2 flex-wrap">
-                    <h3 className="text-base font-bold text-slate-100 font-serif">
+                    <h3 className="text-base font-bold text-slate-100 font-sans">
                       {project.name}
                     </h3>
                     <span className="font-mono text-[11px] px-2 py-0.5 rounded bg-teal-500/10 text-teal-400 border border-teal-500/20">

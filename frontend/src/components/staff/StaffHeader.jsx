@@ -28,7 +28,7 @@ export const StaffHeader = ({ activeTab, onOpenSidebar }) => {
         </button>
 
         <div>
-          <h1 className="text-xl font-bold text-slate-100 tracking-tight font-serif">
+          <h1 className="text-xl font-bold text-slate-100 tracking-tight font-sans">
             {titleMap[activeTab] || 'Staff Portal'}
           </h1>
           <p className="text-xs text-slate-400 font-sans">

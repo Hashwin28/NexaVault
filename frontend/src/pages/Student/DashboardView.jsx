@@ -97,7 +97,7 @@ export const DashboardView = ({ onNavigate }) => {
       {/* Welcome Banner */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-6 border-b border-vault-border/40">
         <div>
-          <h2 className="text-3xl font-bold text-white tracking-tight font-serif">
+          <h2 className="text-3xl font-bold text-white tracking-tight font-sans">
             Welcome, {user?.full_name || 'Student'}
           </h2>
           <p className="text-xs text-slate-400 mt-1 font-sans">
@@ -193,7 +193,7 @@ export const DashboardView = ({ onNavigate }) => {
         <div className="lg:col-span-8 space-y-6">
           <div className="flex items-center justify-between">
             <div>
-              <h3 className="text-xl font-bold text-white font-serif">Enrolled Workspaces</h3>
+              <h3 className="text-xl font-bold text-white font-sans">Enrolled Workspaces</h3>
               <p className="text-xs text-slate-400 font-sans">Workspaces your group is currently participating in</p>
             </div>
             <button

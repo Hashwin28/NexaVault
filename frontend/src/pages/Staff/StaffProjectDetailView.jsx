@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { projectApi } from '../../api/projectApi';
 import { resultApi } from '../../api/resultApi';
+import { reviewApi } from '../../api/reviewApi';
 import { StaffResultCorrectionModal } from './StaffResultCorrectionModal';
 import GitHubRepoDashboard from '../../components/common/GitHubRepoDashboard';
 
@@ -34,6 +35,75 @@ export const StaffProjectDetailView = ({ projectId, initialSection, onBack }) =>
 
   // Score correction modal
   const [correctionTarget, setCorrectionTarget] = useState(null);
+
+  // Review & Evaluation modal state
+  const [evaluatingVersion, setEvaluatingVersion] = useState(null);
+  const [evalVerdict, setEvalVerdict] = useState('APPROVED');
+  const [evalFeedback, setEvalFeedback] = useState('');
+  const [evalScores, setEvalScores] = useState({});
+  const [submittingEval, setSubmittingEval] = useState(false);
+
+  const handleOpenEvaluate = (sub) => {
+    setEvaluatingVersion(sub);
+    setEvalVerdict(sub.status === 'REVISION_REQUESTED' ? 'REVISION_REQUESTED' : 'APPROVED');
+    setEvalFeedback(sub.feedback || '');
+    const initialScores = {};
+    const maxScore = sub.max_score != null ? Number(sub.max_score) : 100;
+    const members = oversightData?.members || [];
+    members.forEach((m) => {
+      initialScores[m.user_id] = maxScore;
+    });
+    setEvalScores(initialScores);
+  };
+
+  const handleSaveEvaluation = async (e) => {
+    e.preventDefault();
+    if (!evaluatingVersion) return;
+    if (!evalFeedback.trim()) {
+      setError('Evaluation feedback is required.');
+      return;
+    }
+    const maxScore = evaluatingVersion.max_score != null ? Number(evaluatingVersion.max_score) : 100;
+    const members = oversightData?.members || [];
+
+    if (evalVerdict === 'APPROVED') {
+      for (const m of members) {
+        const sVal = evalScores[m.user_id];
+        if (sVal === undefined || sVal === null || sVal === '' || isNaN(Number(sVal))) {
+          setError(`Marks are required for student ${m.full_name || m.user_id}.`);
+          return;
+        }
+        const numVal = Number(sVal);
+        if (numVal < 0 || numVal > maxScore) {
+          setError(`Marks ${numVal} for ${m.full_name || m.user_id} must be between 0 and ${maxScore}.`);
+          return;
+        }
+      }
+    }
+
+    setSubmittingEval(true);
+    setError(null);
+    try {
+      const studentScoresList = Object.entries(evalScores).map(([userId, score]) => ({
+        user_id: parseInt(userId, 10) || userId,
+        score: Number(score),
+      }));
+
+      await reviewApi.evaluateSubmission(evaluatingVersion.version_id, {
+        verdict: evalVerdict,
+        feedback: evalFeedback.trim(),
+        student_scores: studentScoresList,
+      });
+
+      setSuccess(`Evaluation saved as ${evalVerdict}. Marks saved as draft until published.`);
+      setEvaluatingVersion(null);
+      await fetchProjectOversight(true);
+    } catch (err) {
+      setError(err.message || 'Failed to save evaluation.');
+    } finally {
+      setSubmittingEval(false);
+    }
+  };
 
   // In-memory cache for fast tab-switching
   const cacheRef = useRef({});
@@ -272,7 +342,7 @@ export const StaffProjectDetailView = ({ projectId, initialSection, onBack }) =>
               <span className="text-xs font-mono px-2 py-0.5 rounded bg-teal-500/15 text-teal-300 border border-teal-500/30">
                 Oversight View
               </span>
-              <h2 className="text-xl font-bold text-slate-100 font-serif">{project?.name}</h2>
+              <h2 className="text-xl font-bold text-slate-100 font-sans">{project?.name}</h2>
               <span className="text-xs font-mono text-slate-400">ID #{project?.id}</span>
             </div>
             <p className="text-xs text-slate-400 font-sans mt-0.5">
@@ -356,7 +426,7 @@ export const StaffProjectDetailView = ({ projectId, initialSection, onBack }) =>
               <div className="bg-[#11181C] p-6 rounded-xl border border-[#1B262E] space-y-4">
                 <div className="flex justify-between items-start">
                   <div>
-                    <h3 className="text-lg font-bold text-slate-100 font-serif">{project?.name}</h3>
+                    <h3 className="text-lg font-bold text-slate-100 font-sans">{project?.name}</h3>
                     <p className="text-xs text-slate-400 mt-1 font-sans">
                       {project?.description || 'No description provided by the student group.'}
                     </p>
@@ -382,7 +452,7 @@ export const StaffProjectDetailView = ({ projectId, initialSection, onBack }) =>
 
               {/* Informal Updates & Discussion */}
               <div className="bg-[#11181C] p-6 rounded-xl border border-[#1B262E] space-y-4">
-                <h4 className="text-sm font-bold text-slate-200 font-serif">Project Updates & Activity</h4>
+                <h4 className="text-sm font-bold text-slate-200 font-sans">Project Updates & Activity</h4>
                 {updates.length === 0 ? (
                   <div className="text-center py-8 text-xs font-mono text-slate-500 border border-dashed border-[#1B262E] rounded-lg">
                     No informal activity updates posted for this project yet.
@@ -447,7 +517,7 @@ export const StaffProjectDetailView = ({ projectId, initialSection, onBack }) =>
                     </button>
                   </div>
                 ) : (
-                  <div className="text-xs font-mono text-slate-500 italic p-2 bg-[#0B0F12] rounded border border-[#1B262E]">
+                  <div className="text-xs font-mono text-slate-500 p-2 bg-[#0B0F12] rounded border border-[#1B262E]">
                     No GitHub repository connected yet.
                   </div>
                 )}
@@ -463,7 +533,7 @@ export const StaffProjectDetailView = ({ projectId, initialSection, onBack }) =>
           <div className="bg-[#11181C] p-6 rounded-xl border border-[#1B262E] space-y-4">
             <div className="flex justify-between items-center">
               <div>
-                <h3 className="text-base font-bold text-slate-100 font-serif">Assigned Group Roster</h3>
+                <h3 className="text-base font-bold text-slate-100 font-sans">Assigned Group Roster</h3>
                 <p className="text-xs text-slate-400 font-sans mt-0.5">
                   Members registered in group: <strong className="text-teal-400">{project?.group_name}</strong>
                 </p>
@@ -501,7 +571,7 @@ export const StaffProjectDetailView = ({ projectId, initialSection, onBack }) =>
           <div className="bg-[#11181C] p-6 rounded-xl border border-[#1B262E] space-y-4">
             <div className="flex justify-between items-center">
               <div>
-                <h3 className="text-base font-bold text-slate-100 font-serif">Submission History & Versions</h3>
+                <h3 className="text-base font-bold text-slate-100 font-sans">Submission History & Versions</h3>
                 <p className="text-xs text-slate-400 font-sans mt-0.5">
                   Complete audit trail of all code milestones submitted by the group.
                 </p>
@@ -537,9 +607,17 @@ export const StaffProjectDetailView = ({ projectId, initialSection, onBack }) =>
                           </span>
                         )}
                       </div>
-                      <span className="font-mono text-slate-500 text-[11px]">
-                        Submitted: {sub.submitted_at ? new Date(sub.submitted_at).toLocaleString() : 'N/A'}
-                      </span>
+                      <div className="flex items-center gap-3">
+                        <span className="font-mono text-slate-500 text-[11px]">
+                          Submitted: {sub.submitted_at ? new Date(sub.submitted_at).toLocaleString() : 'N/A'}
+                        </span>
+                        <button
+                          onClick={() => handleOpenEvaluate(sub)}
+                          className="px-2.5 py-1 rounded bg-teal-500/20 hover:bg-teal-500/30 text-teal-300 font-mono text-[11px] font-semibold border border-teal-500/30 transition-all"
+                        >
+                          {sub.is_evaluated ? 'Edit Review & Marks' : 'Evaluate Submission'}
+                        </button>
+                      </div>
                     </div>
 
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-slate-400 font-mono text-[11px] pt-1">
@@ -552,7 +630,7 @@ export const StaffProjectDetailView = ({ projectId, initialSection, onBack }) =>
                     </div>
 
                     {sub.submission_notes && (
-                      <p className="text-slate-300 italic bg-[#11181C] p-2.5 rounded border border-[#1B262E]">
+                      <p className="text-slate-300 bg-[#11181C] p-2.5 rounded border border-[#1B262E]">
                         "{sub.submission_notes}"
                       </p>
                     )}
@@ -613,7 +691,7 @@ export const StaffProjectDetailView = ({ projectId, initialSection, onBack }) =>
           <div className="bg-[#11181C] p-6 rounded-xl border border-[#1B262E] space-y-6">
             <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3">
               <div>
-                <h3 className="text-base font-bold text-slate-100 font-serif">Staff-Controlled Project Progress</h3>
+                <h3 className="text-base font-bold text-slate-100 font-sans">Staff-Controlled Project Progress</h3>
                 <p className="text-xs text-slate-400 font-sans mt-0.5">
                   Configure the authoritative project progress percentage or allow automatic milestone calculation.
                 </p>
@@ -756,7 +834,7 @@ export const StaffProjectDetailView = ({ projectId, initialSection, onBack }) =>
           <div className="bg-[#11181C] p-6 rounded-xl border border-[#1B262E] space-y-4">
             <div className="flex justify-between items-center">
               <div>
-                <h3 className="text-base font-bold text-slate-100 font-serif">Formal Staff Evaluations</h3>
+                <h3 className="text-base font-bold text-slate-100 font-sans">Formal Staff Evaluations</h3>
                 <p className="text-xs text-slate-400 font-sans mt-0.5">
                   Remarks, feedback, and verdicts submitted by authorized faculty reviewers.
                 </p>
@@ -807,7 +885,7 @@ export const StaffProjectDetailView = ({ projectId, initialSection, onBack }) =>
           <div className="bg-[#11181C] p-6 rounded-xl border border-[#1B262E] space-y-4">
             <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3">
               <div>
-                <h3 className="text-base font-bold text-slate-100 font-serif">Evaluated Results & Marks Ledger</h3>
+                <h3 className="text-base font-bold text-slate-100 font-sans">Evaluated Results & Marks Ledger</h3>
                 <p className="text-xs text-slate-400 font-sans mt-0.5">
                   Inspect student marks, execute staff score corrections, and release results to student dashboards.
                 </p>
@@ -887,6 +965,124 @@ export const StaffProjectDetailView = ({ projectId, initialSection, onBack }) =>
                 </table>
               </div>
             )}
+          </div>
+        </div>
+      )}
+
+      {/* Evaluation Modal */}
+      {evaluatingVersion && (
+        <div className="fixed inset-0 z-50 bg-slate-950/80 backdrop-blur-sm flex items-center justify-center p-4">
+          <div className="bg-[#11181C] border border-[#1B262E] rounded-2xl max-w-lg w-full p-6 space-y-5 animate-in fade-in shadow-2xl">
+            <div className="flex items-center justify-between border-b border-[#1B262E] pb-3">
+              <div>
+                <h3 className="text-base font-bold text-white font-sans">
+                  Evaluate Submission: {evaluatingVersion.round_name || `Round ${evaluatingVersion.round_number}`}
+                </h3>
+                <p className="text-xs text-slate-400 font-sans mt-0.5">
+                  Version {evaluatingVersion.version_number} • Max Marks: {evaluatingVersion.max_score}
+                </p>
+              </div>
+              <button
+                onClick={() => setEvaluatingVersion(null)}
+                className="text-slate-400 hover:text-white font-mono text-sm"
+              >
+                ✕
+              </button>
+            </div>
+
+            <form onSubmit={handleSaveEvaluation} className="space-y-4">
+              {/* Verdict Buttons */}
+              <div>
+                <label className="text-xs font-mono text-slate-400 uppercase block mb-1.5 font-semibold">
+                  Review Verdict
+                </label>
+                <div className="grid grid-cols-2 gap-3">
+                  <button
+                    type="button"
+                    onClick={() => setEvalVerdict('APPROVED')}
+                    className={`p-2.5 rounded-lg border text-xs font-bold font-mono transition-all ${
+                      evalVerdict === 'APPROVED'
+                        ? 'bg-emerald-500/20 border-emerald-500 text-emerald-300'
+                        : 'bg-[#0B0F12] border-[#1B262E] text-slate-400'
+                    }`}
+                  >
+                    ✓ APPROVED & SCORE
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setEvalVerdict('REVISION_REQUESTED')}
+                    className={`p-2.5 rounded-lg border text-xs font-bold font-mono transition-all ${
+                      evalVerdict === 'REVISION_REQUESTED'
+                        ? 'bg-amber-500/20 border-amber-500 text-amber-300'
+                        : 'bg-[#0B0F12] border-[#1B262E] text-slate-400'
+                    }`}
+                  >
+                    ⚡ REVISION REQUESTED
+                  </button>
+                </div>
+              </div>
+
+              {/* Member Marks (if approved) */}
+              {evalVerdict === 'APPROVED' && (
+                <div className="p-3.5 rounded-xl bg-[#0B0F12] border border-[#1B262E] space-y-2.5">
+                  <div className="flex justify-between items-center text-xs font-mono">
+                    <span className="text-slate-300 font-bold uppercase">Individual Student Marks</span>
+                    <span className="text-slate-500 text-[10px]">Max: {evaluatingVersion.max_score} pts</span>
+                  </div>
+                  {(oversightData?.members || []).map((m) => (
+                    <div key={m.user_id} className="flex items-center justify-between p-2 bg-[#11181C] rounded border border-[#1B262E]">
+                      <span className="text-xs font-sans text-slate-200">{m.full_name || m.email}</span>
+                      <div className="flex items-center gap-1.5 font-mono text-xs">
+                        <input
+                          type="number"
+                          step="0.5"
+                          min="0"
+                          max={evaluatingVersion.max_score || 100}
+                          value={evalScores[m.user_id] ?? ''}
+                          onChange={(e) => setEvalScores({ ...evalScores, [m.user_id]: e.target.value === '' ? '' : Number(e.target.value) })}
+                          className="w-20 bg-[#0B0F12] border border-[#1B262E] rounded px-2 py-1 text-right text-white focus:outline-none focus:border-teal-500"
+                          required={evalVerdict === 'APPROVED'}
+                        />
+                        <span className="text-slate-500">/ {evaluatingVersion.max_score}</span>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+
+              {/* Feedback Textarea */}
+              <div>
+                <label className="text-xs font-mono text-slate-400 uppercase block mb-1 font-semibold">
+                  Evaluation Feedback & Remarks (Required)
+                </label>
+                <textarea
+                  rows={3}
+                  value={evalFeedback}
+                  onChange={(e) => setEvalFeedback(e.target.value)}
+                  placeholder="Provide constructive feedback, strengths, and requested improvements..."
+                  className="w-full bg-[#0B0F12] border border-[#1B262E] rounded-lg px-3 py-2 text-xs text-slate-200 font-sans focus:outline-none focus:border-teal-500 leading-relaxed"
+                  required
+                />
+              </div>
+
+              {/* Submit Buttons */}
+              <div className="flex justify-end gap-3 pt-3 border-t border-[#1B262E]">
+                <button
+                  type="button"
+                  onClick={() => setEvaluatingVersion(null)}
+                  className="px-4 py-2 text-xs font-mono text-slate-400 hover:text-white"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  disabled={submittingEval}
+                  className="px-5 py-2 rounded-lg bg-teal-500 hover:bg-teal-400 text-slate-950 text-xs font-bold font-sans transition-all disabled:opacity-50"
+                >
+                  {submittingEval ? 'Saving...' : 'Save Evaluation'}
+                </button>
+              </div>
+            </form>
           </div>
         </div>
       )}

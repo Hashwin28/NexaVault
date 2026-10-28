@@ -11,6 +11,8 @@ class StudentResultResponse(BaseModel):
     round_order: int
     workspace_id: str
     workspace_name: str
+    project_id: Optional[int] = None
+    project_name: Optional[str] = None
     score: float
     max_score: float
     percentage: float
@@ -21,11 +23,26 @@ class StudentResultResponse(BaseModel):
 
     model_config = ConfigDict(from_attributes=True)
 
+class StudentWorkspaceResultGroup(BaseModel):
+    workspace_id: str
+    workspace_name: str
+    workspace_term: Optional[str] = None
+    project_id: Optional[int] = None
+    project_name: Optional[str] = None
+    total_earned: float = 0.0
+    total_possible: float = 0.0
+    percentage: float = 0.0
+    published_rounds_count: int = 0
+    results: List[StudentResultResponse] = []
+
+    model_config = ConfigDict(from_attributes=True)
+
 class StudentResultsSummary(BaseModel):
     total_earned: float
     total_possible: float
     cumulative_percentage: float
     results: list[StudentResultResponse] = []
+    workspaces: list[StudentWorkspaceResultGroup] = []
 
 class ResultCorrectionCreate(BaseModel):
     new_score: float

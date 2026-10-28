@@ -26,7 +26,7 @@ import { resultApi } from '../../api/resultApi';
 import { useAuth } from '../../context/AuthContext';
 import GitHubRepoDashboard from '../../components/common/GitHubRepoDashboard';
 
-const VALID_SECTIONS = ['overview', 'updates', 'submissions', 'github', 'progress', 'review', 'results'];
+const VALID_SECTIONS = ['overview', 'submissions', 'github', 'progress', 'review', 'results'];
 
 // --- SECTION SKELETON LOADERS ---
 
@@ -48,29 +48,6 @@ const OverviewSkeleton = () => (
         ))}
       </div>
     </div>
-  </div>
-);
-
-const UpdatesSkeleton = () => (
-  <div className="space-y-4 animate-pulse">
-    <div className="p-5 rounded-xl bg-vault-surface border border-vault-border space-y-3">
-      <div className="h-3 w-40 bg-slate-800 rounded" />
-      <div className="h-16 w-full bg-vault-canvas rounded-lg" />
-      <div className="flex justify-between items-center pt-2">
-        <div className="h-8 w-48 bg-vault-canvas rounded" />
-        <div className="h-8 w-24 bg-teal-950/60 rounded" />
-      </div>
-    </div>
-    {[1, 2].map((i) => (
-      <div key={i} className="p-5 rounded-xl bg-vault-surface border border-vault-border space-y-3">
-        <div className="flex justify-between items-center pb-2 border-b border-vault-border/40">
-          <div className="h-3 w-32 bg-slate-800 rounded" />
-          <div className="h-3 w-24 bg-slate-800/50 rounded" />
-        </div>
-        <div className="h-4 w-5/6 bg-slate-800/70 rounded" />
-        <div className="h-4 w-1/2 bg-slate-800/70 rounded" />
-      </div>
-    ))}
   </div>
 );
 
@@ -180,7 +157,6 @@ export const ProjectsView = ({ defaultProjectId, initialSection, onNavigate }) =
   });
 
   // Section-specific loaded data
-  const [updates, setUpdates] = useState([]);
   const [submissions, setSubmissions] = useState([]);
   const [workspaceRounds, setWorkspaceRounds] = useState([]);
   const [githubData, setGithubData] = useState(null);
@@ -199,10 +175,6 @@ export const ProjectsView = ({ defaultProjectId, initialSection, onNavigate }) =
   const [createProjectDesc, setCreateProjectDesc] = useState('');
   const [creatingProject, setCreatingProject] = useState(false);
 
-  const [newUpdateContent, setNewUpdateContent] = useState('');
-  const [newUpdateLink, setNewUpdateLink] = useState('');
-  const [commentInputs, setCommentInputs] = useState({});
-  const [postingUpdate, setPostingUpdate] = useState(false);
 
   const [showSubmitModal, setShowSubmitModal] = useState(false);
   const [selectedRoundForSubmit, setSelectedRoundForSubmit] = useState(null);
@@ -476,49 +448,6 @@ export const ProjectsView = ({ defaultProjectId, initialSection, onNavigate }) =
     }
   };
 
-  const handlePostUpdate = async (e) => {
-    e.preventDefault();
-    if (!currentProject || !newUpdateContent.trim()) return;
-
-    setPostingUpdate(true);
-    setError(null);
-    try {
-      await projectApi.postUpdate(
-        currentProject.id,
-        newUpdateContent.trim(),
-        newUpdateLink.trim() || null
-      );
-      setNewUpdateContent('');
-      setNewUpdateLink('');
-      setSuccessMsg('Progress update posted to project feed.');
-      // Invalidate updates cache and refresh
-      if (projectCacheRef.current[currentProject.id]) {
-        projectCacheRef.current[currentProject.id].updates = null;
-      }
-      await loadActiveSectionData('updates', true);
-    } catch (err) {
-      setError(err.message);
-    } finally {
-      setPostingUpdate(false);
-    }
-  };
-
-  const handlePostComment = async (updateId) => {
-    const text = commentInputs[updateId];
-    if (!currentProject || !text || !text.trim()) return;
-
-    try {
-      await projectApi.postComment(currentProject.id, updateId, text.trim());
-      setCommentInputs((prev) => ({ ...prev, [updateId]: '' }));
-      if (projectCacheRef.current[currentProject.id]) {
-        projectCacheRef.current[currentProject.id].updates = null;
-      }
-      await loadActiveSectionData('updates', true);
-    } catch (err) {
-      setError(err.message);
-    }
-  };
-
   const handleLinkGithub = async (newUrl) => {
     const urlToUse = (typeof newUrl === 'string' ? newUrl : githubRepoUrl)?.trim();
     if (!currentProject || !urlToUse) return;
@@ -629,7 +558,7 @@ export const ProjectsView = ({ defaultProjectId, initialSection, onNavigate }) =
       <div className="p-6 lg:p-8 space-y-8 max-w-5xl mx-auto">
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-6 border-b border-vault-border/40">
           <div>
-            <h2 className="text-2xl font-bold text-white tracking-tight font-serif">
+            <h2 className="text-2xl font-bold text-white tracking-tight font-sans">
               Projects
             </h2>
             <p className="text-xs text-slate-400 mt-1">
@@ -780,7 +709,7 @@ export const ProjectsView = ({ defaultProjectId, initialSection, onNavigate }) =
             </span>
             <span className="text-xs text-slate-400 font-sans">Group: {currentProject.group_name}</span>
           </div>
-          <h2 className="text-2xl font-bold text-white tracking-tight font-serif">
+          <h2 className="text-2xl font-bold text-white tracking-tight font-sans">
             {currentProject.name}
           </h2>
         </div>
@@ -829,7 +758,6 @@ export const ProjectsView = ({ defaultProjectId, initialSection, onNavigate }) =
       <div className="flex items-center gap-1 border-b border-vault-border/60 overflow-x-auto pb-1">
         {[
           { id: 'overview', label: 'Overview' },
-          { id: 'updates', label: updates.length > 0 ? `Updates (${updates.length})` : 'Updates' },
           { id: 'submissions', label: submissions.length > 0 ? `Submissions (${submissions.length})` : 'Submissions' },
           { id: 'github', label: 'GitHub' },
           { id: 'progress', label: `Progress (${displayProgressPercent}%)` },
@@ -910,138 +838,7 @@ export const ProjectsView = ({ defaultProjectId, initialSection, onNavigate }) =
         </div>
       )}
 
-      {/* TAB 2: UPDATES & COMMENTS (Informal Progress Notes) */}
-      {activeTab === 'updates' && (
-        sectionLoading ? (
-          <UpdatesSkeleton />
-        ) : (
-          <div className="space-y-6">
-            {/* Post Update Form */}
-            <div className="p-5 rounded-xl bg-vault-surface border border-vault-border space-y-3">
-              <h3 className="text-xs font-bold text-white font-mono uppercase tracking-wider">
-                Post Informal Progress Note
-              </h3>
-              <p className="text-[11px] text-slate-400">
-                Updates are informal progress logs and are NOT graded deliverables. Group members and staff can comment.
-              </p>
-
-              <form onSubmit={handlePostUpdate} className="space-y-3">
-                <textarea
-                  rows={2}
-                  placeholder="What did your team accomplish today? (e.g. Implemented B-Tree node split algorithm)"
-                  value={newUpdateContent}
-                  onChange={(e) => setNewUpdateContent(e.target.value)}
-                  required
-                  disabled={postingUpdate}
-                  className="w-full px-3 py-2 rounded-lg bg-vault-canvas border border-vault-border text-white text-xs placeholder:text-slate-500 focus:outline-none focus:border-teal-500/60"
-                />
-
-                <div className="flex flex-col sm:flex-row items-center justify-between gap-3">
-                  <input
-                    type="url"
-                    placeholder="Optional commit or documentation link (https://...)"
-                    value={newUpdateLink}
-                    onChange={(e) => setNewUpdateLink(e.target.value)}
-                    disabled={postingUpdate}
-                    className="w-full sm:w-80 px-3 py-1.5 rounded-lg bg-vault-canvas border border-vault-border text-white text-xs placeholder:text-slate-500 focus:outline-none focus:border-teal-500/60 font-mono"
-                  />
-
-                  <button
-                    type="submit"
-                    disabled={postingUpdate || !newUpdateContent.trim()}
-                    className="px-4 py-1.5 rounded-lg bg-teal-500 hover:bg-teal-400 text-slate-950 font-semibold text-xs transition-colors shrink-0"
-                  >
-                    Post Note
-                  </button>
-                </div>
-              </form>
-            </div>
-
-            {/* Updates Feed */}
-            {updates.length === 0 ? (
-              <div className="p-8 rounded-xl bg-vault-surface/60 border border-vault-border/60 text-center text-xs text-slate-400">
-                No progress updates posted yet. Keep your team and instructors informed by posting updates above.
-              </div>
-            ) : (
-              <div className="space-y-4">
-                {updates.map((u) => (
-                  <div key={u.id} className="p-5 rounded-xl bg-vault-surface border border-vault-border/70 space-y-3">
-                    <div className="flex items-center justify-between text-xs pb-2 border-b border-vault-border/40">
-                      <div className="flex items-center gap-2">
-                        <span className="font-semibold text-white">{u.author_name}</span>
-                        <span className="text-[10px] font-mono text-slate-500">
-                          {new Date(u.created_at).toLocaleString()}
-                        </span>
-                      </div>
-
-                      {u.link && (
-                        <a
-                          href={u.link}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="text-teal-400 hover:underline flex items-center gap-1 text-[11px]"
-                        >
-                          <ExternalLink size={12} />
-                          <span>Reference</span>
-                        </a>
-                      )}
-                    </div>
-
-                    <p className="text-xs text-slate-200 leading-relaxed whitespace-pre-wrap">
-                      {u.content}
-                    </p>
-
-                    {/* Threaded Comments */}
-                    <div className="pt-3 border-t border-vault-border/40 space-y-2">
-                      <span className="text-[10px] font-mono text-slate-500 uppercase block">
-                        Comments ({u.comments?.length || 0})
-                      </span>
-
-                      {u.comments?.map((c) => (
-                        <div key={c.id} className="p-2.5 rounded-lg bg-vault-canvas/70 border border-vault-border/50 text-xs space-y-1">
-                          <div className="flex items-center justify-between">
-                            <span className={`font-semibold ${c.author_role === 'staff' ? 'text-amber-400' : 'text-slate-200'}`}>
-                              {c.author_name} {c.author_role === 'staff' && <span className="text-[10px] font-mono">(Staff)</span>}
-                            </span>
-                            <span className="text-[10px] font-mono text-slate-500">
-                              {new Date(c.created_at).toLocaleDateString()}
-                            </span>
-                          </div>
-                          <p className="text-slate-300 text-[11px]">{c.content}</p>
-                        </div>
-                      ))}
-
-                      {/* Add Comment Input */}
-                      <div className="flex items-center gap-2 pt-1">
-                        <input
-                          type="text"
-                          placeholder="Write a comment..."
-                          value={commentInputs[u.id] || ''}
-                          onChange={(e) => setCommentInputs({ ...commentInputs, [u.id]: e.target.value })}
-                          onKeyDown={(e) => {
-                            if (e.key === 'Enter') handlePostComment(u.id);
-                          }}
-                          className="flex-1 px-3 py-1.5 rounded-lg bg-vault-canvas border border-vault-border text-white text-xs placeholder:text-slate-500 focus:outline-none focus:border-teal-500/60"
-                        />
-                        <button
-                          onClick={() => handlePostComment(u.id)}
-                          disabled={!commentInputs[u.id]?.trim()}
-                          className="p-2 rounded-lg bg-teal-500/20 text-teal-300 hover:bg-teal-500/30 disabled:opacity-40 transition-colors"
-                        >
-                          <Send size={13} />
-                        </button>
-                      </div>
-                    </div>
-
-                  </div>
-                ))}
-              </div>
-            )}
-          </div>
-        )
-      )}
-
-      {/* TAB 3: SUBMISSIONS (Formal Deliverables Lifecycle) */}
+{/* TAB 3: SUBMISSIONS (Formal Deliverables Lifecycle) */}
       {activeTab === 'submissions' && (
         sectionLoading ? (
           <SubmissionsSkeleton />
@@ -1067,17 +864,17 @@ export const ProjectsView = ({ defaultProjectId, initialSection, onNavigate }) =
                 return (
                   <div key={round.id} className="p-5 rounded-xl bg-vault-surface border border-vault-border space-y-4">
                     <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 border-b border-vault-border/50">
-                      <div className="space-y-0.5">
-                        <div className="flex items-center gap-2">
-                          <span className="text-xs font-mono font-bold text-slate-300 bg-vault-canvas px-2 py-0.5 rounded border border-vault-border">
+                      <div className="min-w-0 flex-1 space-y-1">
+                        <div className="flex flex-wrap items-center gap-2">
+                          <span className="text-xs font-mono font-bold text-slate-300 bg-vault-canvas px-2 py-0.5 rounded border border-vault-border shrink-0">
                             Round {round.order_index}
                           </span>
-                          <h4 className="text-sm font-bold text-white">{round.title}</h4>
+                          <h4 className="text-sm font-bold text-white break-words">{round.title}</h4>
                         </div>
-                        <p className="text-xs text-slate-400">Due: {new Date(round.due_date).toLocaleDateString()} • Max Marks: {round.max_score} pts</p>
+                        <p className="text-xs text-slate-400 font-mono">Due: {new Date(round.due_date).toLocaleDateString()} • Max Marks: {round.max_score} pts</p>
                       </div>
 
-                      <div className="flex items-center gap-2">
+                      <div className="flex items-center gap-2 shrink-0">
                         {latestVer ? (
                           <span className={`px-2.5 py-1 rounded text-xs font-mono font-semibold border ${
                             latestVer.status === 'APPROVED'
@@ -1156,9 +953,40 @@ export const ProjectsView = ({ defaultProjectId, initialSection, onNavigate }) =
                             </span>
                           </div>
                         )}
+
+                        {/* Faculty Feedback & Next Action */}
+                        {latestVer.feedback && (
+                          <div className={`p-3.5 rounded-xl border text-xs space-y-1.5 mt-2 ${
+                            latestVer.status === 'REVISION_REQUESTED'
+                              ? 'bg-amber-500/10 border-amber-500/40 text-amber-100'
+                              : 'bg-teal-500/10 border-teal-500/30 text-slate-200'
+                          }`}>
+                            <div className="flex items-center justify-between font-mono text-[10px] font-bold uppercase tracking-wider">
+                              <span className={latestVer.status === 'REVISION_REQUESTED' ? 'text-amber-400' : 'text-teal-400'}>
+                                Faculty Evaluation Remarks {latestVer.reviewer_name && `(${latestVer.reviewer_name})`}:
+                              </span>
+                              {latestVer.reviewed_at && (
+                                <span className="text-slate-400 font-normal">
+                                  {new Date(latestVer.reviewed_at).toLocaleDateString()}
+                                </span>
+                              )}
+                            </div>
+                            <p className="whitespace-pre-wrap font-sans text-xs text-slate-200">
+                              {latestVer.feedback}
+                            </p>
+                            {latestVer.status === 'REVISION_REQUESTED' && (
+                              <div className="pt-2 mt-2 border-t border-amber-500/30 text-[11px] font-sans text-amber-300 font-semibold flex items-center gap-2">
+                                <span>⚡ Required Action:</span>
+                                <span className="font-normal text-slate-200">
+                                  Please address the faculty remarks above and submit a revised deliverable using the button above.
+                                </span>
+                              </div>
+                            )}
+                          </div>
+                        )}
                       </div>
                     ) : (
-                      <p className="text-xs text-slate-500 italic">No deliverable submitted yet for this milestone.</p>
+                      <p className="text-xs text-slate-500">No deliverable submitted yet for this milestone.</p>
                     )}
                   </div>
                 );
@@ -1287,7 +1115,7 @@ export const ProjectsView = ({ defaultProjectId, initialSection, onNavigate }) =
           <div className="p-6 rounded-2xl bg-vault-surface border border-vault-border space-y-6">
             <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2">
               <div>
-                <h3 className="text-base font-bold text-white font-serif">Project Progress</h3>
+                <h3 className="text-base font-bold text-white font-sans">Project Progress</h3>
                 <p className="text-xs text-slate-400 mt-1">
                   Authoritative course progress verified by faculty and supported by milestone achievements.
                 </p>
@@ -1353,7 +1181,7 @@ export const ProjectsView = ({ defaultProjectId, initialSection, onNavigate }) =
                   </div>
                 </div>
               ) : (
-                <p className="text-xs text-slate-500 italic">No milestone review rounds approved yet.</p>
+                <p className="text-xs text-slate-500">No milestone review rounds approved yet.</p>
               )}
             </div>
           </div>
@@ -1366,35 +1194,61 @@ export const ProjectsView = ({ defaultProjectId, initialSection, onNavigate }) =
           <ReviewSkeleton />
         ) : (
           <div className="space-y-4">
-            <div className="flex items-center justify-between">
-              <h3 className="text-sm font-bold text-white font-sans uppercase tracking-wider">
-                Faculty Evaluation & Feedback
-              </h3>
+            <div className="flex items-center justify-between border-b border-vault-border/40 pb-3">
+              <div>
+                <h3 className="text-sm font-bold text-white font-sans uppercase tracking-wider">
+                  Faculty Evaluation & Review Remarks
+                </h3>
+                <p className="text-xs text-slate-400 font-sans mt-0.5">
+                  Round-by-round qualitative feedback, review decisions, and revision notes from faculty evaluators.
+                </p>
+              </div>
             </div>
 
             {reviewsData.length === 0 ? (
-              <div className="p-8 rounded-xl bg-vault-surface/60 border border-vault-border/60 text-center text-xs text-slate-400">
-                No formal faculty review notes posted yet.
+              <div className="p-8 rounded-xl bg-vault-surface/60 border border-vault-border/60 text-center text-xs text-slate-400 font-sans">
+                No faculty review notes or evaluation remarks posted yet.
               </div>
             ) : (
-              <div className="space-y-3">
+              <div className="space-y-4">
                 {reviewsData.map((item, idx) => (
-                  <div key={idx} className="p-5 rounded-xl bg-vault-surface border border-vault-border space-y-2">
-                    <div className="flex items-center justify-between text-xs">
-                      <div className="flex items-center gap-2">
-                        <span className="font-bold text-white">{item.round_title}</span>
-                        <span className="px-2 py-0.5 rounded text-[10px] font-mono bg-emerald-950/80 text-emerald-400 border border-emerald-500/30">
-                          {item.status}
+                  <div key={idx} className="p-5 rounded-xl bg-vault-surface border border-vault-border space-y-3">
+                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 text-xs border-b border-vault-border/40 pb-2">
+                      <div className="flex items-center gap-2 flex-wrap">
+                        <span className="font-bold text-white font-sans text-sm">{item.round_title}</span>
+                        <span className={`px-2 py-0.5 rounded text-[10px] font-mono font-bold uppercase ${
+                          item.status === 'APPROVED'
+                            ? 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/40'
+                            : item.status === 'REVISION_REQUESTED'
+                            ? 'bg-amber-500/20 text-amber-300 border border-amber-500/40'
+                            : 'bg-teal-500/20 text-teal-300 border border-teal-500/40'
+                        }`}>
+                          {item.status === 'REVISION_REQUESTED' ? 'Revision Requested' : item.status}
                         </span>
                       </div>
-                      <span className="text-teal-400 font-sans text-xs">Version {item.version_number}</span>
+                      <div className="flex items-center gap-2 font-mono text-[11px] text-slate-400">
+                        <span className="text-teal-400 font-semibold">Version {item.version_number}</span>
+                        {item.reviewed_at && (
+                          <span>• {new Date(item.reviewed_at).toLocaleDateString()}</span>
+                        )}
+                      </div>
                     </div>
                     {item.reviewer_name && (
-                      <p className="text-[11px] font-mono text-slate-400">Evaluated by {item.reviewer_name}</p>
+                      <p className="text-[11px] font-mono text-slate-400">
+                        Evaluated by: <strong className="text-slate-200">{item.reviewer_name}</strong>
+                      </p>
                     )}
-                    <p className="text-xs text-slate-300 leading-relaxed whitespace-pre-wrap bg-vault-canvas p-3 rounded-lg border border-vault-border/50">
+                    <div className="p-3.5 rounded-lg bg-vault-canvas border border-vault-border/60 text-xs text-slate-200 leading-relaxed font-sans whitespace-pre-wrap">
+                      <span className="text-[10px] font-mono uppercase text-teal-400 font-bold block mb-1">
+                        Evaluation Remarks:
+                      </span>
                       {item.feedback}
-                    </p>
+                    </div>
+                    {item.status === 'REVISION_REQUESTED' && (
+                      <div className="p-2.5 rounded bg-amber-500/10 border border-amber-500/30 text-[11px] text-amber-200 font-sans">
+                        ⚡ <strong>Action Needed:</strong> Your team must submit an updated deliverable addressing these points under the Submissions tab.
+                      </div>
+                    )}
                   </div>
                 ))}
               </div>
@@ -1411,7 +1265,7 @@ export const ProjectsView = ({ defaultProjectId, initialSection, onNavigate }) =
           <div className="p-6 rounded-2xl bg-vault-surface border border-vault-border space-y-4">
             <div className="flex items-center justify-between">
               <div>
-                <h3 className="text-base font-bold text-white font-serif">Released Results for Project</h3>
+                <h3 className="text-base font-bold text-white font-sans">Released Results for Project</h3>
                 <p className="text-xs text-slate-400">Your individual released marks for this course project</p>
               </div>
             </div>

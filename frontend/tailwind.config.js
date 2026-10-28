@@ -31,10 +31,10 @@ export default {
         },
       },
       fontFamily: {
-        sans: ['Inter', '-apple-system', 'BlinkMacSystemFont', 'Segoe UI', 'Roboto', 'sans-serif'],
+        sans: ['Inter', 'Roboto', '-apple-system', 'BlinkMacSystemFont', 'Segoe UI', 'sans-serif'],
         mono: ['"IBM Plex Mono"', 'monospace'],
-        serif: ['"DM Serif Display"', 'Georgia', 'serif'],
-        display: ['"Space Grotesk"', 'Inter', 'sans-serif'],
+        serif: ['Inter', 'Roboto', '-apple-system', 'BlinkMacSystemFont', 'Segoe UI', 'sans-serif'],
+        display: ['Inter', 'Roboto', '-apple-system', 'BlinkMacSystemFont', 'Segoe UI', 'sans-serif'],
       },
       boxShadow: {
         'teal-glow': '0 0 25px -5px rgba(20, 184, 166, 0.15)',

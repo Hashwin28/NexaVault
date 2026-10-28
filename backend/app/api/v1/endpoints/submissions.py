@@ -6,7 +6,7 @@ from app.api.deps import get_db, get_current_user, get_current_student
 from app.models.user import User
 from app.models.project import Project
 from app.models.group import GroupMembership
-from app.models.review import ReviewRound, Submission, SubmissionVersion
+from app.models.review import ReviewRound, Submission, SubmissionVersion, Review
 from app.schemas.submission import (
     SubmissionVersionCreate,
     SubmissionDraftUpdate,
@@ -43,6 +43,8 @@ def build_version_response(v: SubmissionVersion) -> SubmissionVersionResponse:
         submitted_at=v.submitted_at,
         roster_snapshot=v.roster_snapshot or [],
         feedback=v.review.feedback if v.review else None,
+        reviewer_name=v.review.reviewer.full_name if (v.review and v.review.reviewer) else None,
+        reviewed_at=v.review.completed_at if v.review else None,
         created_at=v.created_at
     )
 
@@ -87,7 +89,7 @@ def list_project_submissions(
         .options(
             joinedload(Submission.round),
             selectinload(Submission.versions).joinedload(SubmissionVersion.submitter),
-            selectinload(Submission.versions).joinedload(SubmissionVersion.review),
+            selectinload(Submission.versions).joinedload(SubmissionVersion.review).joinedload(Review.reviewer),
         )
         .filter(Submission.project_id == project.id)
         .all()

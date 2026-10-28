@@ -53,7 +53,7 @@ export const StaffDashboardView = ({ onNavigate }) => {
       {/* Welcome Banner */}
       <div className="bg-gradient-to-r from-teal-950/40 via-[#11181C] to-[#11181C] p-6 rounded-xl border border-teal-500/20 flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
         <div>
-          <h2 className="text-xl font-bold text-slate-100 font-serif flex items-center gap-2">
+          <h2 className="text-xl font-bold text-slate-100 font-sans flex items-center gap-2">
             Welcome back, {user?.full_name || user?.email}
             <span className="text-xs px-2 py-0.5 rounded bg-teal-500/20 text-teal-300 font-sans font-normal">
               Staff Portal
@@ -148,7 +148,7 @@ export const StaffDashboardView = ({ onNavigate }) => {
         {/* Managed Workspaces Overview */}
         <div className="lg:col-span-1 bg-[#11181C] rounded-xl border border-[#1B262E] p-6 space-y-4 flex flex-col">
           <div className="flex items-center justify-between">
-            <h3 className="text-base font-bold text-slate-200 font-serif">
+            <h3 className="text-base font-bold text-slate-200 font-sans">
               Your Managed Workspaces
             </h3>
             <button
@@ -221,7 +221,7 @@ export const StaffDashboardView = ({ onNavigate }) => {
         <div className="lg:col-span-2 bg-[#11181C] rounded-xl border border-[#1B262E] p-6 space-y-4">
           <div className="flex items-center justify-between">
             <div>
-              <h3 className="text-base font-bold text-slate-200 font-serif">
+              <h3 className="text-base font-bold text-slate-200 font-sans">
                 Submissions Needing Review
               </h3>
               <p className="text-xs text-slate-400 font-sans">
@@ -311,7 +311,7 @@ export const StaffDashboardView = ({ onNavigate }) => {
                               Evaluate →
                             </button>
                           ) : isClaimedByOther ? (
-                            <span className="text-slate-500 text-xs italic">Locked</span>
+                            <span className="text-slate-500 text-xs">Locked</span>
                           ) : (
                             <button
                               onClick={() => handleClaimSubmission(item.version_id)}

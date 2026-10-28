@@ -234,7 +234,7 @@ export const StaffAuditTrailView = () => {
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 border-b border-[#1B262E] pb-5">
         <div>
           <div className="flex items-center gap-3">
-            <h1 className="text-2xl font-bold text-slate-100 font-serif tracking-tight">
+            <h1 className="text-2xl font-bold text-slate-100 font-sans tracking-tight">
               Administrative Activity Center
             </h1>
             <span className="inline-flex items-center gap-1.5 text-[11px] font-mono px-2.5 py-0.5 rounded-full bg-teal-500/15 text-teal-300 border border-teal-500/30">

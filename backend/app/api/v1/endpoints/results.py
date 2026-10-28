@@ -14,6 +14,7 @@ from app.models.review import ResultEntry, ReviewRound, ResultCorrection, Submis
 from app.schemas.result import (
     StudentResultResponse,
     StudentResultsSummary,
+    StudentWorkspaceResultGroup,
     ResultCorrectionCreate,
     ResultCorrectionResponse,
     RoundColumnHeader,
@@ -499,11 +500,46 @@ def get_my_released_results(
     if cached is not None:
         return StudentResultsSummary(**cached)
 
+    # 1. Discover all workspaces and projects the student is enrolled in
+    memberships = db.query(GroupMembership).filter(GroupMembership.user_id == current_student.id).all()
+    group_ids = [m.group_id for m in memberships]
+
+    enrolled_wsg = (
+        db.query(WorkspaceGroup)
+        .options(joinedload(WorkspaceGroup.workspace))
+        .filter(WorkspaceGroup.group_id.in_(group_ids))
+        .all()
+    ) if group_ids else []
+
+    projects = (
+        db.query(Project)
+        .filter(Project.group_id.in_(group_ids))
+        .all()
+    ) if group_ids else []
+    proj_by_ws = {p.workspace_id: p for p in projects}
+
+    ws_map = {}
+    for wg in enrolled_wsg:
+        ws = wg.workspace
+        if not ws:
+            continue
+        p = proj_by_ws.get(ws.id)
+        ws_map[ws.id] = {
+            "workspace_id": ws.id,
+            "workspace_name": ws.name,
+            "workspace_term": ws.term,
+            "project_id": p.id if p else None,
+            "project_name": p.name if p else None,
+            "results": [],
+        }
+
+    # 2. Query authorized released results for current student
     released_entries = (
         db.query(ResultEntry)
         .options(
             joinedload(ResultEntry.round).joinedload(ReviewRound.workspace),
             joinedload(ResultEntry.review).joinedload(Review.reviewer),
+            joinedload(ResultEntry.review).joinedload(Review.submission_version).joinedload(SubmissionVersion.submission).joinedload(Submission.project),
         )
         .join(ReviewRound, ResultEntry.round_id == ReviewRound.id)
         .filter(ResultEntry.student_id == current_student.id, ResultEntry.is_released == True)
@@ -525,26 +561,71 @@ def get_my_released_results(
         total_possible += max_val
 
         ws = round_obj.workspace if round_obj else None
+        ws_id = ws.id if ws else "UNKNOWN"
+        ws_name = ws.name if ws else "Workspace"
         fb = entry.feedback or (entry.review.feedback if entry.review else None)
         rev_name = entry.review.reviewer.full_name if (entry.review and entry.review.reviewer) else None
 
-        results_list.append(
-            StudentResultResponse(
-                id=entry.id,
-                round_id=entry.round_id,
-                round_title=round_obj.title if round_obj else f"Round #{entry.round_id}",
-                round_order=round_obj.order_index if round_obj else 1,
-                workspace_id=ws.id if ws else "UNKNOWN",
-                workspace_name=ws.name if ws else "Workspace",
-                score=score_val,
-                max_score=max_val,
-                percentage=round(pct, 2),
-                feedback=fb,
-                status="PUBLISHED",
-                reviewer_name=rev_name,
-                released_at=entry.released_at,
+        proj = None
+        if entry.review and entry.review.submission_version and entry.review.submission_version.submission:
+            proj = entry.review.submission_version.submission.project
+        if not proj and ws_id in proj_by_ws:
+            proj = proj_by_ws[ws_id]
+
+        if ws_id not in ws_map:
+            ws_map[ws_id] = {
+                "workspace_id": ws_id,
+                "workspace_name": ws_name,
+                "workspace_term": ws.term if ws else None,
+                "project_id": proj.id if proj else None,
+                "project_name": proj.name if proj else None,
+                "results": [],
+            }
+
+        res_item = StudentResultResponse(
+            id=entry.id,
+            round_id=entry.round_id,
+            round_title=round_obj.title if round_obj else f"Round #{entry.round_id}",
+            round_order=round_obj.order_index if round_obj else 1,
+            workspace_id=ws_id,
+            workspace_name=ws_name,
+            project_id=proj.id if proj else None,
+            project_name=proj.name if proj else None,
+            score=score_val,
+            max_score=max_val,
+            percentage=round(pct, 2),
+            feedback=fb,
+            status="PUBLISHED",
+            reviewer_name=rev_name,
+            released_at=entry.released_at,
+        )
+
+        results_list.append(res_item)
+        ws_map[ws_id]["results"].append(res_item)
+
+    # 3. Assemble workspace result groups
+    workspace_groups = []
+    for wid, wdata in ws_map.items():
+        w_results = wdata["results"]
+        w_earned = sum(r.score for r in w_results)
+        w_possible = sum(r.max_score for r in w_results)
+        w_pct = (w_earned / w_possible * 100.0) if w_possible > 0 else 0.0
+        workspace_groups.append(
+            StudentWorkspaceResultGroup(
+                workspace_id=wdata["workspace_id"],
+                workspace_name=wdata["workspace_name"],
+                workspace_term=wdata["workspace_term"],
+                project_id=wdata["project_id"],
+                project_name=wdata["project_name"],
+                total_earned=round(w_earned, 2),
+                total_possible=round(w_possible, 2),
+                percentage=round(w_pct, 2),
+                published_rounds_count=len(w_results),
+                results=w_results,
             )
         )
+
+    workspace_groups.sort(key=lambda wg: wg.workspace_name)
 
     cumulative_pct = (total_earned / total_possible * 100.0) if total_possible > 0 else 0.0
 
@@ -552,7 +633,8 @@ def get_my_released_results(
         total_earned=round(total_earned, 2),
         total_possible=round(total_possible, 2),
         cumulative_percentage=round(cumulative_pct, 2),
-        results=results_list
+        results=results_list,
+        workspaces=workspace_groups,
     )
     cache.set(c_key, summary.model_dump(), ttl=60, tags=[f"user:{current_student.id}:results", f"results:{current_student.id}"])
     return summary

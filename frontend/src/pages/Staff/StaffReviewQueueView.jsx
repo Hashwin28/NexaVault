@@ -175,7 +175,7 @@ export const StaffReviewQueueView = () => {
       {/* Header & Tabs */}
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 border-b border-[#1B262E] pb-4">
         <div>
-          <h2 className="text-xl font-bold text-slate-100 font-serif flex items-center gap-2">
+          <h2 className="text-xl font-bold text-slate-100 font-sans flex items-center gap-2">
             Submission Review Queue
             <span className="text-xs px-2 py-0.5 rounded bg-teal-500/20 text-teal-300 font-sans font-normal">
               {queue.length} Submissions
@@ -389,7 +389,7 @@ export const StaffReviewQueueView = () => {
                           )}
 
                           {isClaimedByOther && !isEvaluated && !isPublished && (
-                            <span className="text-slate-500 text-xs italic font-mono">
+                            <span className="text-slate-500 text-xs font-mono">
                               In Review
                             </span>
                           )}
