@@ -9,6 +9,11 @@ from app.core.config import settings
 from app.api.v1.router import api_router
 from app.db.session import engine
 
+# ---------------------------------------------------------------------------
+# Application Initialization & Configuration
+# ---------------------------------------------------------------------------
+# Instantiate the core FastAPI application configured with project metadata,
+# customized OpenAPI schema endpoints, and interactive API documentation paths.
 app = FastAPI(
     title=settings.PROJECT_NAME,
     openapi_url=f"{settings.API_V1_STR}/openapi.json",
