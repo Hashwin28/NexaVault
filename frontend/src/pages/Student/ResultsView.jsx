@@ -172,49 +172,72 @@ export const ResultsView = () => {
             {results.map((res) => (
               <div 
                 key={res.id} 
-                className="p-5 rounded-xl bg-vault-canvas/80 border border-vault-border/60 hover:border-teal-500/30 transition-colors flex flex-col md:flex-row md:items-center justify-between gap-4"
+                className="p-5 rounded-xl bg-vault-canvas/80 border border-vault-border/60 hover:border-teal-500/30 transition-colors flex flex-col gap-3.5"
               >
-                {/* Left: Round & Workspace Context */}
-                <div className="space-y-1.5">
-                  <div className="flex items-center gap-2.5">
-                    <span className="px-2 py-0.5 rounded bg-teal-500/15 border border-teal-500/30 text-teal-300 font-sans text-[11px] font-bold">
-                      Round {res.round_order}
-                    </span>
-                    <h3 className="text-sm font-bold text-white font-sans">{res.round_title}</h3>
-                  </div>
-
-                  <div className="flex items-center gap-3 text-xs text-slate-400">
-                    <span className="inline-flex items-center gap-1 font-sans">
-                      <Layers size={13} className="text-slate-500" />
-                      {res.workspace_name} <span className="font-mono text-slate-500">({res.workspace_id})</span>
-                    </span>
-                    {res.released_at && (
-                      <span className="inline-flex items-center gap-1 font-sans text-[11px] text-slate-500">
-                        <Calendar size={12} />
-                        Released {new Date(res.released_at).toLocaleDateString()}
+                <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+                  {/* Left: Round & Workspace Context */}
+                  <div className="space-y-1.5">
+                    <div className="flex items-center gap-2.5">
+                      <span className="px-2 py-0.5 rounded bg-teal-500/15 border border-teal-500/30 text-teal-300 font-sans text-[11px] font-bold">
+                        Round {res.round_order}
                       </span>
-                    )}
+                      <h3 className="text-sm font-bold text-white font-sans">{res.round_title}</h3>
+                      <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded bg-emerald-500/15 border border-emerald-500/30 text-emerald-300 font-mono text-[10px] font-bold uppercase">
+                        <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
+                        {res.status || 'Published'}
+                      </span>
+                    </div>
+
+                    <div className="flex flex-wrap items-center gap-3 text-xs text-slate-400">
+                      <span className="inline-flex items-center gap-1 font-sans">
+                        <Layers size={13} className="text-slate-500" />
+                        {res.workspace_name} <span className="font-mono text-slate-500">({res.workspace_id})</span>
+                      </span>
+                      {res.released_at && (
+                        <span className="inline-flex items-center gap-1 font-sans text-[11px] text-slate-500">
+                          <Calendar size={12} />
+                          Released {new Date(res.released_at).toLocaleDateString()}
+                        </span>
+                      )}
+                      {res.reviewer_name && (
+                        <span className="font-mono text-[11px] text-slate-400">
+                          • Evaluated by: <strong className="text-slate-300">{res.reviewer_name}</strong>
+                        </span>
+                      )}
+                    </div>
+                  </div>
+
+                  {/* Right: Scores & Performance */}
+                  <div className="flex items-center gap-6 self-end md:self-auto shrink-0">
+                    <div className="text-right">
+                      <div className="text-lg font-bold font-sans text-white">
+                        {res.score.toFixed(1)} <span className="text-xs text-slate-400">/ {res.max_score.toFixed(1)} pts</span>
+                      </div>
+                      <div className="text-[11px] font-sans font-semibold text-teal-400">
+                        {res.percentage.toFixed(1)}%
+                      </div>
+                    </div>
+
+                    <div className="w-16 h-16 rounded-xl bg-vault-surface border border-teal-500/20 flex flex-col items-center justify-center p-2">
+                      <span className="text-[10px] font-sans text-slate-400 uppercase">Grade</span>
+                      <span className="text-base font-bold font-sans text-teal-300">
+                        {res.percentage >= 90 ? 'A+' : res.percentage >= 80 ? 'A' : res.percentage >= 70 ? 'B' : res.percentage >= 60 ? 'C' : 'F'}
+                      </span>
+                    </div>
                   </div>
                 </div>
 
-                {/* Right: Scores & Performance */}
-                <div className="flex items-center gap-6 self-end md:self-auto shrink-0">
-                  <div className="text-right">
-                    <div className="text-lg font-bold font-sans text-white">
-                      {res.score.toFixed(1)} <span className="text-xs text-slate-400">/ {res.max_score.toFixed(1)}</span>
-                    </div>
-                    <div className="text-[11px] font-sans font-semibold text-teal-400">
-                      {res.percentage.toFixed(1)}%
-                    </div>
-                  </div>
-
-                  <div className="w-16 h-16 rounded-xl bg-vault-surface border border-teal-500/20 flex flex-col items-center justify-center p-2">
-                    <span className="text-[10px] font-sans text-slate-400 uppercase">Grade</span>
-                    <span className="text-base font-bold font-sans text-teal-300">
-                      {res.percentage >= 90 ? 'A+' : res.percentage >= 80 ? 'A' : res.percentage >= 70 ? 'B' : res.percentage >= 60 ? 'C' : 'F'}
+                {/* Authorized Faculty Feedback */}
+                {res.feedback && (
+                  <div className="mt-1 pt-3 border-t border-vault-border/50 text-xs font-sans">
+                    <span className="text-[10px] font-mono uppercase text-teal-400 font-bold tracking-wider block mb-1">
+                      Faculty Evaluation Remarks:
                     </span>
+                    <p className="text-xs text-slate-200 leading-relaxed bg-vault-surface/60 p-3 rounded-lg border border-vault-border/40 whitespace-pre-wrap">
+                      {res.feedback}
+                    </p>
                   </div>
-                </div>
+                )}
               </div>
             ))}
           </div>

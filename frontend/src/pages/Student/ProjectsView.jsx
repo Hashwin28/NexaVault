@@ -1395,17 +1395,31 @@ export const ProjectsView = ({ defaultProjectId, initialSection, onNavigate }) =
             ) : (
               <div className="divide-y divide-vault-border/50 text-xs">
                 {myResults.filter((r) => r.workspace_id === currentProject.workspace_id).map((res) => (
-                  <div key={res.id} className="py-3 flex items-center justify-between">
-                    <div>
-                      <p className="font-semibold text-white">{res.round_title}</p>
-                      <p className="text-[11px] text-slate-400 font-mono">
-                        Released: {new Date(res.released_at).toLocaleDateString()}
-                      </p>
+                  <div key={res.id} className="py-3.5 space-y-2">
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <div className="flex items-center gap-2">
+                          <p className="font-semibold text-white">{res.round_title}</p>
+                          <span className="px-1.5 py-0.2 rounded text-[9px] font-mono font-bold bg-emerald-500/15 text-emerald-300 border border-emerald-500/30 uppercase">
+                            {res.status || 'Published'}
+                          </span>
+                        </div>
+                        <p className="text-[11px] text-slate-400 font-mono mt-0.5">
+                          Released: {new Date(res.released_at).toLocaleDateString()}
+                          {res.reviewer_name && ` • Evaluated by ${res.reviewer_name}`}
+                        </p>
+                      </div>
+                      <div className="text-right font-mono">
+                        <span className="text-sm font-bold text-teal-400">{res.score.toFixed(1)} / {res.max_score.toFixed(1)} pts</span>
+                        <span className="text-[11px] text-slate-400 block">{res.percentage.toFixed(1)}%</span>
+                      </div>
                     </div>
-                    <div className="text-right font-mono">
-                      <span className="text-sm font-bold text-teal-400">{res.score} / {res.max_score}</span>
-                      <span className="text-[11px] text-slate-400 block">{res.percentage}%</span>
-                    </div>
+                    {res.feedback && (
+                      <div className="p-2.5 rounded bg-vault-canvas/90 border border-vault-border/50 text-[11px] text-slate-300 leading-relaxed font-sans">
+                        <span className="font-mono text-[10px] text-teal-400 uppercase font-bold block mb-0.5">Faculty Feedback:</span>
+                        {res.feedback}
+                      </div>
+                    )}
                   </div>
                 ))}
               </div>

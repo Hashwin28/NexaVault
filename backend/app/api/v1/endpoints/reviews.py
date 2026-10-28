@@ -28,6 +28,7 @@ router = APIRouter(prefix="/reviews", tags=["Reviews"])
 
 @router.get("/queue", response_model=List[QueueItemResponse])
 def get_review_queue(
+    status_filter: Optional[str] = Query(None, description="Queue filter: 'PENDING', 'EVALUATED', or 'ALL'"),
     limit: int = Query(50, ge=1, le=100, description="Maximum number of queue items to return"),
     offset: int = Query(0, ge=0, description="Queue pagination offset"),
     db: Session = Depends(get_db),
@@ -38,7 +39,7 @@ def get_review_queue(
     Ordered by: 1. Review Round due_date asc; 2. Submission creation/submission time asc.
     Applies DB-level limit and offset pagination.
     """
-    c_key = key_review_queue(current_staff.id, limit, offset)
+    c_key = f"{key_review_queue(current_staff.id, limit, offset)}:{status_filter or 'pending'}"
     cached = cache.get(c_key)
     if cached is not None:
         return [QueueItemResponse(**x) for x in cached]
@@ -52,16 +53,24 @@ def get_review_queue(
     if not ws_ids:
         return []
 
-    # Query pending versions
-    versions = (
+    # Apply status filter
+    query = (
         db.query(SubmissionVersion)
         .join(Submission, SubmissionVersion.submission_id == Submission.id)
         .join(Project, Submission.project_id == Project.id)
         .join(ReviewRound, Submission.round_id == ReviewRound.id)
-        .filter(
-            Project.workspace_id.in_(ws_ids),
-            SubmissionVersion.status.in_(["SUBMITTED", "IN_REVIEW", "NEW_SUBMISSION"]),
-        )
+        .filter(Project.workspace_id.in_(ws_ids))
+    )
+
+    if status_filter == "EVALUATED":
+        query = query.filter(SubmissionVersion.status.in_(["APPROVED", "REVISION_REQUESTED"]))
+    elif status_filter == "ALL":
+        pass
+    else:  # Default PENDING
+        query = query.filter(SubmissionVersion.status.in_(["SUBMITTED", "IN_REVIEW", "NEW_SUBMISSION"]))
+
+    versions = (
+        query
         .order_by(asc(ReviewRound.due_date), asc(SubmissionVersion.submitted_at), asc(SubmissionVersion.created_at))
         .offset(offset)
         .limit(limit)
@@ -77,6 +86,9 @@ def get_review_queue(
 
         submitter_name = ver.submitter.full_name if ver.submitter else None
         claimed_name = ver.claimed_by.full_name if ver.claimed_by else None
+
+        rev = ver.review
+        results_released = any(re.is_released for re in rev.result_entries) if (rev and rev.result_entries) else False
 
         result.append(
             QueueItemResponse(
@@ -98,6 +110,7 @@ def get_review_queue(
                 claimed_by_id=ver.claimed_by_id,
                 claimed_by_name=claimed_name,
                 is_late=ver.is_late,
+                results_released=results_released,
                 roster_snapshot=ver.roster_snapshot or [],
             )
         )

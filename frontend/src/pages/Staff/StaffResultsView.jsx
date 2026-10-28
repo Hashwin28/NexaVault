@@ -16,6 +16,14 @@ export const StaffResultsView = ({ selectedWorkspaceId }) => {
   const [exportingCsv, setExportingCsv] = useState(false);
   const [exportSuccessMsg, setExportSuccessMsg] = useState(null);
 
+  // Publication Modal State
+  const [showPublishModal, setShowPublishModal] = useState(false);
+  const [selectedRoundToPublish, setSelectedRoundToPublish] = useState('ALL');
+  const [publishingResults, setPublishingResults] = useState(false);
+  const [publishSuccessMsg, setPublishSuccessMsg] = useState(null);
+  const [publishError, setPublishError] = useState(null);
+  const [confirmPublishChecked, setConfirmPublishChecked] = useState(false);
+
   // Filters & Search
   const [searchTerm, setSearchTerm] = useState('');
   const [filterFinalStatus, setFilterFinalStatus] = useState('ALL');
@@ -87,6 +95,35 @@ export const StaffResultsView = ({ selectedWorkspaceId }) => {
       setResultsError(err.message || 'CSV Export failed. Please try again.');
     } finally {
       setExportingCsv(false);
+    }
+  };
+
+  const handleOpenPublishModal = (roundId = 'ALL') => {
+    setSelectedRoundToPublish(roundId);
+    setPublishError(null);
+    setConfirmPublishChecked(false);
+    setShowPublishModal(true);
+  };
+
+  const handleExecutePublish = async () => {
+    if (!activeWorkspaceId || !confirmPublishChecked) return;
+    setPublishingResults(true);
+    setPublishError(null);
+    try {
+      let resp;
+      if (selectedRoundToPublish === 'ALL') {
+        resp = await resultApi.publishWorkspaceResults(activeWorkspaceId);
+      } else {
+        resp = await resultApi.publishRoundResults(activeWorkspaceId, selectedRoundToPublish);
+      }
+      setPublishSuccessMsg(resp.message || 'Results published successfully to student portal.');
+      setShowPublishModal(false);
+      setTimeout(() => setPublishSuccessMsg(null), 6000);
+      await fetchWorkspaceResults(activeWorkspaceId);
+    } catch (err) {
+      setPublishError(err.message || 'Failed to publish results.');
+    } finally {
+      setPublishingResults(false);
     }
   };
 
@@ -192,11 +229,11 @@ export const StaffResultsView = ({ selectedWorkspaceId }) => {
           <button
             onClick={handleExportCsv}
             disabled={exportingCsv || !activeWorkspaceId || !resultsData?.students?.length}
-            className="px-3.5 py-1.5 text-xs font-sans rounded-lg bg-teal-500 text-slate-950 font-semibold hover:bg-teal-400 disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2 transition-colors shadow-teal-glow whitespace-nowrap"
+            className="px-3.5 py-1.5 text-xs font-sans rounded-lg bg-[#11181C] text-slate-200 border border-[#1B262E] hover:bg-[#1B262E] disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2 transition-colors whitespace-nowrap"
           >
             {exportingCsv ? (
               <>
-                <div className="w-3.5 h-3.5 border-2 border-slate-950 border-t-transparent rounded-full animate-spin" />
+                <div className="w-3.5 h-3.5 border-2 border-slate-200 border-t-transparent rounded-full animate-spin" />
                 <span>Exporting CSV...</span>
               </>
             ) : (
@@ -204,12 +241,40 @@ export const StaffResultsView = ({ selectedWorkspaceId }) => {
                 <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
                 </svg>
-                <span>Export Workspace Results (CSV)</span>
+                <span>Export CSV</span>
               </>
             )}
           </button>
+
+          {/* Publish / Release Results Button */}
+          <button
+            onClick={() => handleOpenPublishModal('ALL')}
+            disabled={loadingResults || !activeWorkspaceId || !resultsData?.students?.length}
+            className="px-4 py-1.5 text-xs font-sans rounded-lg bg-teal-500 text-slate-950 font-bold hover:bg-teal-400 disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2 transition-colors shadow-teal-glow whitespace-nowrap"
+          >
+            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
+            </svg>
+            <span>Publish / Release Results</span>
+          </button>
         </div>
       </div>
+
+      {/* Publish Success Banner */}
+      {publishSuccessMsg && (
+        <div className="p-3.5 rounded-lg bg-emerald-500/15 border border-emerald-500/40 text-emerald-200 text-xs font-sans flex items-center justify-between">
+          <div className="flex items-center gap-2.5">
+            <svg className="w-4 h-4 text-emerald-400 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+            </svg>
+            <span className="font-medium">{publishSuccessMsg}</span>
+          </div>
+          <button onClick={() => setPublishSuccessMsg(null)} className="text-emerald-400 hover:text-emerald-200 ml-3">
+            ✕
+          </button>
+        </div>
+      )}
 
       {/* Export Success Banner */}
       {exportSuccessMsg && (
@@ -404,9 +469,31 @@ export const StaffResultsView = ({ selectedWorkspaceId }) => {
                   {/* Dynamically Generated Round Columns */}
                   {rounds.map((round) => (
                     <th key={round.id} className="py-3 px-3 text-center border-l border-[#1B262E] bg-[#0A1014]">
-                      <div className="flex flex-col items-center">
+                      <div className="flex flex-col items-center gap-1">
                         <span className="text-teal-300 font-bold">{round.title}</span>
-                        <span className="text-[10px] text-slate-500 font-normal">Max: {round.max_score}</span>
+                        <div className="flex items-center gap-1.5">
+                          <span className="text-[10px] text-slate-500 font-normal">Max: {round.max_score}</span>
+                          {round.is_released ? (
+                            <span className="px-1.5 py-0.5 rounded text-[9px] font-mono font-bold bg-emerald-500/15 text-emerald-300 border border-emerald-500/30">
+                              Published
+                            </span>
+                          ) : round.graded_count > 0 ? (
+                            <button
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                handleOpenPublishModal(round.id);
+                              }}
+                              className="px-1.5 py-0.5 rounded text-[9px] font-mono font-bold bg-amber-500/20 text-amber-300 border border-amber-500/40 hover:bg-amber-500/30 transition-colors"
+                              title="Click to release results for this round"
+                            >
+                              Draft ({round.graded_count}) • Release
+                            </button>
+                          ) : (
+                            <span className="px-1.5 py-0.5 rounded text-[9px] font-mono bg-slate-800 text-slate-400 border border-slate-700">
+                              Pending
+                            </span>
+                          )}
+                        </div>
                       </div>
                     </th>
                   ))}
@@ -465,6 +552,7 @@ export const StaffResultsView = ({ selectedWorkspaceId }) => {
                       {rounds.map((round) => {
                         const rRes = student.rounds[String(round.id)];
                         const isGraded = rRes && rRes.score !== null;
+                        const isPublished = isGraded && rRes.is_released;
                         return (
                           <td
                             key={round.id}
@@ -472,12 +560,21 @@ export const StaffResultsView = ({ selectedWorkspaceId }) => {
                           >
                             {isGraded ? (
                               <div className="flex flex-col items-center">
-                                <span className="font-mono font-bold text-slate-100 text-[12px]">
+                                <span className={`font-mono font-bold text-[12px] ${isPublished ? 'text-emerald-300' : 'text-amber-300'}`}>
                                   {rRes.score.toFixed(1)}{' '}
                                   <span className="text-[10px] text-slate-500 font-normal">/ {rRes.max_score}</span>
                                 </span>
+                                <div className="mt-0.5">
+                                  <span className={`text-[9px] font-mono px-1.5 py-0.2 rounded font-semibold ${
+                                    isPublished 
+                                      ? 'bg-emerald-500/15 text-emerald-400 border border-emerald-500/30' 
+                                      : 'bg-amber-500/15 text-amber-400 border border-amber-500/30'
+                                  }`}>
+                                    {isPublished ? 'Published' : 'Draft'}
+                                  </span>
+                                </div>
                                 {rRes.feedback && (
-                                  <span className="text-[10px] text-teal-400 truncate max-w-[100px]" title={rRes.feedback}>
+                                  <span className="text-[10px] text-teal-400 truncate max-w-[110px] mt-0.5" title={rRes.feedback}>
                                     "{rRes.feedback}"
                                   </span>
                                 )}
@@ -633,12 +730,31 @@ export const StaffResultsView = ({ selectedWorkspaceId }) => {
                         <div className="flex items-center gap-2">
                           <span className="font-bold text-slate-200 font-sans text-sm">{round.title}</span>
                           <span className="text-[10px] font-mono text-slate-500">Order #{round.order_index}</span>
-                        </div>
-                        <div>
-                          {isGraded ? (
-                            <span className="font-mono font-bold text-teal-300 text-sm">
-                              {rRes.score.toFixed(1)} <span className="text-slate-500 text-xs font-normal">/ {rRes.max_score}</span>
+                          {isGraded && (
+                            <span className={`text-[10px] font-mono px-2 py-0.5 rounded font-semibold ${
+                              rRes.is_released 
+                                ? 'bg-emerald-500/15 text-emerald-300 border border-emerald-500/30' 
+                                : 'bg-amber-500/15 text-amber-300 border border-amber-500/30'
+                            }`}>
+                              {rRes.is_released ? 'Published' : 'Draft (Unpublished)'}
                             </span>
+                          )}
+                        </div>
+                        <div className="flex items-center gap-2">
+                          {isGraded ? (
+                            <>
+                              <span className="font-mono font-bold text-teal-300 text-sm">
+                                {rRes.score.toFixed(1)} <span className="text-slate-500 text-xs font-normal">/ {rRes.max_score}</span>
+                              </span>
+                              {!rRes.is_released && (
+                                <button
+                                  onClick={() => handleOpenPublishModal(round.id)}
+                                  className="px-2 py-1 text-[10px] font-mono font-bold rounded bg-teal-500/20 text-teal-300 border border-teal-500/40 hover:bg-teal-500/30 transition-colors"
+                                >
+                                  Release Round
+                                </button>
+                              )}
+                            </>
                           ) : (
                             <span className="text-[10px] font-mono uppercase px-2 py-0.5 rounded bg-slate-800 text-slate-400 border border-slate-700">
                               {rRes?.status || 'Unrated'}
@@ -688,6 +804,167 @@ export const StaffResultsView = ({ selectedWorkspaceId }) => {
           </div>
         </div>
       )}
+
+      {/* 6. PUBLISH RESULTS CONFIRMATION MODAL */}
+      {showPublishModal && (() => {
+        const targetRounds = selectedRoundToPublish === 'ALL'
+          ? rounds
+          : rounds.filter((r) => String(r.id) === String(selectedRoundToPublish));
+        
+        const totalGradedInScope = targetRounds.reduce((acc, r) => acc + (r.graded_count || 0), 0);
+        const totalReleasedInScope = targetRounds.reduce((acc, r) => acc + (r.released_count || 0), 0);
+        const totalUnreleasedInScope = Math.max(0, totalGradedInScope - totalReleasedInScope);
+        const canPublish = totalGradedInScope > 0 && confirmPublishChecked && !publishingResults;
+
+        return (
+          <div className="fixed inset-0 z-50 overflow-hidden flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm">
+            <div className="relative w-full max-w-lg bg-[#0B0F12] border border-[#1B262E] rounded-2xl shadow-2xl overflow-hidden flex flex-col">
+              {/* Modal Header */}
+              <div className="px-6 py-4 border-b border-[#1B262E] bg-[#11181C] flex items-center justify-between">
+                <div className="flex items-center gap-2.5">
+                  <div className="w-8 h-8 rounded-lg bg-teal-500/10 border border-teal-500/30 flex items-center justify-center text-teal-400">
+                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
+                    </svg>
+                  </div>
+                  <div>
+                    <h3 className="text-base font-bold text-slate-100 font-sans">
+                      Publish Official Academic Results
+                    </h3>
+                    <p className="text-[11px] text-slate-400 font-sans">
+                      Release verified evaluation marks to student portals
+                    </p>
+                  </div>
+                </div>
+
+                <button
+                  onClick={() => setShowPublishModal(false)}
+                  disabled={publishingResults}
+                  className="p-1 rounded-lg hover:bg-[#1B262E] text-slate-400 hover:text-slate-200 transition-colors"
+                >
+                  ✕
+                </button>
+              </div>
+
+              {/* Modal Body */}
+              <div className="p-6 space-y-4 text-xs font-sans">
+                {publishError && (
+                  <div className="p-3 rounded-lg bg-rose-500/15 border border-rose-500/30 text-rose-300 text-xs">
+                    {publishError}
+                  </div>
+                )}
+
+                {/* Scope Selector */}
+                <div>
+                  <label className="text-slate-300 font-semibold block mb-1">
+                    Select Target Evaluation Round:
+                  </label>
+                  <select
+                    value={selectedRoundToPublish}
+                    onChange={(e) => {
+                      setSelectedRoundToPublish(e.target.value);
+                      setConfirmPublishChecked(false);
+                      setPublishError(null);
+                    }}
+                    disabled={publishingResults}
+                    className="w-full bg-[#11181C] border border-[#1B262E] rounded-lg px-3 py-2 text-xs text-slate-200 focus:outline-none focus:border-teal-500"
+                  >
+                    <option value="ALL">All Configured Rounds (Entire Workspace)</option>
+                    {rounds.map((r) => (
+                      <option key={r.id} value={r.id}>
+                        Round {r.order_index}: {r.title} (Max: {r.max_score} pts) — {r.is_released ? 'Already Published' : `${r.graded_count} Graded`}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+
+                {/* Scope Metrics Card */}
+                <div className="p-4 rounded-xl bg-[#11181C] border border-[#1B262E] space-y-3">
+                  <div className="flex items-center justify-between text-[11px] font-mono text-slate-400">
+                    <span>Scope:</span>
+                    <span className="text-teal-300 font-bold">
+                      {selectedRoundToPublish === 'ALL' ? 'All Workspace Rounds' : targetRounds[0]?.title}
+                    </span>
+                  </div>
+
+                  <div className="grid grid-cols-3 gap-2 text-center pt-2 border-t border-[#1B262E]/60">
+                    <div className="p-2 rounded-lg bg-[#0B0F12]">
+                      <span className="text-[10px] text-slate-500 block uppercase">Graded Scores</span>
+                      <span className="text-base font-bold font-mono text-slate-200">{totalGradedInScope}</span>
+                    </div>
+                    <div className="p-2 rounded-lg bg-[#0B0F12]">
+                      <span className="text-[10px] text-slate-500 block uppercase">Already Live</span>
+                      <span className="text-base font-bold font-mono text-emerald-400">{totalReleasedInScope}</span>
+                    </div>
+                    <div className="p-2 rounded-lg bg-[#0B0F12]">
+                      <span className="text-[10px] text-slate-500 block uppercase">To Release</span>
+                      <span className="text-base font-bold font-mono text-amber-400">{totalUnreleasedInScope}</span>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Validation Warnings */}
+                {totalGradedInScope === 0 ? (
+                  <div className="p-3 rounded-lg bg-amber-500/10 border border-amber-500/30 text-amber-300 text-xs">
+                    ⚠️ No evaluated grades exist in this round yet. Evaluate student submissions in the Review Queue before publishing.
+                  </div>
+                ) : totalUnreleasedInScope === 0 ? (
+                  <div className="p-3 rounded-lg bg-sky-500/10 border border-sky-500/30 text-sky-300 text-xs">
+                    ℹ️ All {totalGradedInScope} graded evaluation marks in this scope are already published. Re-publishing is safe and idempotent.
+                  </div>
+                ) : (
+                  <div className="p-3 rounded-lg bg-teal-500/10 border border-teal-500/30 text-teal-300 text-xs">
+                    ✓ {totalUnreleasedInScope} student evaluation results are ready to be published and released.
+                  </div>
+                )}
+
+                {/* Confirmation Checkbox */}
+                <div className="pt-2 flex items-start gap-2.5">
+                  <input
+                    type="checkbox"
+                    id="confirmPublishResultsCheck"
+                    checked={confirmPublishChecked}
+                    onChange={(e) => setConfirmPublishChecked(e.target.checked)}
+                    disabled={totalGradedInScope === 0 || publishingResults}
+                    className="mt-0.5 rounded border-slate-700 bg-[#11181C] text-teal-500 focus:ring-0"
+                  />
+                  <label htmlFor="confirmPublishResultsCheck" className="text-xs text-slate-300 leading-snug cursor-pointer select-none">
+                    I confirm that I have reviewed these evaluations, verified assessment validity, and authorize officially releasing these marks to students.
+                  </label>
+                </div>
+              </div>
+
+              {/* Modal Footer */}
+              <div className="px-6 py-3 border-t border-[#1B262E] bg-[#11181C] flex justify-end gap-2.5">
+                <button
+                  type="button"
+                  onClick={() => setShowPublishModal(false)}
+                  disabled={publishingResults}
+                  className="px-4 py-2 rounded-lg bg-[#162026] hover:bg-[#1B262E] border border-[#1B262E] text-slate-300 text-xs font-sans transition-colors"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="button"
+                  onClick={handleExecutePublish}
+                  disabled={!canPublish}
+                  className="px-5 py-2 rounded-lg bg-teal-500 hover:bg-teal-400 disabled:opacity-50 disabled:cursor-not-allowed text-slate-950 font-bold text-xs font-sans transition-all shadow-teal-glow flex items-center gap-2"
+                >
+                  {publishingResults ? (
+                    <>
+                      <div className="w-3.5 h-3.5 border-2 border-slate-950 border-t-transparent rounded-full animate-spin" />
+                      <span>Releasing Results...</span>
+                    </>
+                  ) : (
+                    <span>Confirm & Release Results</span>
+                  )}
+                </button>
+              </div>
+            </div>
+          </div>
+        );
+      })()}
     </div>
   );
 };
