@@ -1,3 +1,10 @@
+/**
+ * Workspace API Service
+ * 
+ * Provides HTTP client integration for academic workspaces:
+ * creation, archiving, co-staff assignment, notices management, and review rounds.
+ */
+
 import { apiRequest } from './client';
 
 export const workspaceApi = {
