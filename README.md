@@ -1,419 +1,750 @@
-# NexaVault: Master Development Plan
+# NexaVault — Departmental Academic Workspace & Project Evaluation Platform
 
-A departmental academic workspace and project management platform, rebuilt from scratch (MeshVault is a reference for ideas only; no code is reused).
+[![FastAPI](https://img.shields.io/badge/FastAPI-0.110+-009688.svg?style=flat&logo=fastapi&logoColor=white)](https://fastapi.tiangolo.com)
+[![React](https://img.shields.io/badge/React-18.3-61DAFB.svg?style=flat&logo=react&logoColor=black)](https://react.dev)
+[![Vite](https://img.shields.io/badge/Vite-6.0-646CFF.svg?style=flat&logo=vite&logoColor=white)](https://vitejs.dev)
+[![PostgreSQL](https://img.shields.io/badge/PostgreSQL-16-4169E1.svg?style=flat&logo=postgresql&logoColor=white)](https://www.postgresql.org)
+[![TailwindCSS](https://img.shields.io/badge/TailwindCSS-3.4-38B2AC.svg?style=flat&logo=tailwind-css&logoColor=white)](https://tailwindcss.com)
+[![Docker](https://img.shields.io/badge/Docker-Compose-2496ED.svg?style=flat&logo=docker&logoColor=white)](https://www.docker.com)
 
-**Targets:** ~500 regular users, 1000+ registered. One backend process and one PostgreSQL database are enough. Smoothness comes from good queries, indexes, small payloads, and client-side caching.
-
----
-
-## 1. What We Are Building
-
-```
-User → Workspace → Group → Project → Milestones / Reviews / Grades
-```
-
-Group numbers are unique **per workspace** only (Group 11 can exist in Workspace A and B). A user must never see data from a workspace they don't belong to. This is enforced by **database constraints** and **backend authorization**, never by the UI.
-
-| Role | Can do |
-|---|---|
-| `STUDENT` (default on register) | Request to join workspaces, work on own group's projects and milestones, request reviews, view own grades |
-| `STAFF` (promoted by a trusted script, not self-selected) | Create workspaces, approve join requests, manage groups, view all projects, take reviews, grade, view audit log |
-
-Inside a workspace a member is `OWNER`, `STAFF`, or `STUDENT` (stored on the membership). Owners manage settings and staff.
-
-**Authentication** = "who are you?" (login, token). **Authorization** = "are you allowed to do this?" (checked on every request against the specific object). Hiding a button in React is not security.
+NexaVault is an enterprise-grade academic project management and continuous evaluation platform built for university departments. It manages the complete lifecycle of student capstone and laboratory courses: from student team formation and workspace curriculum enrollment to milestone submissions, faculty review queues, rubric scoring, dynamic results aggregation, administrative audit logging, and notice distribution.
 
 ---
 
-## 2. Tech Stack
+## Table of Contents
 
-| Layer | Choice | Why |
-|---|---|---|
-| Frontend | React, Vite, JavaScript/JSX, React Router, TanStack Query, CSS Modules, Lucide | Fast dev loop, client-side routing, server-state caching |
-| Backend | Python, FastAPI, Pydantic v2, SQLAlchemy 2.0 (**sync**), Alembic, Uvicorn | Typed validation, auto docs (`/docs`), simple to debug |
-| Database | PostgreSQL | Strongly related data, constraints, transactions, full-text + trigram search, `SKIP LOCKED` |
-| Auth | PyJWT, `argon2-cffi` (Argon2id), HttpOnly refresh cookie | Short-lived access token + rotating refresh token |
-| Config | pydantic-settings, `.env`, `.env.example` | Typed config, fails at startup if invalid |
-| Quality | pytest, Vitest, React Testing Library, Ruff, ESLint, Prettier, GitHub Actions | Tests and lint on every PR |
-| Runtime | Docker (Compose), Caddy/nginx reverse proxy in production | Reproducible environments, HTTPS |
-| Background work | FastAPI `BackgroundTasks` (emails, checkpoints) | Enough for this scale |
-| Dev email | Mailpit | Fake local inbox for verification/reset emails |
-
-**Why PostgreSQL:** data is relational and rule-heavy (User ↔ Membership ↔ Workspace ↔ Group ↔ Project ↔ Grade). We need foreign keys, per-workspace uniqueness, and atomic multi-step changes. Postgres also covers search and queue locking, so no extra services are needed.
-
-**Principle:** add infrastructure only when profiling shows a real problem.
+1. [Architecture & System Flow](#1-architecture--system-flow)
+2. [Technology Stack](#2-technology-stack)
+3. [Feature Implementation Status](#3-feature-implementation-status)
+4. [Subsystem Deep Dive](#4-subsystem-deep-dive)
+   - [Authentication & Access Control](#41-authentication--access-control)
+   - [Student Groups & Team Formation](#42-student-groups--team-formation)
+   - [Academic Workspaces & Co-Staffing](#43-academic-workspaces--co-staffing)
+   - [Notice Board with 24-Hour Expiration & Direct Upload](#44-notice-board-with-24-hour-expiration--direct-upload)
+   - [Project Workspaces & Live GitHub Integration](#45-project-workspaces--live-github-integration)
+   - [Review Round Configuration Pipeline](#46-review-round-configuration-pipeline)
+   - [Milestone Submissions & Roster Freezing](#47-milestone-submissions--roster-freezing)
+   - [Staff Review Queue & Evaluation Workflow](#48-staff-review-queue--evaluation-workflow)
+   - [Dedicated Results Dashboard & Universal CSV Export](#49-dedicated-results-dashboard--universal-csv-export)
+   - [Administrative Activity Center & Merkle Model](#410-administrative-activity-center--merkle-model)
+   - [Role-Isolated Smart Search](#411-role-isolated-smart-search)
+5. [Database Architecture & Data Models](#5-database-architecture--data-models)
+6. [API Specification](#6-api-specification)
+7. [Security Architecture](#7-security-architecture)
+8. [Performance & In-Memory Caching](#8-performance--in-memory-caching)
+9. [Project Directory Structure](#9-project-directory-structure)
+10. [Setup & Execution Guide](#10-setup--execution-guide)
+11. [Testing & Verification](#11-testing--verification)
+12. [Academic DSA Demonstration Suite](#12-academic-dsa-demonstration-suite)
+13. [Current Limitations & Roadmap](#13-current-limitations--roadmap)
 
 ---
 
-## 3. Architecture
+## 1. Architecture & System Flow
+
+NexaVault follows a decoupled client-server architecture. The frontend is a responsive Single-Page Application (SPA) built with React and Tailwind CSS, served via Vite in development or Nginx in containerized production. The backend is an asynchronous, high-throughput REST API powered by FastAPI, SQLAlchemy 2.0, and PostgreSQL.
 
 ```mermaid
 flowchart TB
-    User([Browser]) --> FE["React + Vite<br/>Router · TanStack Query · auth state in memory"]
-    FE -->|"HTTPS · JSON · Bearer"| Proxy["Reverse proxy (prod)"]
-    Proxy --> API
-    subgraph BE["FastAPI · 1 Uvicorn worker"]
-        API["Routers + Pydantic"] --> Auth["Authentication"] --> Authz["Authorization (can_*)"] --> Svc["Services"] --> ORM["SQLAlchemy"]
+    Client([Web Browser / Student & Staff Clients])
+
+    subgraph Frontend ["Frontend Layer (Vite + React 18 + Tailwind CSS)"]
+        AuthContext["Auth Context (JWT in localStorage)"]
+        UIState["UI Router State & Keep-Alive Tab Cache"]
+        ApiClient["Axios / Fetch HTTP Client"]
     end
-    ORM <--> PG[("PostgreSQL<br/>source of truth")]
-    subgraph DSA["DSA layer · derived, rebuildable · pure Python"]
-        direction LR
-        HT[Hash Table] --- AVL[AVL Tree] --- Q[Queue] --- PQ[Priority Queue] --- MT[Merkle Tree] --- TR[Trie]
+
+    subgraph Gateway ["Reverse Proxy & Static Files (Production)"]
+        Nginx["Nginx Web Server (:80 / :3000)"]
+        StaticAssets[("Compiled SPA Dist & Uploaded Media")]
     end
-    PG -.->|"startup / rebuild"| DSA
-    Svc -->|"after COMMIT"| DSA
+
+    subgraph Backend ["FastAPI Application Server (:8000)"]
+        MW["Middleware (CORS, GZip, Cache-Control Headers)"]
+        Router["API v1 Router (/api/v1/*)"]
+        Security["Auth & Permissions (OAuth2 Bearer, Bcrypt, can_*)"]
+        Services["Domain Services (Audit, Project, Storage)"]
+        Cache["In-Memory LRU Cache (OrderedDict + Inverted Tag Index)"]
+        ORM["SQLAlchemy 2.0 ORM"]
+    end
+
+    subgraph Database ["Persistence Layer"]
+        Postgres[("PostgreSQL 16 Engine<br/>Local or Neon Serverless Pooler")]
+        Alembic["Alembic Migrations Engine"]
+    end
+
+    subgraph External ["External Services"]
+        GitHubAPI["GitHub REST API (Live Commits & Branches)"]
+    end
+
+    Client -->|HTTPS / HTTP| Nginx
+    Nginx -->|Static Assets| StaticAssets
+    Nginx -->|/api/v1 Reverse Proxy| MW
+    Client -.->|Direct API Dev :8000| MW
+
+    MW --> Router
+    Router --> Security
+    Security --> Services
+    Services <--> Cache
+    Services --> ORM
+    ORM <--> Postgres
+    Services -.->|Sync Commits| GitHubAPI
+    Alembic -.->|Schema Versioning| Postgres
 ```
 
-**Request flow:** Router → authentication dependency → authorization (`can_*`) → service → SQLAlchemy → PostgreSQL → response schema.
-Routers stay thin; business logic lives in services so it can be tested without HTTP.
-
-**Modular monolith:** one backend, one deployable, clear internal modules. REST + JSON, OpenAPI docs at `/docs`.
+### Communication Flow
+1. **Request Lifecycle**: Every request enters through FastAPI's middleware stack (`NoCacheMiddleware` enforcing `no-store` on private user data, `GZipMiddleware` for payloads $>1000$ bytes, and `CORSMiddleware`).
+2. **Authentication Dependency**: Protected endpoints resolve the user via `get_current_user` in `app/api/deps.py`. Bearer JWT tokens are decoded and validated against `JWT_SECRET`.
+3. **Role & Resource Authorization**: Granular rules in `app/core/permissions.py` (`can_access_workspace`, `can_manage_round`, `can_review_submission`, etc.) verify object-level ownership. Attempted unauthorized access to staff resources triggers automatic security audit logging.
+4. **Caching Layer**: Read-heavy endpoints (workspace lists, review queues, results, notices) check the thread-safe `InMemoryCache`. Cache misses query PostgreSQL via SQLAlchemy and store the result with scoped tags.
+5. **Targeted Invalidation**: Write operations automatically purge related cached entries across student and staff sessions using an inverted tag index.
 
 ---
 
-## 4. Database
+## 2. Technology Stack
 
-**Conventions:** UUID primary keys (not guessable, but never a substitute for authorization); `timestamptz`; index every foreign key; soft delete (`deleted_at`) for workspaces, groups, projects; unique index on `lower(email)`.
+### Frontend
+- **Framework**: React 18.3.1
+- **Build Tool**: Vite 6.0.7
+- **Styling**: Tailwind CSS 3.4.17 with PostCSS & Autoprefixer
+- **UI Utilities**: Lucide React 0.469.0 (icons), `clsx`, `tailwind-merge`
+- **State Management**: React Context API (`AuthContext`), React component state, and in-memory keep-alive tab caching
+- **Routing**: Component-level view routing with URL hash synchronization
 
-| Table | Purpose / key rules |
-|---|---|
-| `users` | Email (unique, case-insensitive), `password_hash`, `role` (STUDENT/STAFF), `email_verified_at`, `is_active` |
-| `refresh_tokens` | **Hashed** token, `family_id`, `expires_at`, `revoked_at`. Supports rotation and reuse detection |
-| `email_tokens` | One-time hashed tokens for email verification and password reset |
-| `workspaces` | Name, description, `created_by`, soft delete |
-| `workspace_memberships` | `(workspace_id, user_id)` unique; `role` OWNER/STAFF/STUDENT |
-| `workspace_join_requests` | Status PENDING/APPROVED/REJECTED; **partial unique index** allows one PENDING per user per workspace |
-| `groups` | `UNIQUE (workspace_id, group_number)` |
-| `group_memberships` | Stores `workspace_id` too, with composite FKs to `groups` and `workspace_memberships`. `UNIQUE (workspace_id, user_id)` = one group per student per workspace, enforced by the DB |
-| `projects` | `workspace_id`, `group_id`, title, description, status, `progress_percent` (0–100, check constraint; derived from milestones, stored for fast lists) |
-| `milestones` | `project_id`, title, due date, status, position |
-| `reviews` | `project_id`, `reviewer_id` (null until claimed), `status`, `priority`, `created_at`. Partial index on pending reviews |
-| `grades` | `project_id`, `student_id`, score with `0 ≤ score ≤ max_score`, `graded_by` |
-| `audit_logs` | Append-only: actor, action, entity, workspace, details (old/new values, never secrets), `entry_hash` |
-| `audit_merkle_roots` | Checkpoint roots over ranges of audit log ids |
+### Backend
+- **Framework**: FastAPI $\ge 0.110.0$
+- **ASGI Server**: Uvicorn $\ge 0.28.0$
+- **ORM**: SQLAlchemy $\ge 2.0.0$ (synchronous engine with connection pooling)
+- **Database Migrations**: Alembic $\ge 1.13.0$
+- **Data Validation & Settings**: Pydantic $\ge 2.0.0$, Pydantic Settings $\ge 2.0.0$
+- **Security & Cryptography**: direct `bcrypt` $\ge 4.1.2$ (`gensalt`, `hashpw`, `checkpw`), PyJWT $\ge 2.8.0$ (HMAC-SHA256)
+- **Image Processing**: Pillow $\ge 10.0.0$
+- **Database Drivers**: `psycopg2-binary` $\ge 2.9.9$, `psycopg[binary]`
+- **HTTP Client**: HTTPX $\ge 0.27.0$ (GitHub live sync)
+- **Testing**: pytest $\ge 8.0.0$
 
-Other indexes: `(workspace_id, status)` and `(workspace_id, progress_percent)` on projects; GIN full-text and trigram on project title/description.
+### Infrastructure & Deployment
+- **Database**: PostgreSQL 16 (supports local Docker and Neon Serverless PostgreSQL with SSL)
+- **Containerization**: Docker, Docker Compose
+- **Web Server / Reverse Proxy**: Nginx Alpine
+
+---
+
+## 3. Feature Implementation Status
+
+| Subsystem | Feature | Status | Implementation Details |
+|---|---|---|---|
+| **Auth** | User Registration & Login | **Fully Implemented** | Bcrypt hashing, JWT generation, Student/Staff role selection |
+| **Auth** | User Profile (`/auth/me`) | **Fully Implemented** | Fetches authenticated user info, active role, roll number |
+| **Auth** | Email Verification & Password Reset | **Partially Implemented** | `EmailToken` database model exists; email dispatch service is planned |
+| **Auth** | Refresh Token Rotation | **Partially Implemented** | `RefreshToken` database model exists; session currently uses 24-hour access JWTs |
+| **Groups** | Group Creation & Unique Codes | **Fully Implemented** | Alphanumeric unique join codes, leader assignment, single active group constraint |
+| **Groups** | Join, Leave & Disband | **Fully Implemented** | Join via code, leader transfer upon departure, orphan group deletion |
+| **Workspaces** | Workspace CRUD & Archival | **Fully Implemented** | Custom workspace IDs, academic terms, soft-archive toggle |
+| **Workspaces** | Staff Request & Delegation | **Fully Implemented** | Staff co-management request, approval/rejection, co-staff addition/removal |
+| **Workspaces** | Group Curriculum Enrollment | **Fully Implemented** | Enrolls student groups into academic workspaces |
+| **Notice Board** | Direct Image Upload | **Fully Implemented** | Drag-and-drop file upload, JPG/PNG/WebP validation, 5MB limit |
+| **Notice Board** | 24-Hour Automated Expiration | **Fully Implemented** | Strict backend timestamp filtering (`expires_at`), background sweep cleanup |
+| **Notice Board** | Notice Pinning & Archival | **Fully Implemented** | Pinned notices surface at top; unpinned upon expiration |
+| **Projects** | Project Creation & Workspace Binding | **Fully Implemented** | One project per group per workspace, unique constraint |
+| **Projects** | Updates & Timeline Comments | **Fully Implemented** | Progress update posts with threaded author comments |
+| **Projects** | GitHub Repository Integration | **Fully Implemented** | Repository linking, live commit history sync, contributor tracking |
+| **Review Rounds** | Configuration Pipeline | **Fully Implemented** | Dynamic round creation, sequential ordering, weights, max scores, due dates |
+| **Review Rounds** | Edit Round UI Modal | **Fully Implemented** | Staff modal to update parameters, weight percentages, rubrics, and statuses |
+| **Review Rounds** | Safe Round Deletion | **Fully Implemented** | Blocks deletion if submissions exist; logs `round_deleted` audit event |
+| **Submissions** | Milestone Deliverables | **Fully Implemented** | Multi-round deliverables, minimum 2-member group validation |
+| **Submissions** | Roster Freezing & Versioning | **Fully Implemented** | Freezes immutable JSON snapshot of group members on submission; tracks revisions |
+| **Reviews** | Staff Review Queue | **Fully Implemented** | Submission claiming with row-level locks, filtered by managed workspaces |
+| **Reviews** | Individual Student Grading | **Fully Implemented** | Scores validated against configured round max score; separate scores per student |
+| **Reviews** | Result Release | **Fully Implemented** | Releases evaluation marks and feedback to enrolled students |
+| **Results** | Results Dashboard | **Fully Implemented** | Dynamic round columns, group-level grouping, pass rates, average scores |
+| **Results** | Universal CSV Export | **Fully Implemented** | UTF-8 CSV with BOM, one row per student, dynamic round headers, group grouping |
+| **Results** | Grade Corrections | **Fully Implemented** | Staff grade adjustments with mandatory justification logging |
+| **Audit Trail** | Administrative Activity Center | **Fully Implemented** | Structured event logging, 4 metric cards, 7 filter dimensions, JSON diff viewer |
+| **Audit Trail** | Merkle Root Checkpointing | **Partially Implemented** | `AuditMerkleRoot` database model exists; automated tree generator is planned |
+| **Search** | Role-Isolated Smart Search | **Fully Implemented** | Scoped search across workspaces, groups, projects, submissions, and students |
+| **Performance** | In-Memory LRU Caching | **Fully Implemented** | Thread-safe `OrderedDict` with TTL, inverted tag index, `/cache/stats` telemetry |
+
+---
+
+## 4. Subsystem Deep Dive
+
+### 4.1 Authentication & Access Control
+- **Password Security**: Passwords are encrypted using direct `bcrypt` (`hash_password` in `app/core/security.py`) with automatic 72-byte truncation to prevent denial-of-service vulnerabilities.
+- **Session Tokens**: Authentication returns a signed JWT access token (`HS256`, 24-hour expiration) storing the user email in the `sub` claim.
+- **Client Storage**: The token is stored in `localStorage` under `nexavault_jwt_token` and automatically attached as a `Bearer` token in the `Authorization` header on all API calls.
+- **Role Enforcement**:
+  - `get_current_student`: Requires `role == "student"`.
+  - `get_current_staff`: Requires `role in ["staff", "teacher"]`. Any student attempt to access a staff-only endpoint automatically creates a high-priority `ACCESS_DENIED` security audit entry before returning HTTP 403 Forbidden.
+
+### 4.2 Student Groups & Team Formation
+- Students form self-organized teams independent of specific workspaces.
+- When a group is created, a unique alphanumeric join code (e.g., `GRP-A1B2C3`) is generated.
+- Other students join using this code via `POST /api/v1/groups/join`.
+- **Database Invariant**: A unique constraint on `group_memberships.user_id` guarantees that a student can belong to at most **one active group** at a time across the entire platform.
+- **Leadership & Departure**: If a leader leaves, leadership transfers to the next senior member. If the last member leaves, the group is soft-deleted.
+
+### 4.3 Academic Workspaces & Co-Staffing
+- Faculty create workspaces specifying a title, academic term (e.g., "Fall 2026"), and optional custom workspace identifier.
+- **Staff Access Delegation**: Other faculty members can submit a join request (`POST /api/v1/workspaces/{id}/staff-request`). The workspace owner approves or rejects requests.
+- Workspace owners can directly add or remove co-staff members with delegated grading privileges.
+- Workspaces can be archived, locking submissions and making review rounds read-only.
+
+### 4.4 Notice Board with 24-Hour Expiration & Direct Upload
+- **Direct Image Upload**: Replaces static image URLs with multipart file uploads (`POST /api/v1/workspaces/{id}/notices`). Validates MIME types (`image/jpeg`, `image/png`, `image/webp`) and enforces a 5MB size limit using Pillow.
+- **Automated 24-Hour Expiration**:
+  - Notices automatically record `created_at` and `expires_at = created_at + 24 hours`.
+  - All read queries strictly filter `expires_at > datetime.now(timezone.utc)`.
+  - Expired notices are excluded from both the main board and the pinned section.
+  - Deleting a notice safely purges the associated image file from disk storage.
+
+### 4.5 Project Workspaces & Live GitHub Integration
+- Each enrolled group creates a project bound to the workspace.
+- **Progress Updates**: Students post milestone updates with links and descriptions; staff and teammates add threaded comments.
+- **GitHub Sync**: Projects can link a GitHub repository (`POST /api/v1/projects/{id}/github`). The backend communicates with GitHub's REST API to fetch live commit history, authors, commit SHAs, and repository branch details.
+
+### 4.6 Review Round Configuration Pipeline
+- Staff dynamically configure assessment milestones per workspace without code modifications:
+  - Round Title (e.g., "Sprint 1 Architecture Review")
+  - Sequential Order (`order_index`)
+  - Weight Percentage (persisted in database, defaults to 20.0%)
+  - Maximum Score (defaults to 100.0, validated $\ge 1.0$)
+  - Due Date & Rubric Description
+  - Active/Closed Toggle
+- **Edit Modal**: Staff can edit existing round parameters via `PATCH /api/v1/workspaces/{id}/rounds/{round_id}`.
+- **Deletion Protection**: Attempting to delete a round that contains student submissions is blocked with HTTP 400. Successful deletions log a `round_deleted` audit event.
+
+### 4.7 Milestone Submissions & Roster Freezing
+- **Submission Rules**:
+  - Enforces a minimum group size of 2 members (`can_submit_to_round`).
+  - Verifies workspace is active and review round is open.
+  - Automatically flags late submissions if submitted after `round.due_date`.
+- **Immutable Roster Freezing**: When a deliverable is submitted, the system captures a frozen snapshot of the group's current members (`roster_snapshot` JSONB column). This guarantees that subsequent changes to group membership cannot alter grading rosters for past submissions.
+
+### 4.8 Staff Review Queue & Evaluation Workflow
+- **Review Queue**: `GET /api/v1/reviews/queue` displays pending deliverables across all workspaces the staff member manages, ordered by round due date and submission timestamp.
+- **Concurrency Control**: Staff claim submissions via `POST /api/v1/reviews/{version_id}/claim`. The backend uses PostgreSQL row-level locks to prevent two faculty members from grading the same submission simultaneously.
+- **Individual Grading**:
+  - Marks and feedback are recorded **per individual student**, not per group.
+  - Scores are validated against the specific round's configured `max_score` (preventing out-of-range grades).
+  - Every member in the frozen roster snapshot must receive an individual score entry.
+- **Results Release**: Once evaluated, staff release marks to students via `POST /api/v1/reviews/{version_id}/release-results`.
+
+### 4.9 Dedicated Results Dashboard & Universal CSV Export
+- **Results Dashboard**: A dedicated staff view (`GET /api/v1/results/workspace/{id}`) presenting all enrolled groups, individual student scores across all dynamically configured rounds, completion status, total marks, percentage, and pass/fail indicators.
+- **Grade Corrections**: Staff can correct awarded marks (`PATCH /api/v1/results/{entry_id}/correct`) with a mandatory reason, creating an immutable audit trail entry.
+- **Universal CSV Export** (`GET /api/v1/results/workspace/{id}/export-csv`):
+  - Generates a workspace-wide CSV file with dynamic review round headers (`Review Round N Marks`, `Review Round N Feedback`, `Review Round N Reviewer`, `Review Round N Date`).
+  - One row per student, grouping students by group so group metadata appears cleanly on the first student row.
+  - Prepends a UTF-8 Byte Order Mark (`\ufeff`) ensuring universal compatibility across Microsoft Excel, Google Sheets, and Apple Numbers without character corruption.
+
+### 4.10 Administrative Activity Center & Merkle Model
+- Centralized audit trail capturing security, access, workspace, assessment, and project events.
+- **Overview Metrics**: Computes statistics for Total Events, Workspace Changes, Access Changes, and Security Events across 24h, 7d, 30d, and All Time.
+- **Filtering & Search**: 7 filter dimensions including actor, category, action type, status, and date range.
+- **Sensitive Data Scrubbing**: Automatically redacts passwords, tokens, API keys, and secrets from `old_value` and `new_value` JSON metadata before persistence.
+- **Cryptographic Audit Model**: Includes the `AuditMerkleRoot` database model for checkpointing audit log ranges.
+
+### 4.11 Role-Isolated Smart Search
+- Fast multi-entity search (`GET /api/v1/search?q=...`):
+  - **Staff**: Searches across managed workspaces, enrolled groups, projects, deliverables, and student rosters.
+  - **Student**: Strictly isolated to the student's active group, enrolled workspaces, and team projects.
+  - Excludes sensitive join codes and internal IDs from search text.
+
+---
+
+## 5. Database Architecture & Data Models
+
+NexaVault uses PostgreSQL as its relational source of truth. All tables include primary keys, foreign key constraints with cascade rules, and relevant indices.
 
 ```mermaid
 erDiagram
-    users ||--o{ workspace_memberships : has
-    workspaces ||--o{ workspace_memberships : has
-    workspaces ||--o{ workspace_join_requests : receives
-    workspaces ||--o{ groups : contains
-    groups ||--o{ group_memberships : has
-    groups ||--o{ projects : owns
-    projects ||--o{ milestones : has
-    projects ||--o{ reviews : receives
-    projects ||--o{ grades : has
-    users ||--o{ grades : receives
-    users ||--o{ refresh_tokens : owns
-    users ||--o{ audit_logs : acts
+    users ||--o{ group_memberships : belongs_to
+    users ||--o{ workspace_staff : manages
+    users ||--o{ workspace_staff_requests : requests
+    users ||--o{ workspace_notices : authors
+    users ||--o{ project_updates : writes
+    users ||--o{ update_comments : comments
+    users ||--o{ submission_versions : submits
+    users ||--o{ submission_versions : claims
+    users ||--o{ reviews : evaluates
+    users ||--o{ result_entries : receives
+    users ||--o{ result_corrections : corrects
+    users ||--o{ audit_logs : triggers
+
+    workspaces ||--o{ workspace_staff : staff_list
+    workspaces ||--o{ workspace_staff_requests : incoming_requests
+    workspaces ||--o{ workspace_groups : enrolled_groups
+    workspaces ||--o{ workspace_notices : notices
+    workspaces ||--o{ review_rounds : rounds
+    workspaces ||--o{ projects : contains
+
+    groups ||--o{ group_memberships : members
+    groups ||--o{ workspace_groups : enrollments
+    groups ||--o{ projects : executes
+
+    projects ||--o{ project_updates : updates
+    projects ||--o{ submissions : submissions
+    projects ||--o| github_links : links
+
+    github_links ||--o{ github_commits : commits
+
+    project_updates ||--o{ update_comments : comments
+
+    review_rounds ||--o{ submissions : targets
+    review_rounds ||--o{ result_entries : round_results
+
+    submissions ||--o{ submission_versions : versions
+    submission_versions ||--o| reviews : review_record
+
+    reviews ||--o{ result_entries : awarded_scores
+    result_entries ||--o{ result_corrections : history
 ```
 
-Multi-step changes (e.g. approving a join request = update request + create membership + audit entry) run in **one transaction**.
+### Relational Schema Summary
+
+| Table | Primary Key | Foreign Keys & Constraints | Key Columns |
+|---|---|---|---|
+| `users` | `id` (Integer) | Unique: `email`, Indexed: `roll_number` | `email`, `hashed_password`, `full_name`, `roll_number`, `role`, `is_active` |
+| `refresh_tokens` | `id` (Integer) | FK: `user_id` $\to$ `users.id` (CASCADE) | `token_hash`, `expires_at` |
+| `email_tokens` | `id` (Integer) | FK: `user_id` $\to$ `users.id` (CASCADE) | `token`, `token_type`, `expires_at` |
+| `groups` | `id` (Integer) | FK: `created_by` $\to$ `users.id`, Unique: `code` | `name`, `code`, `is_deleted`, `created_at` |
+| `group_memberships` | `id` (Integer) | FKs: `group_id`, `user_id`, Unique: `user_id` | `joined_at` (enforces 1 group per student) |
+| `workspaces` | `id` (String PK) | FK: `owner_id` $\to$ `users.id` | `name`, `description`, `term`, `is_open`, `is_archived` |
+| `workspace_staff` | `id` (Integer) | FKs: `workspace_id`, `user_id`, Unique: `(workspace_id, user_id)` | `role`, `added_at` |
+| `workspace_staff_requests` | `id` (Integer) | FKs: `workspace_id`, `requester_id`, Unique: `(workspace_id, requester_id)` | `status` (PENDING/APPROVED/REJECTED), `resolved_at` |
+| `workspace_groups` | `id` (Integer) | FKs: `workspace_id`, `group_id`, Unique: `(workspace_id, group_id)` | `enrolled_by`, `enrolled_at` |
+| `workspace_notices` | `id` (Integer) | FKs: `workspace_id`, `author_id` | `title`, `content`, `image_url`, `is_pinned`, `expires_at` |
+| `projects` | `id` (Integer) | FKs: `workspace_id`, `group_id`, Unique: `(workspace_id, group_id)` | `name`, `description`, `created_by` |
+| `project_updates` | `id` (Integer) | FKs: `project_id`, `author_id` | `content`, `link`, `created_at` |
+| `update_comments` | `id` (Integer) | FKs: `update_id`, `author_id` | `content`, `created_at` |
+| `github_links` | `id` (Integer) | FKs: `project_id` (Unique), `linked_by` | `repo_url`, `last_synced_at` |
+| `github_commits` | `id` (Integer) | FK: `github_link_id` $\to$ `github_links.id` | `commit_sha`, `commit_message`, `author_name`, `committed_at` |
+| `review_rounds` | `id` (Integer) | FK: `workspace_id`, Check: `max_score >= 1.0` | `title`, `order_index`, `due_date`, `max_score`, `weight`, `is_open` |
+| `submissions` | `id` (Integer) | FKs: `project_id`, `round_id`, Unique: `(project_id, round_id)` | `created_at` |
+| `submission_versions` | `id` (Integer) | FKs: `submission_id`, `submitted_by`, `claimed_by_id`, Unique: `(submission_id, version_number)` | `version_number`, `status`, `notes`, `link`, `roster_snapshot` (JSONB) |
+| `reviews` | `id` (Integer) | FK: `submission_version_id` (Unique), FK: `reviewer_id` | `status`, `feedback`, `claimed_at`, `completed_at` |
+| `result_entries` | `id` (Integer) | FKs: `review_id`, `student_id`, `round_id`, Unique: `(review_id, student_id)`, Check: `score >= 0` | `score`, `feedback`, `is_released`, `released_at` |
+| `result_corrections` | `id` (Integer) | FKs: `result_entry_id`, `corrected_by_id` | `old_score`, `new_score`, `reason`, `created_at` |
+| `audit_logs` | `id` (BigInteger PK) | FKs: `actor_id`, `workspace_id`, Indexed: `created_at`, `action_type` | `category`, `action_type`, `action_name`, `status`, `old_value`, `new_value` |
+| `audit_merkle_roots` | `id` (Integer) | None | `root_hash`, `log_range_start`, `log_range_end`, `computed_at` |
 
 ---
 
-## 5. Authentication & Authorization
+## 6. API Specification
 
-### Authentication flow
+All API endpoints are prefixed with `/api/v1` and return JSON.
 
-```
-Login form → POST /api/auth/login → verify Argon2id hash
-  → access token (JWT, ~15 min, returned in JSON, kept in memory)
-  → refresh token (random, ~7 days, HttpOnly + Secure + SameSite cookie, path /api/auth)
-```
+### Authentication (`/api/v1/auth`)
+| Method | Endpoint | Access | Description |
+|---|---|---|---|
+| `POST` | `/register` | Public | Register new user account (`email`, `password`, `full_name`, `role`, `roll_number`) |
+| `POST` | `/login` | Public | Authenticate user credentials; returns JWT `access_token` and user profile |
+| `GET` | `/me` | Authenticated | Retrieve current authenticated user profile |
 
-- **Page reload:** memory is empty → one silent `POST /api/auth/refresh` restores the session.
-- **Rotation:** every refresh issues a new refresh token and revokes the old one. If a revoked token is reused, revoke the whole family and force re-login.
-- **JWT claims:** `sub`, `exp`, `iat` only. **No roles inside the token.** Permissions are looked up in the database on each request, so removed members lose access immediately.
-- **No localStorage:** any script on the page (XSS or a bad npm package) can read it. Memory plus an HttpOnly cookie avoids that.
-- **Other endpoints:** register, verify-email, logout (revokes token, frontend clears query cache), forgot/reset password (one-time hashed tokens; reset revokes all sessions; same response whether or not the email exists), `GET /users/me`.
-- **Rate limiting** on login, register, forgot-password, refresh (in-process counters are fine with one worker).
+### Student Groups (`/api/v1/groups`)
+| Method | Endpoint | Access | Description |
+|---|---|---|---|
+| `POST` | `/` | Student | Create a new student group; generates unique join code |
+| `GET` | `/me` | Student | Retrieve current student's active group and members |
+| `GET` | `/{group_id}` | Authenticated | Retrieve group details by ID |
+| `POST` | `/join` | Student | Join an existing group using its unique join code |
+| `PATCH`| `/{group_id}/code` | Group Leader | Regenerate the group's join code |
+| `POST` | `/{group_id}/leave` | Member | Leave group; automatically handles leader transfer or group deletion |
+| `POST` | `/{group_id}/enroll`| Member | Enroll group into a workspace curriculum |
 
-### Authorization
+### Academic Workspaces (`/api/v1/workspaces`)
+| Method | Endpoint | Access | Description |
+|---|---|---|---|
+| `POST` | `/` | Staff | Create an academic workspace (`name`, `description`, `term`, `id`) |
+| `GET` | `/` | Authenticated | List workspaces (scoped by role; student view batches notices and rounds) |
+| `GET` | `/{workspace_id}` | Authenticated | Retrieve workspace details and enrolled groups |
+| `POST` | `/{workspace_id}/staff-request` | Staff | Submit request for co-staff grading access |
+| `GET` | `/{workspace_id}/staff-requests` | Workspace Owner | List pending staff access requests |
+| `POST` | `/{workspace_id}/staff-request/{id}/resolve` | Workspace Owner | Approve or reject a staff access request |
+| `POST` | `/{workspace_id}/costaff/{user_id}` | Workspace Owner | Add faculty member as co-staff |
+| `DELETE`|`/{workspace_id}/costaff/{user_id}` | Workspace Owner | Revoke faculty co-staff privileges |
+| `POST` | `/{workspace_id}/archive` | Workspace Owner | Archive workspace (locks submissions) |
+| `GET` | `/{workspace_id}/groups` | Staff | List all groups enrolled in the workspace |
+| `GET` | `/{workspace_id}/projects` | Staff | List all projects created in the workspace |
+| `GET` | `/{workspace_id}/notices` | Enrolled/Staff | List active, unexpired notices (pinned first) |
+| `POST` | `/{workspace_id}/notices` | Staff | Publish notice with optional direct image upload (24h expiry) |
+| `PATCH`| `/{workspace_id}/notices/{id}` | Notice Author/Staff | Edit notice title or content |
+| `POST` | `/{workspace_id}/notices/{id}/pin` | Staff | Toggle notice pin state |
+| `DELETE`|`/{workspace_id}/notices/{id}` | Notice Author/Staff | Delete notice and remove uploaded image from disk |
+| `POST` | `/notices/cleanup-expired` | Public/Cron | Trigger sweep to delete expired notices |
+| `GET` | `/notices/images/{filename}` | Public | Serve uploaded notice image (cached) |
+| `GET` | `/{workspace_id}/rounds` | Enrolled/Staff | List review rounds ordered by `order_index` |
+| `POST` | `/{workspace_id}/rounds` | Staff | Create review round (`title`, `order_index`, `max_score`, `weight`, `due_date`) |
+| `PATCH`| `/{workspace_id}/rounds/{round_id}` | Staff | Update review round parameters and rubric |
+| `POST` | `/{workspace_id}/rounds/{round_id}/toggle` | Staff | Toggle round open/closed status |
+| `DELETE`|`/{workspace_id}/rounds/{round_id}` | Staff | Delete round (blocked if submissions exist; audited) |
 
-All permission rules live in `app/authorization/` as functions taking real objects loaded from the DB:
+### Projects & Updates (`/api/v1/projects`)
+| Method | Endpoint | Access | Description |
+|---|---|---|---|
+| `POST` | `/` | Enrolled Group | Create workspace project for the group |
+| `GET` | `/{project_id}` | Group Member/Staff | Retrieve project details, team roster, and GitHub link |
+| `GET` | `/{project_id}/updates` | Group Member/Staff | List progress update timeline |
+| `POST` | `/{project_id}/updates` | Group Member | Post a milestone progress update |
+| `POST` | `/{project_id}/updates/{id}/comments` | Member/Staff | Post a threaded comment on a project update |
+| `GET` | `/{project_id}/github` | Member/Staff | Get linked GitHub repository details and commits |
+| `POST` | `/{project_id}/github` | Group Member | Link a GitHub repository (`repo_url`, `branch`) |
+| `POST` | `/{project_id}/github/sync` | Group Member/Staff | Fetch live commits from GitHub API |
+| `DELETE`|`/{project_id}/github` | Group Member | Unlink GitHub repository |
 
-`can_view_workspace`, `can_manage_workspace`, `can_view_group`, `can_manage_group`, `can_view_project`, `can_edit_project`, `can_delete_project`, `can_request_review`, `can_review_project`, `can_modify_grade`, `can_view_grade`
+### Milestone Submissions (`/api/v1`)
+| Method | Endpoint | Access | Description |
+|---|---|---|---|
+| `GET` | `/projects/{project_id}/submissions` | Member/Staff | List submissions across rounds for a project |
+| `POST` | `/projects/{project_id}/rounds/{round_id}/submissions` | Group Member | Submit deliverable (validates group size $\ge 2$, freezes roster) |
+| `PATCH`| `/submissions/{submission_id}/draft` | Group Member | Update draft deliverable notes and links |
+| `POST` | `/submissions/{submission_id}/submit` | Group Member | Finalize draft deliverable for review |
 
-Rules:
-- **No role checks in routers.** Routers and services call `can_*` only.
-- **Derive the workspace from the object**, never trust a `workspace_id` or `student_id` from the request body.
-- **Filter list queries in SQL** (`WHERE workspace_id IN (user's workspaces)`), not in Python afterward.
-- **IDOR/BOLA defense:** a valid token is not enough. If Student A changes `/projects/abc` to another group's project id, `can_view_project` must refuse. Return **404** for objects the user shouldn't know exist.
-- Request schemas list exactly the fields a client may set (no `role` or `progress_percent` injection).
+### Review Queue & Grading (`/api/v1`)
+| Method | Endpoint | Access | Description |
+|---|---|---|---|
+| `GET` | `/reviews/queue` | Staff | List pending submissions across managed workspaces |
+| `POST` | `/reviews/{version_id}/claim` | Staff | Claim submission for evaluation (uses row-level lock) |
+| `POST` | `/reviews/{version_id}/release-claim` | Claiming Staff | Release claimed submission back to queue |
+| `POST` | `/reviews/{version_id}/evaluate` | Claiming Staff | Submit evaluation with individual student scores and feedback |
+| `POST` | `/reviews/{version_id}/release-results` | Staff | Release marks and feedback to students |
+
+### Results & CSV Export (`/api/v1/results`)
+| Method | Endpoint | Access | Description |
+|---|---|---|---|
+| `GET` | `/workspace/{workspace_id}` | Staff | Dedicated Results Dashboard with dynamic round columns |
+| `GET` | `/workspace/{workspace_id}/export-csv` | Staff | Export workspace results as UTF-8 CSV with BOM |
+| `GET` | `/me` | Student | View personal grades and feedback across enrolled workspaces |
+| `PATCH`| `/{entry_id}/correct` | Staff | Correct student grade with mandatory audit justification |
+
+### Smart Search (`/api/v1/search`)
+| Method | Endpoint | Access | Description |
+|---|---|---|---|
+| `GET` | `/search?q={query}` | Authenticated | Role-isolated search across workspaces, groups, projects, submissions, and students |
+
+### Administrative Activity Center (`/api/v1/audit`)
+| Method | Endpoint | Access | Description |
+|---|---|---|---|
+| `GET` | `/audit/activity` | Staff | Paginated audit events with 7 filter parameters |
+| `GET` | `/audit/stats` | Staff | Aggregated event statistics across 4 overview categories |
+| `GET` | `/audit/filters` | Staff | Dropdown filter options for UI |
+| `GET` | `/audit/logs` | Staff | Raw audit logs |
+
+### Health & Telemetry
+| Method | Endpoint | Access | Description |
+|---|---|---|---|
+| `GET` | `/health` / `/api/v1/health` | Public | Health check (`?wake_db=true` pings PostgreSQL) |
+| `GET` | `/api/v1/cache/stats` | Public | Telemetry report for in-memory LRU cache |
 
 ---
 
-## 6. DSA Layer
+## 7. Security Architecture
 
-> PostgreSQL is the source of truth. DSA structures are **derived, disposable, and rebuildable**. Nothing important exists only in Python memory.
-
-| Class | Structure | Job in NexaVault | Complexity | PostgreSQL equivalent |
-|---|---|---|---|---|
-| `ProjectSearchIndex` | Hash table (own implementation, chaining, resize at ~0.75 load) | Project summary lookup by id | Avg O(1), worst O(n) | Primary-key index |
-| `ProgressAVLTree` | AVL tree, key `(progress, project_id)`, one per workspace | Range ("40–70%"), min/max, ordered progress | O(log n); range O(log n + k) | B-tree on `(workspace_id, progress_percent)` |
-| `ReviewQueue` | FIFO queue (linked list / circular buffer) | First-come-first-served review view | O(1) enqueue/dequeue | `ORDER BY created_at` |
-| `PriorityReviewQueue` | Binary heap, key `(-priority, created_at, id)`, lazy deletion | Most urgent review first | Push/pop O(log n), peek O(1), build O(n) | `ORDER BY priority DESC, created_at` |
-| `AuditMerkleTree` | Merkle tree over audit `entry_hash` values | Detect tampering with audit history | Build O(n); proof/verify O(log n) | None |
-| `ProjectTrie` | Trie, one per workspace | Title prefix autocomplete | Insert O(L); prefix O(P + k) | Prefix `LIKE` / `pg_trgm` |
-
-**Rules**
-1. `backend/dsa/` is **pure Python**: no FastAPI or SQLAlchemy imports, standard library only.
-2. Structures store ids and plain values. A sync service (outside `dsa/`) connects them to the DB.
-3. **Startup:** build from PostgreSQL. **On write:** commit to PostgreSQL first, then update structures. If the update fails, mark the structure dirty and rebuild.
-4. **Dirty or rebuilding structure:** serve the SQL result instead. Never serve stale data.
-5. A `threading.Lock` guards mutations. The backend runs **one Uvicorn worker** (documented limitation; multiple workers would hold diverging copies).
-6. Diagnostics: `/api/dsa/stats` (sizes, AVL height, load factor, last rebuild), `/api/dsa/rebuild`, Merkle verify/proof endpoints.
-
-**Review assignment is always SQL.** `claim-next` runs in one transaction: pick the best pending review with `ORDER BY priority DESC, created_at ASC`, lock it with `FOR UPDATE SKIP LOCKED`, set reviewer and status, write an audit entry, commit. Two staff members can never get the same review. The Python queues are a derived view.
-
-**Merkle tree and audit logs:** audit rows are written inside the same transaction as the action. A checkpoint job builds a Merkle tree over new entries and stores the root in `audit_merkle_roots`. Rebuilding and comparing roots detects edited or deleted rows. *Limitation:* someone who can edit both logs and roots can defeat it; publish roots elsewhere for real protection.
-
-**Search split**
-
-| Need | Tool |
-|---|---|
-| Exact lookup | Hash table (PK fallback) |
-| Prefix autocomplete | Trie (SQL prefix fallback) |
-| Word search | PostgreSQL full-text (`tsvector` + GIN) |
-| Fuzzy/typos | `pg_trgm` |
-| Progress range | AVL tree (SQL fallback) |
-
-All search results are filtered by what the user may see. The project's academic value is honest comparison: write tests that DSA results equal SQL results on random data, and benchmark both on 10k generated projects (including where PostgreSQL wins).
+1. **Password Hashing**: Uses direct `bcrypt.hashpw` with per-user salt generation. Truncates input at 72 bytes to mitigate denial-of-service vectors.
+2. **JWT Authentication**: Signed with HMAC-SHA256 (`HS256`). Claims include subject (`sub`), issued-at (`iat`), and expiration (`exp`). Token validation is performed via FastAPI dependency injection.
+3. **Role & Object Authorization**:
+   - Role checks (`get_current_student`, `get_current_staff`) are executed at the route layer.
+   - Fine-grained object permissions (`can_access_workspace`, `can_manage_round`, `can_review_submission`) verify that faculty can only view and score projects in workspaces they own or co-manage.
+4. **Audit Logging & Redaction**: The audit logging pipeline (`app/services/audit_service.py`) intercepts all security, access, and assessment events. Sensitive keys (`password`, `token`, `secret`, `api_key`, `jwt`) are recursively replaced with `[REDACTED]` before database commit.
+5. **File Upload Security**: Direct image uploads are verified for MIME type and file size ($\le 5\text{MB}$), sanitized against directory traversal attacks, and stored outside web root with unique UUID filenames.
+6. **Concurrent Review Protection**: Uses PostgreSQL `FOR UPDATE` row-level locks during submission claiming, eliminating race conditions when multiple staff members access the review queue.
 
 ---
 
-## 7. Performance & Security Principles
+## 8. Performance & In-Memory Caching
 
-**Performance (engineering targets, not guarantees)**
+NexaVault incorporates an in-memory caching and query optimization layer designed for sub-millisecond response times:
 
-| Area | Target (p95) |
-|---|---|
-| Initial load | Usable UI < 2 s |
-| Login | < 700 ms (includes deliberate Argon2id cost) |
-| API read / write | < 150 ms / < 300 ms server time |
-| Search / autocomplete | < 100 ms server time |
-| Cached navigation | Feels instant |
+### In-Memory LRU Cache (`app/core/cache.py`)
+- **Structure**: Thread-safe `OrderedDict` maintaining an LRU eviction policy ($O(1)$ lookup, update, and eviction) capped at `CACHE_MAX_ENTRIES` (default 2000).
+- **Inverted Tag Index**: Maintains a `Dict[str, Set[str]]` mapping cache tags (e.g., `workspace:WS-01`, `review:queue`) to keys. Allows $O(k)$ targeted invalidation upon write operations without flushing unrelated entries.
+- **Cache Isolation**: Returns `copy.deepcopy` of cached objects to prevent in-place mutation side effects.
+- **Live Telemetry**: Exposed at `GET /api/v1/cache/stats` reporting hits, misses, hit rate percentage, eviction count, and active entry counts.
 
-- **Backend:** index foreign keys and filters, paginate every list (default 20, max 100), return minimal payloads, avoid N+1 (eager loading; assert query counts in tests), use SQLAlchemy connection pooling, keep transactions short, send email in `BackgroundTasks`.
-- **Frontend:** TanStack Query caching with per-resource `staleTime`, route-level code splitting (`React.lazy`), skeleton loading states, debounced search (~200 ms), optimistic updates only for low-risk actions (milestone toggle; never grades, permissions, deletes), stable list keys.
-- **Measure first:** use `EXPLAIN ANALYZE` and the browser network tab. Don't optimize without numbers.
-
-**Security**
-- Argon2id passwords; HTTPS in production; secure headers (HSTS, CSP, `nosniff`, `Referrer-Policy`, frame-ancestors).
-- Same-origin deployment (frontend + `/api` behind one proxy) keeps CORS and cookies simple. Dev uses the Vite proxy. Never `*` with credentials.
-- CSRF: refresh cookie is `SameSite` and path-restricted; require a custom header and check `Origin` on `/auth/refresh` and `/auth/logout`. All other endpoints use a Bearer header.
-- XSS: rely on React escaping, never `dangerouslySetInnerHTML` with user content, keep dependencies few.
-- SQL injection: parameterized SQLAlchemy only. Validate all input with Pydantic.
-- Secrets only in environment variables, `.env` is git-ignored, `.env.example` is committed. If a secret is committed, rotate it.
-- Logging: structured JSON with a `request_id`. **Never log** passwords, tokens, secrets, or unnecessary personal data.
-- Errors: one format everywhere, with `error.code`, `message`, `details`, `request_id`. Never leak stack traces or SQL.
-
-| Case | Status |
-|---|---|
-| Validation | 422 |
-| Not authenticated | 401 |
-| Forbidden / hidden | 403 / 404 |
-| Conflict (e.g. duplicate group number) | 409 |
-| Rate limited | 429 |
-| Unexpected | 500 (generic message; details in logs) |
+### Database Query Optimizations
+- **N+1 Query Elimination**: Endpoints such as `list_workspaces` use SQLAlchemy `joinedload` and SQL `IN(...)` batch queries to load all projects, review rounds, and notices in 3 database queries rather than $O(N)$ sequential queries.
+- **Neon Serverless Pooling**: Optimized connection string handling and a throttled health-check ping (`/api/v1/health?wake_db=true`) prevent connection exhaustion and warm sleeping database compute instances on app mount.
 
 ---
 
-## 8. Repository Structure
+## 9. Project Directory Structure
 
 ```
 NexaVault/
-├── frontend/
-│   ├── src/
-│   │   ├── components/   # reusable UI (Button, TextField, Skeleton)
-│   │   ├── pages/        # one per screen
-│   │   ├── layouts/      # AuthLayout, AppLayout
-│   │   ├── routes/       # route config, ProtectedRoute, lazy imports
-│   │   ├── queries/      # TanStack Query hooks per resource
-│   │   ├── services/     # API client (attaches token, handles refresh)
-│   │   ├── hooks/  store/  utils/  styles/  assets/
-│   └── tests/
+├── .env.example                     # Environment variables configuration template
+├── .gitignore                       # Git exclusion rules
+├── docker-compose.yml               # Multi-container Docker orchestration manifest
+├── README.md                        # Master technical documentation
+├── vercel.json                      # Vercel deployment routing configuration
+│
 ├── backend/
+│   ├── Dockerfile                   # Python 3.13 production container definition
+│   ├── entrypoint.sh                # Container startup: runs migrations & starts Uvicorn
+│   ├── requirements.txt             # Python dependencies manifest
+│   ├── alembic.ini                  # Alembic migration configuration
+│   ├── benchmark_cache.py           # In-memory cache latency benchmarking harness
+│   │
+│   ├── alembic/
+│   │   ├── env.py                   # Migration environment & model metadata
+│   │   └── versions/                # Versioned SQL migration scripts
+│   │
 │   ├── app/
-│   │   ├── core/           # config, security, logging, errors, rate limiting
-│   │   ├── db/             # engine, session, base
-│   │   ├── models/         # SQLAlchemy tables
-│   │   ├── schemas/        # Pydantic request/response shapes
-│   │   ├── routers/        # thin HTTP endpoints
-│   │   ├── services/       # business logic + transactions
-│   │   ├── dependencies/   # get_db, get_current_user
-│   │   ├── authorization/  # ALL can_* rules
-│   │   └── main.py
-│   ├── dsa/                # pure Python structures
-│   ├── scripts/            # seed data, promote-to-staff, benchmarks
-│   ├── tests/              # dsa/ authorization/ api/ integration/
-│   └── migrations/         # Alembic
-├── docs/                   # runbook, performance notes, DSA report
-├── .github/workflows/      # CI
-├── docker-compose.yml
-├── README.md
-├── .gitignore
-└── .env.example
+│   │   ├── main.py                  # FastAPI application entrypoint & middleware
+│   │   │
+│   │   ├── api/
+│   │   │   ├── deps.py              # Dependency injection: get_db, auth checks
+│   │   │   └── v1/
+│   │   │       ├── router.py        # Central API v1 router aggregator
+│   │   │       └── endpoints/       # Domain route modules
+│   │   │           ├── audit.py     # Administrative Activity Center endpoints
+│   │   │           ├── auth.py      # Registration, login, profile endpoints
+│   │   │           ├── groups.py    # Team management & join code endpoints
+│   │   │           ├── projects.py  # Projects, updates & GitHub sync endpoints
+│   │   │           ├── results.py   # Results dashboard & CSV export endpoints
+│   │   │           ├── reviews.py   # Staff review queue & scoring endpoints
+│   │   │           ├── search.py    # Role-isolated Smart Search endpoints
+│   │   │           ├── submissions.py # Milestone submissions & versioning
+│   │   │           └── workspaces.py  # Workspaces, notices & rounds endpoints
+│   │   │
+│   │   ├── core/
+│   │   │   ├── cache.py             # Thread-safe LRU cache with inverted tag index
+│   │   │   ├── config.py            # Pydantic Settings configuration & CORS parser
+│   │   │   ├── permissions.py       # Object-level authorization rules (can_*)
+│   │   │   └── security.py          # Bcrypt hashing & JWT signing/decoding
+│   │   │
+│   │   ├── db/
+│   │   │   ├── base.py              # SQLAlchemy DeclarativeBase
+│   │   │   └── session.py           # Engine & SessionLocal factory
+│   │   │
+│   │   ├── models/                  # SQLAlchemy ORM models
+│   │   │   ├── audit.py             # AuditLog, AuditMerkleRoot
+│   │   │   ├── github.py            # GithubLink, GithubCommit
+│   │   │   ├── group.py             # Group, GroupMembership
+│   │   │   ├── project.py           # Project, ProjectUpdate, UpdateComment
+│   │   │   ├── review.py            # ReviewRound, Submission, Version, Review, ResultEntry
+│   │   │   ├── user.py              # User, RefreshToken, EmailToken
+│   │   │   └── workspace.py         # Workspace, Staff, Request, Group, Notice
+│   │   │
+│   │   ├── schemas/                 # Pydantic request/response validation shapes
+│   │   │   ├── audit.py, github.py, group.py, project.py,
+│   │   │   ├── result.py, review.py, search.py, submission.py,
+│   │   │   ├── user.py, workspace.py
+│   │   │
+│   │   └── services/
+│   │       ├── audit_service.py     # Centralized audit logger & metadata sanitizer
+│   │       ├── project_service.py   # Project lifecycle operations
+│   │       └── storage_service.py   # Multipart image upload & disk lifecycle
+│   │
+│   ├── tests/                       # Automated pytest test suites
+│   │   ├── test_audit_activity_center.py
+│   │   ├── test_cache_layer.py
+│   │   ├── test_notice_board.py
+│   │   ├── test_results_section.py
+│   │   ├── test_review_round_pipeline.py
+│   │   └── test_step1_marking_migration.py
+│   │
+│   └── uploads/                     # Uploaded media storage directory
+│
+├── frontend/
+│   ├── Dockerfile                   # Node 20 multi-stage build + Nginx container
+│   ├── nginx.conf                   # Nginx SPA fallback & caching configuration
+│   ├── package.json                 # Node dependencies & build scripts
+│   ├── vite.config.js               # Vite bundler configuration
+│   ├── tailwind.config.js           # Tailwind CSS theme & tokens
+│   │
+│   └── src/
+│       ├── App.jsx                  # Root router switcher (Auth / Staff / Student)
+│       ├── main.jsx                 # React DOM mount point
+│       ├── api/                     # Axios / Fetch API client modules
+│       ├── context/
+│       │   └── AuthContext.jsx      # Authentication state provider & localStorage sync
+│       │
+│       └── pages/
+│           ├── Login/
+│           │   └── Login.jsx        # Login & registration portal
+│           ├── Staff/
+│           │   ├── StaffDashboard.jsx         # Staff sidebar & navigation shell
+│           │   ├── StaffDashboardView.jsx     # Staff metrics overview
+│           │   ├── StaffWorkspacesView.jsx    # Workspaces, Notice Board & Round manager
+│           │   ├── StaffReviewQueueView.jsx   # Submission review & grading queue
+│           │   ├── StaffResultsView.jsx       # Results dashboard & CSV exporter
+│           │   ├── StaffProjectDetailView.jsx # Project inspector & GitHub sync
+│           │   ├── StaffAuditTrailView.jsx    # Administrative Activity Center
+│           │   ├── StaffSmartSearchView.jsx   # Staff global search
+│           │   └── StaffProfileView.jsx       # Staff profile view
+│           │
+│           └── Student/
+│               ├── StudentDashboard.jsx       # Student navigation shell
+│               ├── DashboardView.jsx          # Student metrics & upcoming deadlines
+│               ├── WorkspacesView.jsx         # Enrolled workspaces & notice board
+│               ├── GroupsView.jsx             # Group formation & join code manager
+│               ├── ProjectsView.jsx           # Project workspace & updates
+│               ├── SubmissionsView.jsx        # Milestone submission tracker
+│               ├── ResultsView.jsx            # Student grades & faculty feedback
+│               ├── SmartSearchView.jsx        # Student scoped search
+│               ├── AuditTrailView.jsx         # Student activity history
+│               └── ProfileView.jsx            # Student profile view
+│
+└── DSA_Demonstration/               # Academic DSA demonstration suite (pure Python)
+    ├── README.md                    # DSA suite documentation & Big-O analysis
+    ├── hashing_linear_probing.py    # Custom Open Addressing Hash Table with Tombstones
+    ├── priority_queue.py            # Binary Min-Heap Priority Queue with FIFO tie-breaker
+    ├── normal_queue.py              # O(1) FIFO Queue via collections.deque
+    └── trie_autocomplete.py         # Prefix Tree (Trie) Autocomplete with DFS
 ```
-
-State rules: server data lives in TanStack Query; everything else starts as `useState`; the access token lives in memory only; Zustand only if two distant components truly need shared client state. Routers never contain queries or permission logic; models never contain business rules; never return ORM models directly (always a schema).
 
 ---
 
-## 9. Development Plan
+## 10. Setup & Execution Guide
 
-Eight phases in dependency order. Write **tests as you build each feature**, not at the end. The `dsa/` package is pure Python, so you can build it any time after Phase 1 as a break from web work; it is integrated in Phase 6.
-
-### Phase 1: Project Setup
-**Build**
-- Repo, `.gitignore` (with `.env`), `.env.example`, GitHub branch protection and CI skeleton
-- Frontend: Vite + React, Router, CSS tokens, ESLint/Prettier/Vitest, **static Login page** (layout, branding, email/password, show/hide, validation, loading and error states, responsive; fake submit with a timeout)
-- Backend: FastAPI app, `/api/health`, pydantic-settings, logging, standard error format, Ruff, pytest
-- Compose file with PostgreSQL (named volume) + Mailpit
-- SQLAlchemy engine/session, Alembic, first migration applied
-
-**Learn first:** Git basics, components/props/state, HTTP and status codes, tables/keys/migrations, Docker container vs volume.
-**Done when:** `npm run dev`, `uvicorn`, `docker compose up -d`, `alembic upgrade head`, lint, and tests all work from a fresh clone.
-
-### Phase 2: Authentication & Authorization
-**Build**
-- Tables: `users`, `refresh_tokens`, `email_tokens`
-- Auth endpoints (section 5): register, verify, login, refresh with rotation and reuse detection, logout, forgot/reset, `me`, rate limiting
-- `authorization/` module and the dependency pattern (first rule: only STAFF create workspaces)
-- `audit_logs` table and one `audit_service` function used inside the caller's transaction
-- Connect Login UI: API client, in-memory auth state, silent refresh on load, `ProtectedRoute`, TanStack Query provider, dashboard shell, logout clears cache
-
-```
-Login UI → POST /auth/login → access token (memory) + refresh cookie → GET /users/me → protected routes → Dashboard
-```
-
-**Learn first:** hashing vs encryption, JWT contents, HttpOnly/Secure/SameSite, authentication vs authorization, IDOR.
-**Done when:** login, reload (still logged in), and logout all work; DevTools shows no token in localStorage and an HttpOnly refresh cookie; tests cover wrong password, expired token, reused refresh token, rate limit, and reset revoking sessions; DB holds no plaintext passwords or tokens.
-
-### Phase 3: Workspaces & Groups
-**Build**
-- Tables: `workspaces`, `workspace_memberships`, `workspace_join_requests`, `groups`, `group_memberships` (composite FKs)
-- Create/list/view/discover workspaces, join request → approve/reject (one transaction + audit), remove member
-- Group CRUD and member management
-- Matching `can_*` functions, pages with skeleton/empty/error states
-
-**Learn first:** foreign keys and joins, composite keys, partial unique indexes, transactions, pagination.
-**Done when:** Group 11 exists in two workspaces; a student cannot be in two groups of one workspace or join a group without workspace membership (DB-level tests); non-members and students are refused on every staff action.
-
-### Phase 4: Projects & Milestones
-**Build**
-- Tables: `projects`, `milestones`, with indexes
-- Project CRUD with filters, pagination, soft delete; milestone CRUD and reorder
-- `progress_percent` recalculated from milestones **in the same transaction**
-- UI: project list/detail, milestone toggle with optimistic update and rollback
-
-**Learn first:** N+1 and eager loading, indexes for filters, denormalization trade-offs, optimistic updates.
-**Done when:** Student A cannot read or edit Student B's project; list endpoint uses a bounded number of queries (test); progress is always consistent with milestones (including 0 milestones and deletions).
-
-### Phase 5: Reviews & Grading
-**Build**
-- Tables: `reviews`, `grades`
-- Request review, list, `claim-next` (`SKIP LOCKED`, section 6), complete, cancel
-- Grade upsert (per student) with audit entries holding old/new score; students see only their own
-- Staff review queue UI
-
-**Learn first:** row locking, race conditions, check constraints, why grade changes need audit history.
-**Done when:** two simultaneous claims receive different reviews (concurrency test); students cannot claim, complete, or modify grades; every grade change writes an audit row.
-
-### Phase 6: Search & DSA
-**Build**
-1. PostgreSQL search first: full-text (GIN), `pg_trgm` fuzzy, SQL prefix autocomplete, debounced search box
-2. `backend/dsa/` (if not already built): hash table → trie → queue → priority queue → AVL → Merkle, each with edge-case tests and documented complexity
-3. Integration: build at startup, update after commit, dirty flag + SQL fallback, `/api/dsa/*` endpoints, Merkle checkpointing and verification, benchmark script
-
-**Learn first:** Big-O, hash collisions, AVL rotations, heap sift up/down, what a Merkle root proves, derived data vs source of truth.
-**Done when:** search never leaks other workspaces' projects; DSA results equal SQL results on random data; killing and restarting the app rebuilds identical results; editing an audit row makes Merkle verification fail; benchmark report written.
-
-### Phase 7: Testing & Optimization
-**Build**
-- Fill every gap in the security test list below
-- Secure headers, CORS review, `pip-audit`/`npm audit`, error boundary and error-state review
-- Seed realistic data (1000 users, 10k projects), measure against section 7 targets, fix only measured bottlenecks (indexes, N+1, payload size, bundle size, re-renders)
-
-**Security tests that must pass**
-- Student A → Student B's project (read and edit)
-- Student → anything in another workspace; staff of A → objects in B
-- Student modifies or reads another student's grade
-- Student claims/completes a review or approves a join request
-- Forged `role`/`workspace_id` in request bodies
-- Expired, tampered, or missing JWT; reused refresh token; login rate limit
-- Removed member with a still-valid access token loses access immediately
-- List endpoints return only permitted objects
-
-**Done when:** CI is green and before/after performance numbers are recorded in `docs/`.
-
-### Phase 8: Docker & Deployment
-**Build**
-- Production images for backend and frontend; production Compose or host config
-- Reverse proxy with HTTPS serving the static build and routing `/api` (same origin)
-- Environment secrets from the host; Alembic migrations run as a deploy step before the new backend starts; one Uvicorn worker
-- Automated `pg_dump` backups copied off the server, **one tested restore**, short runbook in `docs/`
-
-**Learn first:** image vs container vs volume, environment variables, HTTPS and reverse proxy.
-**Done when:** a teammate can deploy from the runbook; the refresh cookie is `Secure`; a restored backup works and DSA structures rebuild automatically.
+### Prerequisites
+- **Python**: 3.11, 3.12, or 3.13
+- **Node.js**: 18.x or 20.x
+- **PostgreSQL**: 15+ (local instance or cloud provider like Neon)
+- **Docker**: (Optional) Docker Desktop 24+ with Docker Compose
 
 ---
 
-## 10. Deployment, Backups & Scaling
+### Method A: Local Development Setup
 
+#### 1. Configure Environment
+Copy the environment template in the repository root:
+```bash
+cp .env.example .env
 ```
-Internet → HTTPS → Reverse proxy ─┬─ static frontend files
-                                  └─ /api → FastAPI container (1 worker) → PostgreSQL (volume or managed)
+Edit `.env` and set your credentials:
+```ini
+DATABASE_URL=postgresql://postgres:postgres@localhost:5432/nexavault_db
+JWT_SECRET=your_secure_random_key_minimum_32_characters_long
+CORS_ORIGINS=["http://localhost:5173","http://localhost:3000"]
 ```
 
-- **Dev:** Vite dev server + local Uvicorn + Compose (Postgres + Mailpit). Dockerize the apps last.
-- **Prod:** built static frontend, no reload, no debug output, secrets from the host.
-- **Backups:** daily `pg_dump`, stored off-server, keep ~7 daily + 4 weekly + an end-of-semester snapshot. A Docker volume is persistence, **not** a backup. Restore into a scratch database before launch and monthly after.
-- **Scaling path:** profile first. Add indexes and query fixes before anything else. Moving the DSA layer off in-process memory is the only change that would be needed before running multiple workers; at 500 users it isn't.
+#### 2. Start PostgreSQL Database
+Ensure a local PostgreSQL server is running and create the database:
+```sql
+CREATE DATABASE nexavault_db;
+```
+
+#### 3. Backend Setup
+Navigate to the `backend/` directory:
+```bash
+cd backend
+
+# Create and activate a virtual environment
+python -m venv venv
+# Windows:
+venv\Scripts\activate
+# Linux/macOS:
+source venv/bin/activate
+
+# Install dependencies
+pip install --upgrade pip
+pip install -r requirements.txt
+
+# Run database migrations to head
+alembic upgrade head
+
+# Start the FastAPI development server
+uvicorn app.main:app --host 127.0.0.1 --port 8000 --reload
+```
+The backend API and Swagger UI will be accessible at:
+- API Base: `http://127.0.0.1:8000`
+- Interactive Swagger Docs: `http://127.0.0.1:8000/api/v1/docs`
+
+#### 4. Frontend Setup
+Open a second terminal and navigate to `frontend/`:
+```bash
+cd frontend
+
+# Install Node dependencies
+npm install
+
+# Start Vite development server
+npm run dev
+```
+The frontend application will be accessible at:
+- Frontend URL: `http://localhost:5173`
 
 ---
 
-## 11. Team Workflow
+### Method B: Full-Stack Docker Compose Setup
 
-- `main` is protected: PR + passing CI required.
-- Branches: `feature/…`, `fix/…`. Small commits with imperative messages.
-- One feature per PR with what/why/how-to-test. At least one reviewer checks authorization, tests, and no secrets.
-- Track work as GitHub issues (one per feature or bug) on a simple To do / Doing / Review / Done board.
-- CI on every PR: Ruff, ESLint, Prettier check, pytest (with Postgres service), Vitest, dependency audit.
-- Update this README in the same PR whenever a decision changes.
+Run the entire application (PostgreSQL, Backend, Frontend) with a single command:
+```bash
+# From the repository root:
+docker compose up --build -d
+```
+Docker Compose orchestrates:
+- `db`: PostgreSQL 16 Alpine container on port `5432` with named volume persistence.
+- `backend`: Runs migrations via `entrypoint.sh` and serves FastAPI on port `8000`.
+- `frontend`: Builds the production Vite bundle and serves it via Nginx on port `3000`.
 
----
-
-## 12. What NOT To Do
-
-- Don't store important data only in Python memory, and don't use DSA structures as the database.
-- Don't update DSA structures before the DB commit.
-- Don't run multiple Uvicorn workers while DSA state is in memory.
-- Don't put tokens in localStorage or roles/permissions in the JWT.
-- Don't trust frontend authorization or scatter permission checks (use `authorization/`).
-- Don't put business logic in route handlers or return ORM models directly.
-- Don't return unpaginated lists or build SQL with string formatting.
-- Don't use optimistic UI for grades, permissions, or deletes.
-- Don't log secrets or commit `.env`.
-- Don't force DSA features that don't belong in the product (no Knapsack or Sprint Optimizer).
-- Don't add infrastructure or dependencies without a measured need, and don't optimize before measuring.
-- Don't skip restoring a backup "because it probably works."
+To stop the containers:
+```bash
+docker compose down
+```
 
 ---
 
-## 13. Open Decisions
+## 11. Testing & Verification
 
-| Question | Suggested default | Decide in |
-|---|---|---|
-| How are STAFF accounts created? | Register as STUDENT; script promotes trusted users | Phase 2 |
-| Restrict registration to institutional email domain? | Yes, if the department has one | Phase 2 |
-| Can unverified users log in? | Yes, but cannot join workspaces | Phase 2 |
-| Can students see other groups' names? | No, own group only | Phase 3 |
-| Multiple projects per group? | Schema allows it; UI may start with one | Phase 4 |
-| Grades per student or per group? | Per student; UI can apply one score to the whole group | Phase 5 |
-| Default review order in the UI? | Priority queue with FIFO tie-break | Phase 5 |
-| Merkle checkpoint frequency? | Hourly plus manual trigger | Phase 6 |
-| Hosting target? | Decide before Phase 8 | Phase 7 |
+NexaVault includes a full automated test suite covering all critical workflows:
+
+```bash
+# Run all backend tests from the backend directory:
+cd backend
+pytest -v
+```
+
+### Verified Test Suites (44 passed)
+- **`test_audit_activity_center.py`** (6 tests): Validates activity center endpoints, event aggregation, filtering, security denial logging, and JSON metadata diffs.
+- **`test_cache_layer.py`** (9 tests): Validates in-memory LRU eviction, TTL expiration, tag-based targeted invalidation, concurrency locks, and telemetry.
+- **`test_notice_board.py`** (8 tests): Validates image file uploads, MIME sniffing, 5MB limit, 24-hour expiration queries, notice pinning, and storage deletion.
+- **`test_results_section.py`** (6 tests): Validates results dashboard, individual student grading, dynamic round columns, pass/fail percentage calculations, and CSV export formatting with UTF-8 BOM.
+- **`test_review_round_pipeline.py`** (7 tests): Validates round weight persistence, edit round modal PATCH endpoint, cross-workspace isolation, cache invalidation, review queue scoring against round max score, and round deletion protection.
+- **`test_step1_marking_migration.py`** (8 tests): Validates database schema migrations, backfill idempotency, score constraints, and result entry integrity.
+
+### Cache Latency Benchmark
+To measure local in-memory cache hit vs. miss performance:
+```bash
+cd backend
+python benchmark_cache.py
+```
+
+---
+
+## 12. Academic DSA Demonstration Suite
+
+Located in [`DSA_Demonstration/`](DSA_Demonstration/), this standalone folder contains pure Python implementations of core data structures designed for faculty evaluation in the **23AID204-A Data Structures and Algorithms** course.
+
+Each file is self-contained, relies only on the Python standard library, and executes with an interactive console demo:
+
+1. **`hashing_linear_probing.py`**: Custom Hash Table demonstrating polynomial rolling hash, open addressing collision resolution, linear probing, and tombstone slot reuse ($O(1)$ average, $O(N)$ worst).
+2. **`priority_queue.py`**: Priority Queue using Python's `heapq` binary min-heap with a sequence counter tie-breaker guaranteeing stable FIFO order for equal priorities ($O(\log N)$ push/pop, $O(1)$ peek).
+3. **`normal_queue.py`**: First-In, First-Out (FIFO) queue implemented via `collections.deque` guaranteeing true $O(1)$ enqueue and $O(1)$ dequeue without array element shifting.
+4. **`trie_autocomplete.py`**: Prefix Tree (Trie) using custom `TrieNode` objects and depth-first search for prefix matching and fast autocomplete suggestions ($O(L)$ search, $O(P + K)$ autocomplete).
+
+To run any demonstration:
+```bash
+python DSA_Demonstration/hashing_linear_probing.py
+python DSA_Demonstration/priority_queue.py
+python DSA_Demonstration/normal_queue.py
+python DSA_Demonstration/trie_autocomplete.py
+```
+
+---
+
+## 13. Current Limitations & Roadmap
+
+1. **Email Service Dispatch**:
+   - `EmailToken` database model is implemented.
+   - SMTP dispatch (via Mailpit in development or SendGrid/SES in production) for self-service password reset and email verification links is planned for a future release.
+2. **Automated Merkle Tree Generator**:
+   - The `AuditMerkleRoot` database model is implemented to record periodic checkpoint hashes.
+   - The scheduled background cron job to compute Merkle trees over ranges of audit log entries and verify external cryptographic proofs is not yet automated.
+3. **Distributed Cache Scaling**:
+   - The current `InMemoryCache` operates in the memory space of a single Uvicorn process.
+   - Horizontal scaling across multiple worker processes or distributed containers requires replacing the in-process store with a Redis backend (the interface in `app/core/cache.py` is pre-architected for this drop-in replacement).
+4. **Full-Text Trigram Search**:
+   - Smart search currently uses SQL `ILIKE '%term%'` filters. Adding PostgreSQL GIN trigram indexes (`pg_trgm`) will further optimize search over large project corpora.
