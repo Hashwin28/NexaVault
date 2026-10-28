@@ -1,8 +1,16 @@
+"""
+User Pydantic Schemas Module.
+
+Defines validation and serialization models for user registration,
+login credentials, JWT payload tokens, and sanitized profile responses.
+"""
+
 from datetime import datetime
 from typing import Optional
 from pydantic import BaseModel, EmailStr, Field, ConfigDict
 
 class UserBase(BaseModel):
+    """Base user properties shared across creation and response schemas."""
     email: EmailStr
     full_name: str
 
