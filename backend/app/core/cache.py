@@ -345,6 +345,9 @@ def key_project_github(project_id: int) -> str:
 def key_project_submissions(project_id: int) -> str:
     return f"project:submissions:p{project_id}"
 
+def key_project_reviews(project_id: int) -> str:
+    return f"project:reviews:p{project_id}"
+
 def key_results_me(student_id: int) -> str:
     return f"results:me:u{student_id}"
 
@@ -374,13 +377,14 @@ def invalidate_user(user_id: int) -> None:
     cache.invalidate_prefix(f"results:me:u{user_id}")
 
 def invalidate_project(project_id: int, workspace_id: Optional[str] = None) -> None:
-    """Invalidates project details, progress, updates, and submissions."""
+    """Invalidates project details, progress, updates, reviews, and submissions."""
     cache.invalidate_tags(f"project:{project_id}")
     cache.invalidate_prefix(f"project:detail:p{project_id}")
     cache.invalidate_prefix(f"project:progress:p{project_id}")
     cache.invalidate_prefix(f"project:updates:p{project_id}")
     cache.invalidate_prefix(f"project:github:p{project_id}")
     cache.invalidate_prefix(f"project:submissions:p{project_id}")
+    cache.invalidate_prefix(f"project:reviews:p{project_id}")
     if workspace_id:
         cache.invalidate_tag(f"workspace:{workspace_id}:projects")
 

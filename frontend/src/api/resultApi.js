@@ -1,7 +1,7 @@
 import { apiRequest, API_BASE_URL } from './client';
 
 export const resultApi = {
-  getMyResults: () => apiRequest('/results/me'),
+  getMyResults: (options = {}) => apiRequest('/results/me', options),
 
   correctScore: (resultEntryId, data) =>
     apiRequest(`/results/${resultEntryId}/correct`, { method: 'PATCH', body: data }),

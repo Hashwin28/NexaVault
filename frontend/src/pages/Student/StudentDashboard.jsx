@@ -14,13 +14,29 @@ import { ProfileView } from './ProfileView';
 const VALID_TABS = ['dashboard', 'workspaces', 'groups', 'projects', 'submissions', 'results', 'search', 'audit', 'profile'];
 
 const parseUrlHash = () => {
-  if (typeof window === 'undefined') return { tab: 'dashboard', projectId: null };
+  if (typeof window === 'undefined') return { tab: 'dashboard', projectId: null, section: null };
   const rawHash = window.location.hash.replace(/^#\/?/, '');
-  const [tabPart, queryPart] = rawHash.split('?');
-  const tab = VALID_TABS.includes(tabPart) ? tabPart : 'dashboard';
+  const [routePart, queryPart] = rawHash.split('?');
   const searchParams = new URLSearchParams(queryPart || '');
-  const projectId = searchParams.get('projectId') || searchParams.get('project') || null;
-  return { tab, projectId };
+
+  // Support path routing like #projects/188/submissions as well as #projects?projectId=188&section=submissions
+  const segments = (routePart || '').split('/').filter(Boolean);
+  const primaryTab = segments[0] || 'dashboard';
+  const tab = VALID_TABS.includes(primaryTab) ? primaryTab : 'dashboard';
+
+  let projectId = searchParams.get('projectId') || searchParams.get('project') || null;
+  let section = searchParams.get('section') || searchParams.get('tab') || null;
+
+  if (tab === 'projects') {
+    if (!projectId && segments[1] && /^\d+$/.test(segments[1])) {
+      projectId = segments[1];
+    }
+    if (!section && segments[2]) {
+      section = segments[2];
+    }
+  }
+
+  return { tab, projectId, section };
 };
 
 export const StudentDashboard = () => {
@@ -28,12 +44,22 @@ export const StudentDashboard = () => {
   const [activeTab, setActiveTabState] = useState(initial.tab);
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [selectedProjectId, setSelectedProjectId] = useState(initial.projectId);
+  const [selectedSection, setSelectedSection] = useState(initial.section);
   const [visitedTabs, setVisitedTabs] = useState(() => new Set([initial.tab]));
 
-  const setActiveTab = (tab, projectId = null) => {
+  const setActiveTab = (tab, projectId = null, section = null) => {
     if (!VALID_TABS.includes(tab)) return;
     setActiveTabState(tab);
     setVisitedTabs(prev => new Set([...prev, tab]));
+    if (tab === 'projects') {
+      if (projectId) setSelectedProjectId(projectId);
+      if (section) setSelectedSection(section);
+      const pid = projectId || selectedProjectId;
+      if (pid) {
+        window.location.hash = section ? `#projects?projectId=${pid}&section=${section}` : `#projects?projectId=${pid}`;
+        return;
+      }
+    }
     if (projectId) {
       setSelectedProjectId(projectId);
       window.location.hash = `#${tab}?projectId=${projectId}`;
@@ -44,11 +70,14 @@ export const StudentDashboard = () => {
 
   useEffect(() => {
     const handleHashChange = () => {
-      const { tab, projectId } = parseUrlHash();
+      const { tab, projectId, section } = parseUrlHash();
       setActiveTabState(tab);
       setVisitedTabs(prev => new Set([...prev, tab]));
       if (projectId) {
         setSelectedProjectId(projectId);
+      }
+      if (section) {
+        setSelectedSection(section);
       }
     };
 
@@ -113,7 +142,8 @@ export const StudentDashboard = () => {
             <div className={activeTab === 'projects' ? 'block' : 'hidden'}>
               <ProjectsView 
                 defaultProjectId={selectedProjectId}
-                onNavigate={(tab) => setActiveTab(tab)} 
+                initialSection={selectedSection}
+                onNavigate={(tab, projId, sec) => setActiveTab(tab, projId, sec)} 
               />
             </div>
           )}

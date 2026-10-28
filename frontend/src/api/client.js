@@ -63,6 +63,11 @@ export async function apiRequest(endpoint, options = {}, retries = 0) {
     clearTimeout(slowTimer);
     if (isSlow) notifySlowRequest(false);
 
+    // Never retry intentionally cancelled / aborted requests
+    if (networkError.name === 'AbortError' || config.signal?.aborted) {
+      throw networkError;
+    }
+
     // Auto-retry only safe GET requests on network failures (up to 2 times)
     if (isIdempotent && retries < 2) {
       await new Promise((res) => setTimeout(res, (retries + 1) * 1500));

@@ -30,7 +30,7 @@ export const workspaceApi = {
   deleteNotice: (id, noticeId) => apiRequest(`/workspaces/${id}/notices/${noticeId}`, { method: 'DELETE' }),
 
   // Review rounds
-  getRounds: (id) => apiRequest(`/workspaces/${id}/rounds`),
+  getRounds: (id, options = {}) => apiRequest(`/workspaces/${id}/rounds`, options),
   createRound: (id, data) => apiRequest(`/workspaces/${id}/rounds`, { method: 'POST', body: data }),
   updateRound: (id, roundId, data) => apiRequest(`/workspaces/${id}/rounds/${roundId}`, { method: 'PATCH', body: data }),
   deleteRound: (id, roundId) => apiRequest(`/workspaces/${id}/rounds/${roundId}`, { method: 'DELETE' }),
