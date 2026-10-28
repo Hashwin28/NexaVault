@@ -1,5 +1,5 @@
 from datetime import datetime, timezone
-from sqlalchemy import Column, Integer, String, DateTime, ForeignKey, Text, UniqueConstraint
+from sqlalchemy import Column, Integer, String, DateTime, ForeignKey, Text, UniqueConstraint, Float
 from sqlalchemy.orm import relationship
 from app.db.base import Base
 
@@ -13,11 +13,15 @@ class Project(Base):
     description = Column(Text, nullable=True)
     created_by = Column(Integer, ForeignKey("users.id"), nullable=False)
     created_at = Column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc), nullable=False)
+    custom_progress = Column(Float, nullable=True)
+    progress_updated_at = Column(DateTime(timezone=True), nullable=True)
+    progress_updated_by = Column(Integer, ForeignKey("users.id", ondelete="SET NULL"), nullable=True)
 
     # Relationships
     workspace = relationship("Workspace", back_populates="projects")
     group = relationship("Group", back_populates="projects")
-    creator = relationship("User")
+    creator = relationship("User", foreign_keys=[created_by])
+    progress_updater = relationship("User", foreign_keys=[progress_updated_by])
     updates = relationship("ProjectUpdate", back_populates="project", cascade="all, delete-orphan", order_by="desc(ProjectUpdate.created_at)")
     submissions = relationship("Submission", back_populates="project", cascade="all, delete-orphan")
     github_link = relationship("GithubLink", back_populates="project", uselist=False, cascade="all, delete-orphan")

@@ -54,5 +54,10 @@ export const projectApi = {
       method: 'DELETE',
     }),
   getProgress: (projectId, options = {}) => apiRequest(`/projects/${projectId}/progress`, options),
+  updateProgress: (projectId, data) =>
+    apiRequest(`/projects/${projectId}/progress`, {
+      method: 'PATCH',
+      body: data,
+    }),
   getReviews: (projectId, options = {}) => apiRequest(`/projects/${projectId}/reviews`, options),
 };

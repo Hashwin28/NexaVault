@@ -62,11 +62,22 @@ def get_review_queue(
         .filter(Project.workspace_id.in_(ws_ids))
     )
 
-    if status_filter == "EVALUATED":
+    if status_filter == "PENDING":
+        query = query.filter(
+            SubmissionVersion.status.in_(["SUBMITTED", "NEW_SUBMISSION"]),
+            SubmissionVersion.claimed_by_id.is_(None),
+        )
+    elif status_filter == "IN_REVIEW":
+        query = query.filter(
+            (SubmissionVersion.status == "IN_REVIEW") | (
+                SubmissionVersion.claimed_by_id.isnot(None) & SubmissionVersion.status.in_(["SUBMITTED", "NEW_SUBMISSION"])
+            )
+        )
+    elif status_filter in ["EVALUATED", "PUBLISHED"]:
         query = query.filter(SubmissionVersion.status.in_(["APPROVED", "REVISION_REQUESTED"]))
     elif status_filter == "ALL":
         pass
-    else:  # Default PENDING
+    else:  # Default when None
         query = query.filter(SubmissionVersion.status.in_(["SUBMITTED", "IN_REVIEW", "NEW_SUBMISSION"]))
 
     versions = (
@@ -83,12 +94,32 @@ def get_review_queue(
         proj = sub.project
         round_obj = sub.round
         workspace = proj.workspace
+        group = proj.group if proj else None
 
         submitter_name = ver.submitter.full_name if ver.submitter else None
         claimed_name = ver.claimed_by.full_name if ver.claimed_by else None
 
         rev = ver.review
         results_released = any(re.is_released for re in rev.result_entries) if (rev and rev.result_entries) else False
+
+        if status_filter == "EVALUATED" and results_released:
+            continue
+        if status_filter == "PUBLISHED" and not results_released:
+            continue
+
+        scores_data = None
+        if rev and rev.result_entries:
+            scores_data = [
+                {
+                    "student_id": re.student_id,
+                    "student_name": re.student.full_name if re.student else None,
+                    "score": float(re.score),
+                    "feedback": re.feedback,
+                    "is_released": re.is_released,
+                    "released_at": re.released_at.isoformat() if re.released_at else None,
+                }
+                for re in rev.result_entries
+            ]
 
         result.append(
             QueueItemResponse(
@@ -98,6 +129,9 @@ def get_review_queue(
                 project_name=proj.name,
                 workspace_id=workspace.id,
                 workspace_name=workspace.name,
+                group_id=group.id if group else None,
+                group_name=group.name if group else None,
+                group_code=group.code if group else None,
                 round_id=round_obj.id,
                 round_title=round_obj.title,
                 round_due_date=round_obj.due_date,
@@ -111,7 +145,14 @@ def get_review_queue(
                 claimed_by_name=claimed_name,
                 is_late=ver.is_late,
                 results_released=results_released,
+                github_commit_sha=ver.github_commit_sha,
+                submission_notes=ver.notes,
+                deliverable_link=ver.link,
+                evaluation_verdict=rev.status if rev else None,
+                evaluation_feedback=rev.feedback if rev else None,
+                reviewed_at=rev.completed_at if rev else None,
                 roster_snapshot=ver.roster_snapshot or [],
+                scores=scores_data,
             )
         )
 
@@ -439,6 +480,8 @@ def release_results(
     )
 
     db.commit()
+    cache.invalidate_prefix("review:queue")
+    invalidate_project(proj.id, proj.workspace_id)
     invalidate_results()
     cache.invalidate_prefix("project:progress:")
     invalidate_workspace(proj.workspace_id)
