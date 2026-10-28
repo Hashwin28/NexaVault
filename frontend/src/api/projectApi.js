@@ -6,8 +6,8 @@ export const projectApi = {
       method: 'POST',
       body: { workspace_id: workspaceId, name, ...(description ? { description } : {}) },
     }),
-  getProject: (id) => apiRequest(`/projects/${id}`),
-  getUpdates: (projectId) => apiRequest(`/projects/${projectId}/updates`),
+  getProject: (id, options = {}) => apiRequest(`/projects/${id}`, options),
+  getUpdates: (projectId, options = {}) => apiRequest(`/projects/${projectId}/updates`, options),
   postUpdate: (projectId, contentOrObj, link = null) => {
     let body = {};
     if (typeof contentOrObj === 'object' && contentOrObj !== null) {
@@ -35,7 +35,7 @@ export const projectApi = {
       body: { content },
     });
   },
-  getGithub: (projectId) => apiRequest(`/projects/${projectId}/github`),
+  getGithub: (projectId, options = {}) => apiRequest(`/projects/${projectId}/github`, options),
   linkGithub: (projectId, repoUrl) =>
     apiRequest(`/projects/${projectId}/github`, {
       method: 'POST',
@@ -49,5 +49,6 @@ export const projectApi = {
     apiRequest(`/projects/${projectId}/github`, {
       method: 'DELETE',
     }),
+  getProgress: (projectId, options = {}) => apiRequest(`/projects/${projectId}/progress`, options),
+  getReviews: (projectId, options = {}) => apiRequest(`/projects/${projectId}/reviews`, options),
 };
-

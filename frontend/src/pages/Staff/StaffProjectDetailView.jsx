@@ -1,18 +1,22 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { projectApi } from '../../api/projectApi';
 import { StaffResultCorrectionModal } from './StaffResultCorrectionModal';
 import GitHubRepoDashboard from '../../components/common/GitHubRepoDashboard';
 
-export const StaffProjectDetailView = ({ projectId, onBack }) => {
+export const StaffProjectDetailView = ({ projectId, initialSection, onBack }) => {
   const [project, setProject] = useState(null);
   const [updates, setUpdates] = useState([]);
   const [github, setGithub] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [loadingGithub, setLoadingGithub] = useState(false);
   const [error, setError] = useState(null);
   const [success, setSuccess] = useState(null);
 
   // Score correction state
   const [correctionTarget, setCorrectionTarget] = useState(null);
+
+  // Cache for staff oversight views
+  const oversightCacheRef = useRef({});
 
   useEffect(() => {
     if (projectId) {
@@ -20,29 +24,54 @@ export const StaffProjectDetailView = ({ projectId, onBack }) => {
     }
   }, [projectId]);
 
-  const fetchProjectOversightData = async (pId) => {
+  const fetchProjectOversightData = async (pId, force = false) => {
+    if (!force && oversightCacheRef.current[pId]?.project) {
+      setProject(oversightCacheRef.current[pId].project);
+      setUpdates(oversightCacheRef.current[pId].updates || []);
+      setGithub(oversightCacheRef.current[pId].github || null);
+      setLoading(false);
+      return;
+    }
+
     setLoading(true);
     setError(null);
     try {
-      const [projData, updatesData, ghData] = await Promise.all([
-        projectApi.getProject(pId),
-        projectApi.getUpdates(pId).catch(() => []),
-        projectApi.getGithub(pId).catch(() => null),
-      ]);
+      // 1. Fetch essential project metadata first to unblock UI immediately
+      const projData = await projectApi.getProject(pId);
       setProject(projData);
-      setUpdates(updatesData || []);
-      setGithub(ghData);
+      if (!oversightCacheRef.current[pId]) oversightCacheRef.current[pId] = {};
+      oversightCacheRef.current[pId].project = projData;
+      setLoading(false);
+
+      // 2. Fetch secondary updates & github non-blockingly in background
+      if (projData.github_repo_url) {
+        setLoadingGithub(true);
+        projectApi.getGithub(pId)
+          .then((ghData) => {
+            setGithub(ghData);
+            oversightCacheRef.current[pId].github = ghData;
+          })
+          .catch(() => {})
+          .finally(() => setLoadingGithub(false));
+      }
+
+      projectApi.getUpdates(pId)
+        .then((updatesData) => {
+          setUpdates(updatesData || []);
+          oversightCacheRef.current[pId].updates = updatesData || [];
+        })
+        .catch(() => {});
     } catch (err) {
       setError(err.message || 'Failed to load project oversight details.');
-    } finally {
       setLoading(false);
     }
   };
 
   if (loading) {
     return (
-      <div className="py-20 text-center text-xs font-mono text-slate-500">
-        Loading project oversight data...
+      <div className="py-20 flex flex-col items-center justify-center gap-3">
+        <div className="w-7 h-7 rounded-full border-2 border-teal-500/20 border-t-teal-400 animate-spin" />
+        <span className="text-xs font-mono text-slate-400">Loading project oversight data...</span>
       </div>
     );
   }
@@ -151,14 +180,14 @@ export const StaffProjectDetailView = ({ projectId, onBack }) => {
           {/* GitHub Repository Link */}
           <div className="bg-[#11181C] p-5 rounded-xl border border-[#1B262E] space-y-2">
             <h3 className="text-sm font-bold text-slate-200">Linked GitHub Repository</h3>
-            {github?.repo_url || project.repo_url ? (
+            {github?.repo_url || project.github_repo_url || project.repo_url ? (
               <a
-                href={github?.repo_url || project.repo_url}
+                href={github?.repo_url || project.github_repo_url || project.repo_url}
                 target="_blank"
                 rel="noreferrer"
                 className="text-xs font-mono text-teal-400 hover:underline break-all block p-2 bg-[#0B0F12] rounded border border-[#1B262E]"
               >
-                🔗 {github?.repo_url || project.repo_url}
+                🔗 {github?.repo_url || project.github_repo_url || project.repo_url}
               </a>
             ) : (
               <div className="text-xs font-mono text-slate-500 italic p-2 bg-[#0B0F12] rounded border border-[#1B262E]">
@@ -269,20 +298,29 @@ export const StaffProjectDetailView = ({ projectId, onBack }) => {
         </div>
       </div>
 
-      {/* GitHub Repository Live Inspector */}
-      {(github?.repo_url || project.repo_url) && (
+      {/* GitHub Repository Live Inspector (Lazy rendered) */}
+      {(github?.repo_url || project.github_repo_url || project.repo_url) && (
         <div className="pt-2">
-          <GitHubRepoDashboard
-            repoUrl={github?.repo_url || project.repo_url}
-            readOnly={true}
-            syncedCommits={github?.commits || []}
-            lastSyncedAt={github?.last_synced_at}
-            onSyncRepo={async () => {
-              const res = await projectApi.syncGithub(projectId);
-              setGithub(res);
-            }}
-            projectMembers={project.members || project.roster || []}
-          />
+          {loadingGithub ? (
+            <div className="p-6 rounded-xl bg-[#11181C] border border-[#1B262E] text-center text-xs font-mono text-slate-400">
+              Loading repository commits...
+            </div>
+          ) : (
+            <GitHubRepoDashboard
+              repoUrl={github?.repo_url || project.github_repo_url || project.repo_url}
+              readOnly={true}
+              syncedCommits={github?.commits || []}
+              lastSyncedAt={github?.last_synced_at}
+              onSyncRepo={async () => {
+                const res = await projectApi.syncGithub(projectId);
+                setGithub(res);
+                if (oversightCacheRef.current[projectId]) {
+                  oversightCacheRef.current[projectId].github = res;
+                }
+              }}
+              projectMembers={project.members || project.roster || []}
+            />
+          )}
         </div>
       )}
 
@@ -293,7 +331,7 @@ export const StaffProjectDetailView = ({ projectId, onBack }) => {
           onClose={() => setCorrectionTarget(null)}
           onSuccess={(msg) => {
             setSuccess(msg);
-            fetchProjectOversightData(projectId);
+            fetchProjectOversightData(projectId, true);
           }}
         />
       )}

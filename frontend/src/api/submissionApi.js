@@ -1,7 +1,7 @@
 import { apiRequest } from './client';
 
 export const submissionApi = {
-  getSubmissions: (projectId) => apiRequest(`/projects/${projectId}/submissions`),
+  getSubmissions: (projectId, options = {}) => apiRequest(`/projects/${projectId}/submissions`, options),
   createSubmission: (projectId, roundId, { notes = null, link = null, githubCommitSha = null, isDraft = false }) =>
     apiRequest(`/projects/${projectId}/rounds/${roundId}/submissions`, {
       method: 'POST',

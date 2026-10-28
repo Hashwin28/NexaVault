@@ -58,3 +58,39 @@ class ProjectResponse(BaseModel):
     progress_percentage: Optional[float] = 0.0
 
     model_config = ConfigDict(from_attributes=True)
+
+class ApprovedRoundInfo(BaseModel):
+    round_id: int
+    round_title: str
+    order_index: int
+    max_score: float
+
+    model_config = ConfigDict(from_attributes=True)
+
+class ProjectProgressResponse(BaseModel):
+    project_id: int
+    workspace_id: str
+    approved_marks: float
+    total_round_marks: float
+    progress_percentage: float
+    approved_rounds: List[ApprovedRoundInfo] = []
+
+    model_config = ConfigDict(from_attributes=True)
+
+class ProjectReviewItem(BaseModel):
+    submission_id: int
+    round_id: int
+    round_title: str
+    version_number: int
+    status: str
+    feedback: str
+    reviewer_name: Optional[str] = None
+    reviewed_at: Optional[datetime] = None
+
+    model_config = ConfigDict(from_attributes=True)
+
+class ProjectReviewsResponse(BaseModel):
+    project_id: int
+    reviews: List[ProjectReviewItem] = []
+
+    model_config = ConfigDict(from_attributes=True)

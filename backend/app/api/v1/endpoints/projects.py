@@ -3,12 +3,13 @@ from datetime import datetime, timezone
 from typing import List, Optional
 from fastapi import APIRouter, Depends, HTTPException, status, Request
 import httpx
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import Session, joinedload, selectinload
 from app.api.deps import get_db, get_current_user, get_current_student
 from app.models.user import User
 from app.models.project import Project, ProjectUpdate, UpdateComment
 from app.models.group import GroupMembership
 from app.models.github import GithubLink, GithubCommit
+from app.models.review import ReviewRound, Submission, SubmissionVersion, Review
 from app.schemas.project import (
     ProjectCreate,
     ProjectResponse,
@@ -17,6 +18,9 @@ from app.schemas.project import (
     ProjectUpdateResponse,
     UpdateCommentCreate,
     UpdateCommentResponse,
+    ProjectProgressResponse,
+    ProjectReviewsResponse,
+    ProjectReviewItem,
 )
 from app.schemas.github import (
     GithubLinkCreate,
@@ -35,6 +39,8 @@ from app.core.cache import (
     key_project_detail,
     key_project_updates,
     key_project_github,
+    key_project_progress,
+    key_project_reviews,
     invalidate_project,
     invalidate_workspace,
     invalidate_group,
@@ -42,12 +48,13 @@ from app.core.cache import (
 
 router = APIRouter()
 
-from app.services.project_service import calculate_project_progress
+from app.services.project_service import calculate_project_progress, get_project_progress_details
 
 def build_project_response(project: Project, db: Session) -> ProjectResponse:
     """Builds a ProjectResponse with derived group members list and progress percentage."""
     memberships = (
         db.query(GroupMembership)
+        .options(joinedload(GroupMembership.user))
         .filter(GroupMembership.group_id == project.group_id)
         .order_by(GroupMembership.joined_at.asc())
         .all()
@@ -139,7 +146,16 @@ def get_project_details(
     Access is strictly derived from current group membership.
     If a student left the group, 404 is returned immediately.
     """
-    project = db.query(Project).filter(Project.id == project_id).first()
+    project = (
+        db.query(Project)
+        .options(
+            joinedload(Project.workspace),
+            joinedload(Project.group),
+            joinedload(Project.github_link),
+        )
+        .filter(Project.id == project_id)
+        .first()
+    )
     if not project or not can_access_project(db, current_user.id, project):
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
@@ -179,6 +195,10 @@ def list_project_updates(
 
     updates = (
         db.query(ProjectUpdate)
+        .options(
+            joinedload(ProjectUpdate.author),
+            selectinload(ProjectUpdate.comments).joinedload(UpdateComment.author),
+        )
         .filter(ProjectUpdate.project_id == project.id)
         .order_by(ProjectUpdate.created_at.desc())
         .all()
@@ -408,7 +428,7 @@ def get_project_github_info(
     if cached is not None:
         return GithubLinkResponse(**cached) if cached else None
 
-    link = db.query(GithubLink).filter(GithubLink.project_id == project.id).first()
+    link = db.query(GithubLink).options(selectinload(GithubLink.commits)).filter(GithubLink.project_id == project.id).first()
     if not link:
         cache.set(c_key, None, ttl=180, tags=[f"project:{project_id}:github", f"project:{project_id}"])
         return None
@@ -527,7 +547,7 @@ def sync_project_github_repo(
             detail="Project not found or access denied."
         )
 
-    link = db.query(GithubLink).filter(GithubLink.project_id == project.id).first()
+    link = db.query(GithubLink).options(selectinload(GithubLink.commits)).filter(GithubLink.project_id == project.id).first()
     if not link:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
@@ -576,7 +596,7 @@ def unlink_project_github_repo(
             detail="Project not found or access denied."
         )
 
-    link = db.query(GithubLink).filter(GithubLink.project_id == project.id).first()
+    link = db.query(GithubLink).options(selectinload(GithubLink.commits)).filter(GithubLink.project_id == project.id).first()
     if link:
         db.delete(link)
         db.commit()
@@ -593,4 +613,79 @@ def unlink_project_github_repo(
             ip_address=client_ip
         )
     return {"message": "GitHub repository disconnected successfully."}
+
+@router.get("/{project_id}/progress", response_model=ProjectProgressResponse)
+def get_project_progress_endpoint(
+    project_id: int,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user)
+):
+    """
+    Get dynamically weighted progress and course weight calculation details for a project.
+    Accessible to current group members and workspace staff.
+    """
+    project = db.query(Project).filter(Project.id == project_id).first()
+    if not project or not can_access_project(db, current_user.id, project):
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Project not found or access denied."
+        )
+
+    data = get_project_progress_details(db, project_id)
+    return ProjectProgressResponse(**data)
+
+@router.get("/{project_id}/reviews", response_model=ProjectReviewsResponse)
+def get_project_reviews_endpoint(
+    project_id: int,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user)
+):
+    """
+    Get formal faculty evaluation remarks and notes for a project.
+    Accessible to current group members and workspace staff.
+    """
+    project = db.query(Project).filter(Project.id == project_id).first()
+    if not project or not can_access_project(db, current_user.id, project):
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Project not found or access denied."
+        )
+
+    c_key = key_project_reviews(project_id)
+    cached = cache.get(c_key)
+    if cached is not None:
+        return ProjectReviewsResponse(**cached)
+
+    submissions = (
+        db.query(Submission)
+        .options(
+            joinedload(Submission.round),
+            selectinload(Submission.versions).joinedload(SubmissionVersion.review).joinedload(Review.reviewer),
+        )
+        .filter(Submission.project_id == project.id)
+        .all()
+    )
+
+    review_items = []
+    for s in submissions:
+        for v in s.versions:
+            if v.review and v.review.feedback:
+                reviewer_name = v.review.reviewer.full_name if v.review.reviewer else "Faculty Reviewer"
+                review_items.append(
+                    ProjectReviewItem(
+                        submission_id=s.id,
+                        round_id=s.round_id,
+                        round_title=s.round.title if s.round else f"Round #{s.round_id}",
+                        version_number=v.version_number,
+                        status=v.status,
+                        feedback=v.review.feedback,
+                        reviewer_name=reviewer_name,
+                        reviewed_at=v.review.completed_at,
+                    )
+                )
+
+    res = ProjectReviewsResponse(project_id=project.id, reviews=review_items)
+    cache.set(c_key, res.model_dump(), ttl=120, tags=[f"project:{project_id}", f"workspace:{project.workspace_id}"])
+    return res
+
 

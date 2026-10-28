@@ -13,3 +13,16 @@ dist
 *.log
 uploads/
 backend/uploads/
+
+# LaTeX build artifacts
+*.aux
+*.bbl
+*.blg
+*.toc
+*.out
+*.synctex.gz
+
+# Python bytecode & cache
+__pycache__/
+*.pyc
+.pytest_cache/

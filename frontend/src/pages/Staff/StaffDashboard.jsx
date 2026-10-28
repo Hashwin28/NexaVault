@@ -13,14 +13,29 @@ import { StaffResultsView } from './StaffResultsView';
 const VALID_STAFF_TABS = ['dashboard', 'workspaces', 'review-queue', 'results', 'search', 'audit', 'profile', 'project-detail'];
 
 const parseStaffUrlHash = () => {
-  if (typeof window === 'undefined') return { tab: 'dashboard', workspaceId: null, projectId: null };
+  if (typeof window === 'undefined') return { tab: 'dashboard', workspaceId: null, projectId: null, section: null };
   const rawHash = window.location.hash.replace(/^#\/?/, '');
-  const [tabPart, queryPart] = rawHash.split('?');
-  const tab = VALID_STAFF_TABS.includes(tabPart) ? tabPart : 'dashboard';
+  const [routePart, queryPart] = rawHash.split('?');
   const searchParams = new URLSearchParams(queryPart || '');
-  const workspaceId = searchParams.get('workspaceId') || searchParams.get('workspace') || null;
-  const projectId = searchParams.get('projectId') || searchParams.get('project') || null;
-  return { tab, workspaceId, projectId };
+
+  const segments = (routePart || '').split('/').filter(Boolean);
+  const primaryTab = segments[0] || 'dashboard';
+  const tab = VALID_STAFF_TABS.includes(primaryTab) ? primaryTab : 'dashboard';
+
+  let workspaceId = searchParams.get('workspaceId') || searchParams.get('workspace') || null;
+  let projectId = searchParams.get('projectId') || searchParams.get('project') || null;
+  let section = searchParams.get('section') || searchParams.get('tab') || null;
+
+  if (tab === 'project-detail') {
+    if (!projectId && segments[1] && /^\d+$/.test(segments[1])) {
+      projectId = segments[1];
+    }
+    if (!section && segments[2]) {
+      section = segments[2];
+    }
+  }
+
+  return { tab, workspaceId, projectId, section };
 };
 
 export const StaffDashboard = () => {
@@ -29,6 +44,7 @@ export const StaffDashboard = () => {
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [selectedWorkspaceId, setSelectedWorkspaceId] = useState(initial.workspaceId);
   const [selectedProjectId, setSelectedProjectId] = useState(initial.projectId);
+  const [selectedSection, setSelectedSection] = useState(initial.section);
   const [visitedTabs, setVisitedTabs] = useState(() => new Set([initial.tab]));
 
   const setActiveTab = (tab, params = {}) => {
@@ -38,17 +54,19 @@ export const StaffDashboard = () => {
     const searchParams = new URLSearchParams();
     if (params.workspaceId) searchParams.set('workspaceId', params.workspaceId);
     if (params.projectId) searchParams.set('projectId', params.projectId);
+    if (params.section) searchParams.set('section', params.section);
     const queryString = searchParams.toString();
     window.location.hash = queryString ? `#${tab}?${queryString}` : `#${tab}`;
   };
 
   useEffect(() => {
     const handleHashChange = () => {
-      const { tab, workspaceId, projectId } = parseStaffUrlHash();
+      const { tab, workspaceId, projectId, section } = parseStaffUrlHash();
       setActiveTabState(tab);
       setVisitedTabs(prev => new Set([...prev, tab]));
       if (workspaceId) setSelectedWorkspaceId(workspaceId);
       if (projectId) setSelectedProjectId(projectId);
+      if (section) setSelectedSection(section);
     };
 
     if (!window.location.hash) {
@@ -144,6 +162,7 @@ export const StaffDashboard = () => {
             <div className={activeTab === 'project-detail' ? 'block' : 'hidden'}>
               <StaffProjectDetailView
                 projectId={selectedProjectId}
+                initialSection={selectedSection}
                 onBack={() => setActiveTab('workspaces')}
               />
             </div>

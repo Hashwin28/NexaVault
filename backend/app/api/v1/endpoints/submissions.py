@@ -1,7 +1,7 @@
 from datetime import datetime, timezone
 from typing import List, Optional
 from fastapi import APIRouter, Depends, HTTPException, status, Request
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import Session, joinedload, selectinload
 from app.api.deps import get_db, get_current_user, get_current_student
 from app.models.user import User
 from app.models.project import Project
@@ -84,6 +84,11 @@ def list_project_submissions(
 
     submissions = (
         db.query(Submission)
+        .options(
+            joinedload(Submission.round),
+            selectinload(Submission.versions).joinedload(SubmissionVersion.submitter),
+            selectinload(Submission.versions).joinedload(SubmissionVersion.review),
+        )
         .filter(Submission.project_id == project.id)
         .all()
     )
