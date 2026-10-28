@@ -1,3 +1,10 @@
+/**
+ * Submission API Service
+ * 
+ * Provides HTTP client integration for review milestone submissions:
+ * draft saving, commit SHA binding, external resource linking, and final submission.
+ */
+
 import { apiRequest } from './client';
 
 export const submissionApi = {
