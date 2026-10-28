@@ -1,7 +1,15 @@
+"""
+Database Session and Engine Configuration Module.
+
+Manages SQLAlchemy engine creation, connection pooling parameters,
+and session maker setup for PostgreSQL (Neon/PgBouncer) and SQLite environments.
+"""
+
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 from app.core.config import settings
 
+# Determine active SQL dialect from database connection string
 is_sqlite = "sqlite" in settings.DATABASE_URL
 is_postgres = "postgresql" in settings.DATABASE_URL
 
