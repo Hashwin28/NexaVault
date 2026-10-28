@@ -1,8 +1,16 @@
+"""
+Project Pydantic Schemas Module.
+
+Validates payload structures for project creation, progress updates,
+collaborative commentary, and aggregated project status representations.
+"""
+
 from datetime import datetime
 from typing import Optional, List
 from pydantic import BaseModel, Field, ConfigDict
 
 class UpdateCommentCreate(BaseModel):
+    """Payload schema for submitting a discussion comment on a project update."""
     content: str = Field(..., min_length=1, description="Comment content")
 
 class UpdateCommentResponse(BaseModel):
