@@ -35,7 +35,7 @@ export const StaffResultCorrectionModal = ({ entry, onClose, onSuccess }) => {
       <div className="bg-[#11181C] border border-[#1B262E] rounded-xl max-w-md w-full p-6 space-y-4 shadow-xl">
         <div className="flex justify-between items-start border-b border-[#1B262E] pb-3">
           <div>
-            <h3 className="text-base font-bold text-slate-100 font-serif">Correct Published Score</h3>
+            <h3 className="text-base font-bold text-slate-100 font-sans">Correct Published Score</h3>
             <p className="text-xs text-slate-400 font-sans">
               Student: <strong className="text-slate-200">{entry.student_name || entry.student_email || `Student #${entry.student_id}`}</strong>
             </p>

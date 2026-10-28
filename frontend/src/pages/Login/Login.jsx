@@ -134,14 +134,14 @@ export const Login = () => {
           <div className="lg:col-span-6 space-y-8 pr-0 lg:pr-8">
             
             {/* Tagline Badge */}
-            <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-teal-950/60 border border-teal-500/20 text-[11px] font-display italic tracking-widest text-teal-400 uppercase">
+            <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-teal-950/60 border border-teal-500/20 text-[11px] font-display tracking-widest text-teal-400 uppercase">
               <span className="w-1.5 h-1.5 rounded-full bg-teal-400 animate-pulse" />
               ACADEMIC WORKSPACE
             </div>
 
             {/* Main Statement */}
             <div className="space-y-4">
-              <h1 className="text-4xl sm:text-5xl lg:text-6xl font-extrabold tracking-tight leading-[1.1] text-white font-display italic">
+              <h1 className="text-4xl sm:text-5xl lg:text-6xl font-extrabold tracking-tight leading-[1.1] text-white font-display">
                 Build <br />
                 <span className="text-teal-400 underline decoration-teal-500/30 underline-offset-8">Collaborate</span> <br />
                 Achieve
@@ -149,7 +149,7 @@ export const Login = () => {
               
               <div className="w-12 h-1 bg-teal-500 rounded-full" />
 
-              <p className="font-serif italic text-slate-200 text-xl sm:text-2xl tracking-normal leading-relaxed max-w-lg pt-3">
+              <p className="font-sans text-slate-200 text-xl sm:text-2xl tracking-normal leading-relaxed max-w-lg pt-3">
                 Plan better. Work together. Deliver on time.
               </p>
             </div>

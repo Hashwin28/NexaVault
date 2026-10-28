@@ -27,6 +27,8 @@ class SubmissionVersionResponse(BaseModel):
     submitted_at: Optional[datetime] = None
     roster_snapshot: List[Dict[str, Any]] = []
     feedback: Optional[str] = None
+    reviewer_name: Optional[str] = None
+    reviewed_at: Optional[datetime] = None
     created_at: datetime
 
     model_config = ConfigDict(from_attributes=True)

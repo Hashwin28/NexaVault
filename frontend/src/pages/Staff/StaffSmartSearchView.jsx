@@ -29,7 +29,7 @@ export const StaffSmartSearchView = ({ onSelectProject }) => {
       {/* Search Header */}
       <div className="bg-gradient-to-r from-[#11181C] to-[#0B0F12] p-6 rounded-xl border border-[#1B262E] space-y-4">
         <div>
-          <h2 className="text-xl font-bold text-slate-100 font-serif flex items-center gap-2">
+          <h2 className="text-xl font-bold text-slate-100 font-sans flex items-center gap-2">
             Smart Search Engine
             <span className="text-xs px-2 py-0.5 rounded bg-teal-500/20 text-teal-300 font-sans">
               Staff Scoped
@@ -96,7 +96,7 @@ export const StaffSmartSearchView = ({ onSelectProject }) => {
           {/* Workspaces Section */}
           {(filter === 'all' || filter === 'workspaces') && results.workspaces?.length > 0 && (
             <div className="bg-[#11181C] p-5 rounded-xl border border-[#1B262E] space-y-3">
-              <h3 className="text-sm font-bold text-slate-200 font-serif">Matched Workspaces</h3>
+              <h3 className="text-sm font-bold text-slate-200 font-sans">Matched Workspaces</h3>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                 {results.workspaces.map((ws) => (
                   <div key={ws.id} className="p-3 bg-[#0B0F12] rounded border border-[#1B262E] space-y-1">
@@ -112,7 +112,7 @@ export const StaffSmartSearchView = ({ onSelectProject }) => {
           {/* Groups Section */}
           {(filter === 'all' || filter === 'groups') && results.groups?.length > 0 && (
             <div className="bg-[#11181C] p-5 rounded-xl border border-[#1B262E] space-y-3">
-              <h3 className="text-sm font-bold text-slate-200 font-serif">Matched Groups</h3>
+              <h3 className="text-sm font-bold text-slate-200 font-sans">Matched Groups</h3>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                 {results.groups.map((g) => (
                   <div key={g.id} className="p-3 bg-[#0B0F12] rounded border border-[#1B262E] space-y-1">
@@ -126,7 +126,7 @@ export const StaffSmartSearchView = ({ onSelectProject }) => {
           {/* Projects Section */}
           {(filter === 'all' || filter === 'projects') && results.projects?.length > 0 && (
             <div className="bg-[#11181C] p-5 rounded-xl border border-[#1B262E] space-y-3">
-              <h3 className="text-sm font-bold text-slate-200 font-serif">Matched Projects</h3>
+              <h3 className="text-sm font-bold text-slate-200 font-sans">Matched Projects</h3>
               <div className="space-y-2">
                 {results.projects.map((p) => (
                   <div key={p.id} className="p-3 bg-[#0B0F12] rounded border border-[#1B262E] flex justify-between items-center">
@@ -151,7 +151,7 @@ export const StaffSmartSearchView = ({ onSelectProject }) => {
           {/* Submissions Section */}
           {(filter === 'all' || filter === 'submissions') && results.submissions?.length > 0 && (
             <div className="bg-[#11181C] p-5 rounded-xl border border-[#1B262E] space-y-3">
-              <h3 className="text-sm font-bold text-slate-200 font-serif">Matched Submissions</h3>
+              <h3 className="text-sm font-bold text-slate-200 font-sans">Matched Submissions</h3>
               <div className="space-y-2">
                 {results.submissions.map((s) => (
                   <div key={s.version_id} className="p-3 bg-[#0B0F12] rounded border border-[#1B262E] flex justify-between items-center text-xs">
@@ -174,7 +174,7 @@ export const StaffSmartSearchView = ({ onSelectProject }) => {
           {/* Students Section */}
           {(filter === 'all' || filter === 'students') && results.students?.length > 0 && (
             <div className="bg-[#11181C] p-5 rounded-xl border border-[#1B262E] space-y-3">
-              <h3 className="text-sm font-bold text-slate-200 font-serif">Enrolled Students</h3>
+              <h3 className="text-sm font-bold text-slate-200 font-sans">Enrolled Students</h3>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
                 {results.students.map((st) => (
                   <div key={st.id} className="p-2.5 bg-[#0B0F12] rounded border border-[#1B262E] text-xs">

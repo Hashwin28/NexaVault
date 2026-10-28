@@ -502,7 +502,7 @@ export default function GitHubRepoDashboard({
           {activeTab === 'pulls' && (
             <div className="space-y-3">
               {pulls.length === 0 ? (
-                <p className="text-xs text-slate-500 italic py-4">No open or recent pull requests found.</p>
+                <p className="text-xs text-slate-500 py-4">No open or recent pull requests found.</p>
               ) : (
                 pulls.map((pr) => (
                   <div
@@ -540,7 +540,7 @@ export default function GitHubRepoDashboard({
           {activeTab === 'issues' && (
             <div className="space-y-3">
               {issues.length === 0 ? (
-                <p className="text-xs text-slate-500 italic py-4">No open issues found.</p>
+                <p className="text-xs text-slate-500 py-4">No open issues found.</p>
               ) : (
                 issues.map((issue) => (
                   <div

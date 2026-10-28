@@ -107,7 +107,7 @@ export const StaffGroupsView = ({ onSelectProject }) => {
       {/* Header */}
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 border-b border-[#1B262E] pb-5">
         <div>
-          <h2 className="text-xl font-bold text-slate-100 font-serif">Groups Directory & Project Linkage</h2>
+          <h2 className="text-xl font-bold text-slate-100 font-sans">Groups Directory & Project Linkage</h2>
           <p className="text-xs text-slate-400 font-sans mt-0.5">
             Inspect enrolled student cohorts, leadership, associated projects, and submission milestones.
           </p>
@@ -228,7 +228,7 @@ export const StaffGroupsView = ({ onSelectProject }) => {
                       <span className="font-mono text-xs font-bold px-2 py-0.5 rounded bg-teal-500/10 text-teal-400 border border-teal-500/20">
                         {group.code}
                       </span>
-                      <h3 className="text-base font-bold text-slate-100 font-serif">{group.name}</h3>
+                      <h3 className="text-base font-bold text-slate-100 font-sans">{group.name}</h3>
                     </div>
                     <div className="text-xs text-slate-400 flex items-center gap-2">
                       <span>Course: {group.workspace_name}</span>
@@ -281,7 +281,7 @@ export const StaffGroupsView = ({ onSelectProject }) => {
                     </div>
                   ))}
                   {(!group.members || group.members.length === 0) && (
-                    <span className="text-xs text-slate-500 italic">No members found</span>
+                    <span className="text-xs text-slate-500">No members found</span>
                   )}
                 </div>
               </div>
@@ -295,7 +295,7 @@ export const StaffGroupsView = ({ onSelectProject }) => {
                         <div className="text-[10px] font-mono uppercase tracking-wider text-teal-400">
                           Associated Project
                         </div>
-                        <h4 className="text-sm font-bold text-slate-100 font-serif mt-0.5">
+                        <h4 className="text-sm font-bold text-slate-100 font-sans mt-0.5">
                           {group.project.name}
                         </h4>
                         {group.project.description && (
@@ -374,7 +374,7 @@ export const StaffGroupsView = ({ onSelectProject }) => {
                   <span className="font-mono text-xs font-bold px-2 py-0.5 rounded bg-teal-500/10 text-teal-400 border border-teal-500/20">
                     {activeGroupDetail.code}
                   </span>
-                  <h3 className="text-lg font-bold text-slate-100 font-serif">
+                  <h3 className="text-lg font-bold text-slate-100 font-sans">
                     {activeGroupDetail.name}
                   </h3>
                 </div>
@@ -460,7 +460,7 @@ export const StaffGroupsView = ({ onSelectProject }) => {
                   <div className="bg-[#11181C] p-4 rounded-xl border border-[#1B262E] space-y-3">
                     <div className="flex justify-between items-start">
                       <div>
-                        <h5 className="text-sm font-bold text-slate-100 font-serif">
+                        <h5 className="text-sm font-bold text-slate-100 font-sans">
                           {activeGroupDetail.project.name}
                         </h5>
                         <p className="text-xs text-slate-400 mt-0.5">
@@ -486,7 +486,7 @@ export const StaffGroupsView = ({ onSelectProject }) => {
                     </div>
                   </div>
                 ) : (
-                  <div className="p-4 bg-[#11181C] rounded-xl border border-[#1B262E] text-xs text-slate-400 italic">
+                  <div className="p-4 bg-[#11181C] rounded-xl border border-[#1B262E] text-xs text-slate-400">
                     This group has not initialized a project for this workspace yet.
                   </div>
                 )}

@@ -193,7 +193,7 @@ export const StaffResultsView = ({ selectedWorkspaceId }) => {
       <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 border-b border-[#1B262E] pb-5">
         <div>
           <div className="flex items-center gap-3">
-            <h1 className="text-2xl font-bold text-slate-100 font-serif tracking-tight">
+            <h1 className="text-2xl font-bold text-slate-100 font-sans tracking-tight">
               Academic Results & Student Marks
             </h1>
             <span className="text-[11px] font-mono px-2.5 py-0.5 rounded-full bg-teal-500/15 text-teal-300 border border-teal-500/30">
@@ -784,7 +784,7 @@ export const StaffResultsView = ({ selectedWorkspaceId }) => {
                           </p>
                         </div>
                       ) : (
-                        <div className="text-[11px] text-slate-500 italic">No written feedback recorded for this round.</div>
+                        <div className="text-[11px] text-slate-500">No written feedback recorded for this round.</div>
                       )}
                     </div>
                   );

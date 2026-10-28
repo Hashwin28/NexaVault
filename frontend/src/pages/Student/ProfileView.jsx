@@ -9,7 +9,7 @@ export const ProfileView = () => {
     <div className="space-y-8 select-none max-w-4xl">
       {/* Header */}
       <div>
-        <h1 className="text-2xl sm:text-3xl font-extrabold text-white font-serif tracking-tight">
+        <h1 className="text-2xl sm:text-3xl font-extrabold text-white font-sans tracking-tight">
           Student Profile
         </h1>
         <p className="text-sm text-slate-400 mt-1 font-sans">
@@ -20,12 +20,12 @@ export const ProfileView = () => {
       {/* Profile Overview Card */}
       <div className="bg-vault-surface border border-teal-500/30 rounded-2xl p-6 sm:p-8 space-y-6 shadow-card-subtle">
         <div className="flex flex-col sm:flex-row items-start sm:items-center gap-5 border-b border-vault-border/50 pb-6">
-          <div className="w-16 h-16 rounded-2xl bg-teal-500/20 border border-teal-400/40 flex items-center justify-center text-teal-300 text-2xl font-bold font-serif shadow-md">
+          <div className="w-16 h-16 rounded-2xl bg-teal-500/20 border border-teal-400/40 flex items-center justify-center text-teal-300 text-2xl font-bold font-sans shadow-md">
             {user?.full_name ? user.full_name.charAt(0).toUpperCase() : 'S'}
           </div>
 
           <div className="space-y-1">
-            <h2 className="text-xl font-bold text-white font-serif">
+            <h2 className="text-xl font-bold text-white font-sans">
               {user?.full_name || 'Registered Student'}
             </h2>
             <div className="flex items-center gap-3 text-xs text-slate-400">

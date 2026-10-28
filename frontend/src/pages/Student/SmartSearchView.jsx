@@ -29,7 +29,7 @@ export const SmartSearchView = () => {
     <div className="space-y-8 select-none">
       {/* Header */}
       <div>
-        <h1 className="text-2xl sm:text-3xl font-extrabold text-white font-serif tracking-tight">
+        <h1 className="text-2xl sm:text-3xl font-extrabold text-white font-sans tracking-tight">
           Smart Search
         </h1>
         <p className="text-sm text-slate-400 mt-1 font-sans">
@@ -94,7 +94,7 @@ export const SmartSearchView = () => {
           {/* Workspaces */}
           {(filter === 'all' || filter === 'workspaces') && results.workspaces?.length > 0 && (
             <div className="bg-vault-surface border border-vault-border/60 rounded-2xl p-5 space-y-3">
-              <h3 className="text-sm font-bold text-white flex items-center gap-2 font-serif">
+              <h3 className="text-sm font-bold text-white flex items-center gap-2 font-sans">
                 <Layers size={16} className="text-teal-400" /> Enrolled Workspaces
               </h3>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
@@ -112,7 +112,7 @@ export const SmartSearchView = () => {
           {/* Projects */}
           {(filter === 'all' || filter === 'projects') && results.projects?.length > 0 && (
             <div className="bg-vault-surface border border-vault-border/60 rounded-2xl p-5 space-y-3">
-              <h3 className="text-sm font-bold text-white flex items-center gap-2 font-serif">
+              <h3 className="text-sm font-bold text-white flex items-center gap-2 font-sans">
                 <FolderGit2 size={16} className="text-teal-400" /> Group Projects
               </h3>
               <div className="space-y-2">
@@ -131,7 +131,7 @@ export const SmartSearchView = () => {
           {/* Submissions */}
           {(filter === 'all' || filter === 'submissions') && results.submissions?.length > 0 && (
             <div className="bg-vault-surface border border-vault-border/60 rounded-2xl p-5 space-y-3">
-              <h3 className="text-sm font-bold text-white flex items-center gap-2 font-serif">
+              <h3 className="text-sm font-bold text-white flex items-center gap-2 font-sans">
                 <FileText size={16} className="text-teal-400" /> Deliverables & Submissions
               </h3>
               <div className="space-y-2">
@@ -156,7 +156,7 @@ export const SmartSearchView = () => {
           {(!results.workspaces?.length && !results.projects?.length && !results.submissions?.length) && (
             <div className="p-8 bg-vault-surface border border-vault-border/60 rounded-2xl text-center space-y-2">
               <Database size={24} className="text-slate-500 mx-auto" />
-              <div className="text-sm font-bold text-slate-300 font-serif">No matches found</div>
+              <div className="text-sm font-bold text-slate-300 font-sans">No matches found</div>
               <p className="text-xs text-slate-500 font-sans">No records matching "{query}" in your enrolled scope.</p>
             </div>
           )}

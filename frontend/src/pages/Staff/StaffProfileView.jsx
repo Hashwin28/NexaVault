@@ -12,7 +12,7 @@ export const StaffProfileView = () => {
           <span className="text-xs font-sans text-teal-400 font-bold uppercase">
             Staff Security Profile
           </span>
-          <h2 className="text-xl font-bold text-slate-100 mt-1 font-serif">
+          <h2 className="text-xl font-bold text-slate-100 mt-1 font-sans">
             {user?.full_name || 'Staff Member'}
           </h2>
           <p className="text-xs text-slate-400 font-sans mt-0.5">
@@ -26,7 +26,7 @@ export const StaffProfileView = () => {
 
       {/* Account Details */}
       <div className="bg-[#11181C] p-6 rounded-xl border border-[#1B262E] space-y-4">
-        <h3 className="text-sm font-bold text-slate-200 font-serif">Account Credentials & Metadata</h3>
+        <h3 className="text-sm font-bold text-slate-200 font-sans">Account Credentials & Metadata</h3>
 
         <div className="space-y-3 font-sans text-xs">
           <div className="flex justify-between p-3 bg-[#0B0F12] rounded border border-[#1B262E]">
