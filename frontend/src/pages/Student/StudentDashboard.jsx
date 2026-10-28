@@ -8,10 +8,9 @@ import { ProjectsView } from './ProjectsView';
 import { SubmissionsView } from './SubmissionsView';
 import { ResultsView } from './ResultsView';
 import { SmartSearchView } from './SmartSearchView';
-import { AuditTrailView } from './AuditTrailView';
 import { ProfileView } from './ProfileView';
 
-const VALID_TABS = ['dashboard', 'workspaces', 'groups', 'projects', 'submissions', 'results', 'search', 'audit', 'profile'];
+const VALID_TABS = ['dashboard', 'workspaces', 'groups', 'projects', 'submissions', 'results', 'search', 'profile'];
 
 const parseUrlHash = () => {
   if (typeof window === 'undefined') return { tab: 'dashboard', projectId: null, section: null };
@@ -60,12 +59,7 @@ export const StudentDashboard = () => {
         return;
       }
     }
-    if (projectId) {
-      setSelectedProjectId(projectId);
-      window.location.hash = `#${tab}?projectId=${projectId}`;
-    } else {
-      window.location.hash = `#${tab}`;
-    }
+    window.location.hash = `#${tab}`;
   };
 
   useEffect(() => {
@@ -73,12 +67,8 @@ export const StudentDashboard = () => {
       const { tab, projectId, section } = parseUrlHash();
       setActiveTabState(tab);
       setVisitedTabs(prev => new Set([...prev, tab]));
-      if (projectId) {
-        setSelectedProjectId(projectId);
-      }
-      if (section) {
-        setSelectedSection(section);
-      }
+      if (projectId) setSelectedProjectId(projectId);
+      if (section) setSelectedSection(section);
     };
 
     if (!window.location.hash) {
@@ -91,50 +81,41 @@ export const StudentDashboard = () => {
     return () => window.removeEventListener('hashchange', handleHashChange);
   }, []);
 
-  const handleSelectProjectFromWorkspace = (projectId) => {
-    setSelectedProjectId(projectId);
-    setActiveTab('projects', projectId);
-  };
-
   return (
-    <div className="min-h-screen bg-vault-bg text-vault-heading flex font-sans select-none">
-      {/* Sidebar Navigation */}
-      <Sidebar
-        activeTab={activeTab}
-        setActiveTab={setActiveTab}
-        isOpen={sidebarOpen}
-        setIsOpen={setSidebarOpen}
+    <div className="min-h-screen bg-vault-canvas text-vault-text flex font-sans select-none">
+      {/* Sidebar */}
+      <Sidebar 
+        activeTab={activeTab} 
+        setActiveTab={setActiveTab} 
+        isOpen={sidebarOpen} 
+        setIsOpen={setSidebarOpen} 
       />
 
-      {/* Main Content Area */}
+      {/* Main Container */}
       <div className="flex-1 lg:pl-64 flex flex-col min-w-0 min-h-screen">
-        
-        {/* Sticky Header Bar */}
-        <Header
-          onOpenSidebar={() => setSidebarOpen(true)}
-          activeTab={activeTab}
+        {/* Top Header */}
+        <Header 
+          activeTab={activeTab} 
+          onOpenSidebar={() => setSidebarOpen(true)} 
         />
 
-        {/* Dashboard Main Workspace View with 0ms Keep-Alive Caching */}
+        {/* Dynamic Content Views with Keep-Alive / Lazy-Hydration */}
         <main className="flex-1 p-6 lg:p-8 space-y-8 max-w-7xl w-full mx-auto">
           {visitedTabs.has('dashboard') && (
             <div className={activeTab === 'dashboard' ? 'block' : 'hidden'}>
-              <DashboardView onNavigate={(tab) => setActiveTab(tab)} />
+              <DashboardView onNavigate={(tab, projId, sec) => setActiveTab(tab, projId, sec)} />
             </div>
           )}
 
           {visitedTabs.has('workspaces') && (
             <div className={activeTab === 'workspaces' ? 'block' : 'hidden'}>
-              <WorkspacesView 
-                onNavigate={(tab) => setActiveTab(tab)} 
-                onSelectProject={handleSelectProjectFromWorkspace}
-              />
+              <WorkspacesView onNavigate={(tab, projId, sec) => setActiveTab(tab, projId, sec)} />
             </div>
           )}
 
           {visitedTabs.has('groups') && (
             <div className={activeTab === 'groups' ? 'block' : 'hidden'}>
-              <GroupsView onNavigate={(tab) => setActiveTab(tab)} />
+              <GroupsView onNavigate={(tab, projId, sec) => setActiveTab(tab, projId, sec)} />
             </div>
           )}
 
@@ -163,12 +144,6 @@ export const StudentDashboard = () => {
           {visitedTabs.has('search') && (
             <div className={activeTab === 'search' ? 'block' : 'hidden'}>
               <SmartSearchView />
-            </div>
-          )}
-
-          {visitedTabs.has('audit') && (
-            <div className={activeTab === 'audit' ? 'block' : 'hidden'}>
-              <AuditTrailView />
             </div>
           )}
 

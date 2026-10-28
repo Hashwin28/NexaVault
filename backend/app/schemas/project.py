@@ -81,9 +81,18 @@ class ProjectProgressResponse(BaseModel):
     approved_marks: float
     total_round_marks: float
     progress_percentage: float
+    calculated_progress_percentage: float = 0.0
+    staff_custom_progress: Optional[float] = None
+    is_staff_override: bool = False
+    progress_updated_at: Optional[datetime] = None
+    progress_updated_by_name: Optional[str] = None
     approved_rounds: List[ApprovedRoundInfo] = []
 
     model_config = ConfigDict(from_attributes=True)
+
+class ProjectProgressUpdate(BaseModel):
+    progress_percentage: Optional[float] = Field(None, ge=0.0, le=100.0, description="Staff-set progress percentage (0-100)")
+    reset_to_calculated: bool = Field(False, description="Whether to clear staff override and revert to calculated progress")
 
 class ProjectReviewItem(BaseModel):
     submission_id: int

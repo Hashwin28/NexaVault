@@ -9,6 +9,9 @@ class QueueItemResponse(BaseModel):
     project_name: str
     workspace_id: str
     workspace_name: str
+    group_id: Optional[int] = None
+    group_name: Optional[str] = None
+    group_code: Optional[str] = None
     round_id: int
     round_title: str
     round_due_date: datetime
@@ -22,7 +25,14 @@ class QueueItemResponse(BaseModel):
     claimed_by_name: Optional[str] = None
     is_late: bool
     results_released: bool = False
+    github_commit_sha: Optional[str] = None
+    submission_notes: Optional[str] = None
+    deliverable_link: Optional[str] = None
+    evaluation_verdict: Optional[str] = None
+    evaluation_feedback: Optional[str] = None
+    reviewed_at: Optional[datetime] = None
     roster_snapshot: List[Dict[str, Any]] = []
+    scores: Optional[List[Dict[str, Any]]] = None
 
     model_config = ConfigDict(from_attributes=True)
 

@@ -8,7 +8,7 @@ export const StaffReviewQueueView = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [success, setSuccess] = useState(null);
-  const [statusFilter, setStatusFilter] = useState('PENDING'); // 'PENDING', 'EVALUATED', 'ALL'
+  const [statusFilter, setStatusFilter] = useState('PENDING'); // 'PENDING', 'IN_REVIEW', 'EVALUATED', 'PUBLISHED', 'ALL'
 
   // Active evaluation modal state
   const [selectedVersion, setSelectedVersion] = useState(null);
@@ -16,6 +16,10 @@ export const StaffReviewQueueView = () => {
   const [feedback, setFeedback] = useState('');
   const [memberScores, setMemberScores] = useState({});
   const [submittingEval, setSubmittingEval] = useState(false);
+
+  // Confirmation modal for publishing results
+  const [confirmPublishVersion, setConfirmPublishVersion] = useState(null);
+  const [publishing, setPublishing] = useState(false);
 
   useEffect(() => {
     fetchQueue(statusFilter);
@@ -35,42 +39,54 @@ export const StaffReviewQueueView = () => {
     }
   };
 
-  const handleClaim = async (versionId) => {
+  const handleStartReview = async (versionId) => {
     setError(null);
     try {
       await reviewApi.claimSubmission(versionId);
-      setSuccess('Submission claimed successfully.');
+      setSuccess('Started review. Submission lock acquired.');
       await fetchQueue();
     } catch (err) {
-      setError(err.message || 'Failed to claim submission.');
+      setError(err.message || 'Failed to start review.');
     }
   };
 
-  const handleReleaseClaim = async (versionId) => {
+  const handleReleaseReviewLock = async (versionId) => {
     setError(null);
     try {
       await reviewApi.releaseClaim(versionId);
-      setSuccess('Submission claim released.');
+      setSuccess('Review lock released back to queue.');
       await fetchQueue();
     } catch (err) {
-      setError(err.message || 'Failed to release claim.');
+      setError(err.message || 'Failed to release lock.');
     }
   };
 
   const handleOpenEvaluateModal = (item) => {
     setSelectedVersion(item);
-    setVerdict('APPROVED');
-    setFeedback('');
+    setVerdict(item.evaluation_verdict || 'APPROVED');
+    setFeedback(item.evaluation_feedback || '');
     
-    // Initialize default member scores to configured max_score
+    // Initialize member scores from existing scores or defaults
     const initialScores = {};
-    const roster = item.roster_snapshot || item.members || [];
-    const maxScore = item.round_max_score != null ? Number(item.round_max_score) : (item.round?.max_score != null ? Number(item.round.max_score) : 100);
+    const roster = item.roster_snapshot || [];
+    const maxScore = item.round_max_score != null ? Number(item.round_max_score) : 100;
     
+    // Check if there are existing recorded scores
+    const existingScoresMap = {};
+    if (item.scores && Array.isArray(item.scores)) {
+      item.scores.forEach((s) => {
+        existingScoresMap[s.student_id] = s.score;
+      });
+    }
+
     roster.forEach((m) => {
       const mId = m.id || m.user_id;
       if (mId) {
-        initialScores[mId] = maxScore;
+        if (existingScoresMap[mId] !== undefined) {
+          initialScores[mId] = existingScoresMap[mId];
+        } else {
+          initialScores[mId] = maxScore;
+        }
       }
     });
     setMemberScores(initialScores);
@@ -79,7 +95,7 @@ export const StaffReviewQueueView = () => {
   const handleScoreChange = (studentId, scoreVal) => {
     setMemberScores((prev) => ({
       ...prev,
-      [studentId]: parseFloat(scoreVal) || 0,
+      [studentId]: scoreVal === '' ? '' : parseFloat(scoreVal),
     }));
   };
 
@@ -91,19 +107,20 @@ export const StaffReviewQueueView = () => {
       return;
     }
 
-    // Preserve validation requiring a score for every roster member when APPROVED
-    const roster = selectedVersion.roster_snapshot || selectedVersion.members || [];
+    const roster = selectedVersion.roster_snapshot || [];
     const maxScore = selectedVersion.round_max_score != null ? Number(selectedVersion.round_max_score) : 100;
+
     if (verdict === 'APPROVED' && roster.length > 0) {
       for (const m of roster) {
         const mId = m.id || m.user_id;
         const sVal = memberScores[mId];
-        if (sVal === undefined || sVal === null || isNaN(sVal)) {
-          setError(`Score is required for member ${m.full_name || m.name || m.email || mId}.`);
+        if (sVal === undefined || sVal === null || sVal === '' || isNaN(Number(sVal))) {
+          setError(`Marks are required for member ${m.full_name || m.name || m.email || mId}.`);
           return;
         }
-        if (sVal < 0 || sVal > maxScore) {
-          setError(`Score ${sVal} for ${m.full_name || m.name || mId} must be between 0 and ${maxScore}.`);
+        const numVal = Number(sVal);
+        if (numVal < 0 || numVal > maxScore) {
+          setError(`Marks ${numVal} for ${m.full_name || m.name || mId} must be between 0 and ${maxScore}.`);
           return;
         }
       }
@@ -120,39 +137,42 @@ export const StaffReviewQueueView = () => {
 
       const payload = {
         verdict: verdict,
-        status: verdict,
         feedback: feedback.trim(),
-        general_feedback: feedback.trim(),
         student_scores: studentScoresList,
       };
 
       const versionId = selectedVersion.version_id || selectedVersion.id;
       await reviewApi.evaluateSubmission(versionId, payload);
-      setSuccess(`Submission evaluation recorded as ${verdict}.`);
+      setSuccess(`Evaluation saved as ${verdict}. Marks are saved as draft until explicitly published.`);
       setSelectedVersion(null);
       await fetchQueue();
     } catch (err) {
-      setError(err.message || 'Failed to submit evaluation.');
+      setError(err.message || 'Failed to save evaluation.');
     } finally {
       setSubmittingEval(false);
     }
   };
 
-  const handleReleaseResults = async (versionId) => {
-    if (!window.confirm('Release evaluation results to the student group?')) return;
+  const handleExecutePublish = async () => {
+    if (!confirmPublishVersion) return;
+    setPublishing(true);
     setError(null);
+    const versionId = confirmPublishVersion.version_id || confirmPublishVersion.id;
     try {
       await reviewApi.releaseResults(versionId);
-      setSuccess('Results successfully released to group.');
+      setSuccess(`Results published successfully! Students can now view their official marks.`);
+      setConfirmPublishVersion(null);
       await fetchQueue();
     } catch (err) {
-      setError(err.message || 'Failed to release results.');
+      setError(err.message || 'Failed to publish results.');
+    } finally {
+      setPublishing(false);
     }
   };
 
   return (
     <div className="space-y-6">
-      {/* Header */}
+      {/* Header & Tabs */}
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 border-b border-[#1B262E] pb-4">
         <div>
           <h2 className="text-xl font-bold text-slate-100 font-serif flex items-center gap-2">
@@ -161,23 +181,25 @@ export const StaffReviewQueueView = () => {
               {queue.length} Submissions
             </span>
           </h2>
-          <p className="text-xs text-slate-400 font-sans">
-            Claim pending submissions, grade individual group members, send evaluation feedback, and release published scores.
+          <p className="text-xs text-slate-400 font-sans mt-0.5">
+            Structured 6-step review workflow: Pending Review → Start Review → Enter Marks → Save Draft → Publish Results → Published.
           </p>
         </div>
         <div className="flex flex-wrap items-center gap-2">
           <div className="flex items-center gap-1 bg-[#11181C] p-1 rounded-lg border border-[#1B262E]">
             {[
-              { id: 'PENDING', label: 'Pending Review' },
-              { id: 'EVALUATED', label: 'Evaluated & Graded' },
-              { id: 'ALL', label: 'All Submissions' },
+              { id: 'PENDING', label: '1. Pending Review' },
+              { id: 'IN_REVIEW', label: '2. In Review' },
+              { id: 'EVALUATED', label: '3. Evaluated (Draft)' },
+              { id: 'PUBLISHED', label: '4. Published' },
+              { id: 'ALL', label: 'All' },
             ].map((tab) => (
               <button
                 key={tab.id}
                 onClick={() => setStatusFilter(tab.id)}
-                className={`px-3 py-1 rounded text-xs font-sans transition-all ${
+                className={`px-3 py-1.5 rounded text-xs font-sans transition-all ${
                   statusFilter === tab.id
-                    ? 'bg-teal-500 text-slate-950 font-bold'
+                    ? 'bg-teal-500 text-slate-950 font-bold shadow'
                     : 'text-slate-400 hover:text-slate-200'
                 }`}
               >
@@ -187,7 +209,7 @@ export const StaffReviewQueueView = () => {
           </div>
           <button
             onClick={() => fetchQueue(statusFilter)}
-            className="px-3.5 py-1.5 text-xs font-sans text-slate-300 bg-[#11181C] hover:bg-[#1B262E] rounded-lg border border-[#1B262E] flex items-center gap-1.5"
+            className="px-3.5 py-1.5 text-xs font-sans text-slate-300 bg-[#11181C] hover:bg-[#1B262E] rounded-lg border border-[#1B262E] flex items-center gap-1.5 transition-colors"
           >
             <span>↻ Refresh</span>
           </button>
@@ -197,18 +219,18 @@ export const StaffReviewQueueView = () => {
       {error && (
         <div className="p-4 rounded-lg bg-rose-500/10 border border-rose-500/20 text-rose-300 text-sm flex justify-between items-center">
           <span>{error}</span>
-          <button onClick={() => setError(null)} className="text-rose-400 font-bold">×</button>
+          <button onClick={() => setError(null)} className="text-rose-400 font-bold ml-2">×</button>
         </div>
       )}
 
       {success && (
         <div className="p-4 rounded-lg bg-emerald-500/10 border border-emerald-500/20 text-emerald-300 text-sm flex justify-between items-center">
           <span>{success}</span>
-          <button onClick={() => setSuccess(null)} className="text-emerald-400 font-bold">×</button>
+          <button onClick={() => setSuccess(null)} className="text-emerald-400 font-bold ml-2">×</button>
         </div>
       )}
 
-      {/* Main Queue Table */}
+      {/* Main Review Queue Table */}
       <div className="bg-[#11181C] rounded-xl border border-[#1B262E] overflow-hidden">
         {loading ? (
           <div className="py-16 text-center text-xs font-mono text-slate-500">
@@ -217,19 +239,24 @@ export const StaffReviewQueueView = () => {
         ) : queue.length === 0 ? (
           <div className="py-16 text-center text-xs font-mono text-slate-500">
             <p className="text-sm font-semibold text-slate-300">🎉 Queue is Empty!</p>
-            <p className="text-slate-500 mt-1">No student submissions are currently awaiting review.</p>
+            <p className="text-slate-500 mt-1">
+              {statusFilter === 'PENDING' && 'No student submissions are currently awaiting review.'}
+              {statusFilter === 'IN_REVIEW' && 'No submissions are currently claimed or in review.'}
+              {statusFilter === 'EVALUATED' && 'No draft evaluations pending publication.'}
+              {statusFilter === 'PUBLISHED' && 'No published results found in this view.'}
+              {statusFilter === 'ALL' && 'No submissions found in your assigned workspaces.'}
+            </p>
           </div>
         ) : (
           <div className="overflow-x-auto">
             <table className="w-full text-left text-xs text-slate-300">
               <thead className="bg-[#0B0F12] text-slate-400 font-mono text-[11px] uppercase border-b border-[#1B262E]">
                 <tr>
-                  <th className="py-3 px-4">Workspace</th>
-                  <th className="py-3 px-4">Project</th>
-                  <th className="py-3 px-4">Version</th>
-                  <th className="py-3 px-4">Review Round</th>
+                  <th className="py-3 px-4">Workspace & Project</th>
+                  <th className="py-3 px-4">Group</th>
+                  <th className="py-3 px-4">Round & Version</th>
                   <th className="py-3 px-4">Submitted At</th>
-                  <th className="py-3 px-4">Claim Status</th>
+                  <th className="py-3 px-4">Review State</th>
                   <th className="py-3 px-4 text-right">Actions</th>
                 </tr>
               </thead>
@@ -238,95 +265,135 @@ export const StaffReviewQueueView = () => {
                   const versionId = item.version_id || item.id;
                   const isClaimedByMe = item.claimed_by_id === user?.id;
                   const isClaimedByOther = item.claimed_by_id && !isClaimedByMe;
-                  const isEvaluated = item.review_status === 'EVALUATED' || item.is_evaluated || item.status === 'APPROVED' || item.status === 'REVISION_REQUESTED';
+                  const isEvaluated = item.status === 'APPROVED' || item.status === 'REVISION_REQUESTED';
+                  const isPublished = item.results_released;
 
                   return (
                     <tr key={versionId} className="hover:bg-[#162026] transition-colors">
-                      <td className="py-3 px-4">
+                      <td className="py-3.5 px-4">
                         <div className="font-bold text-slate-100">
-                          {item.workspace_name || item.workspace_title || 'Workspace'}
+                          {item.project_name || `Project #${item.project_id}`}
+                        </div>
+                        <div className="text-[11px] text-slate-400">
+                          {item.workspace_name || item.workspace_id}
                         </div>
                       </td>
-                      <td className="py-3 px-4">
-                        <div className="font-semibold text-slate-200">
-                          {item.project_name || item.project_title || `Project #${item.project_id}`}
+                      <td className="py-3.5 px-4">
+                        <div className="font-medium text-slate-200">
+                          {item.group_name || `Group #${item.group_id || 'N/A'}`}
                         </div>
-                        <div className="text-[10px] text-slate-400 font-mono">
+                        {item.group_code && (
+                          <div className="text-[10px] text-slate-500 font-mono">
+                            Code: {item.group_code}
+                          </div>
+                        )}
+                        <div className="text-[10px] text-slate-400 font-mono mt-0.5">
                           By: {item.submitter_name || 'Student'}
                         </div>
                       </td>
-                      <td className="py-3 px-4 font-mono font-bold text-teal-300">
-                        v{item.version_number}
-                      </td>
-                      <td className="py-3 px-4">
-                        <div className="text-slate-200 font-medium">
-                          {item.round_title || item.round_name || `Round ${item.round_id || 1}`}
+                      <td className="py-3.5 px-4">
+                        <div className="text-slate-200 font-medium flex items-center gap-1.5">
+                          <span>{item.round_title}</span>
+                          <span className="font-mono text-[11px] px-1.5 py-0.2 rounded bg-teal-500/10 text-teal-300 border border-teal-500/20">
+                            v{item.version_number}
+                          </span>
                         </div>
-                        <div className="text-[10px] text-slate-500 font-mono">
-                          Max: {item.round_max_score ?? 100} pts • Due: {item.round_due_date ? new Date(item.round_due_date).toLocaleDateString() : 'N/A'}
+                        <div className="text-[10px] text-slate-500 font-mono mt-0.5">
+                          Max: {item.round_max_score ?? 100} pts
+                          {item.is_late && <span className="text-rose-400 font-bold ml-1.5">• LATE</span>}
                         </div>
                       </td>
-                      <td className="py-3 px-4 font-mono text-slate-400">
+                      <td className="py-3.5 px-4 font-mono text-slate-400">
                         {item.submitted_at ? new Date(item.submitted_at).toLocaleString() : 'Recent'}
                       </td>
-                      <td className="py-3 px-4">
-                        {isClaimedByMe ? (
-                          <span className="px-2.5 py-1 rounded bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 font-mono text-[10px]">
-                            Claimed by you
+                      <td className="py-3.5 px-4">
+                        {isPublished ? (
+                          <span className="px-2.5 py-1 rounded bg-emerald-500/15 text-emerald-300 border border-emerald-500/30 font-mono text-[10px] font-bold">
+                            ✓ Published to Students
+                          </span>
+                        ) : isEvaluated ? (
+                          <span className="px-2.5 py-1 rounded bg-amber-500/15 text-amber-300 border border-amber-500/30 font-mono text-[10px] font-bold">
+                            Evaluated (Draft Marks)
+                          </span>
+                        ) : isClaimedByMe ? (
+                          <span className="px-2.5 py-1 rounded bg-teal-500/15 text-teal-300 border border-teal-500/30 font-mono text-[10px] font-bold">
+                            In Review by You
                           </span>
                         ) : isClaimedByOther ? (
-                          <span className="px-2.5 py-1 rounded bg-amber-500/10 text-amber-400 border border-amber-500/20 font-mono text-[10px]">
-                            Claimed ({item.claimed_by_name || `Staff #${item.claimed_by_id}`})
+                          <span className="px-2.5 py-1 rounded bg-slate-800 text-slate-400 border border-slate-700 font-mono text-[10px]">
+                            Locked by {item.claimed_by_name || `Staff #${item.claimed_by_id}`}
                           </span>
                         ) : (
-                          <span className="px-2.5 py-1 rounded bg-slate-800 text-slate-400 border border-slate-700 font-mono text-[10px]">
-                            Unclaimed
+                          <span className="px-2.5 py-1 rounded bg-slate-800/80 text-slate-400 border border-slate-700 font-mono text-[10px]">
+                            Pending Review
                           </span>
                         )}
                       </td>
-                      <td className="py-3 px-4 text-right space-x-2">
-                        {isClaimedByMe ? (
-                          <>
+                      <td className="py-3.5 px-4 text-right">
+                        <div className="flex items-center justify-end gap-2 flex-wrap">
+                          {/* Step 1: Claim */}
+                          {!item.claimed_by_id && !isEvaluated && !isPublished && (
+                            <button
+                              onClick={() => handleStartReview(versionId)}
+                              className="px-3 py-1.5 bg-teal-500 hover:bg-teal-400 text-slate-950 font-bold text-xs rounded shadow transition-all"
+                            >
+                              Start Review
+                            </button>
+                          )}
+
+                          {/* Step 2: In Review by Current Staff */}
+                          {isClaimedByMe && !isEvaluated && (
+                            <>
+                              <button
+                                onClick={() => handleOpenEvaluateModal(item)}
+                                className="px-3 py-1.5 bg-teal-500 hover:bg-teal-400 text-slate-950 font-bold text-xs rounded shadow transition-all"
+                              >
+                                Enter Marks & Feedback
+                              </button>
+                              <button
+                                onClick={() => handleReleaseReviewLock(versionId)}
+                                className="px-2.5 py-1.5 text-xs text-amber-400 hover:text-amber-300 bg-amber-500/10 rounded border border-amber-500/20 font-mono"
+                                title="Release lock back to other faculty"
+                              >
+                                Release Lock
+                              </button>
+                            </>
+                          )}
+
+                          {/* Step 3: Evaluated (Draft Marks) */}
+                          {isEvaluated && !isPublished && (
+                            <>
+                              <button
+                                onClick={() => handleOpenEvaluateModal(item)}
+                                className="px-2.5 py-1.5 bg-slate-800 hover:bg-slate-700 text-slate-200 font-mono text-xs rounded border border-slate-700"
+                              >
+                                Edit Marks
+                              </button>
+                              <button
+                                onClick={() => setConfirmPublishVersion(item)}
+                                className="px-3 py-1.5 bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs rounded shadow transition-all"
+                              >
+                                Publish Results
+                              </button>
+                            </>
+                          )}
+
+                          {/* Step 4: Published */}
+                          {isPublished && (
                             <button
                               onClick={() => handleOpenEvaluateModal(item)}
-                              className="px-3 py-1.5 bg-emerald-600 hover:bg-emerald-500 text-slate-950 font-bold text-xs rounded shadow"
+                              className="px-2.5 py-1.5 bg-slate-800/80 hover:bg-slate-800 text-slate-300 font-mono text-xs rounded border border-slate-700"
                             >
-                              Evaluate
+                              View Evaluation
                             </button>
-                            <button
-                              onClick={() => handleReleaseClaim(versionId)}
-                              className="px-2.5 py-1.5 text-xs text-amber-400 hover:text-amber-300 bg-amber-500/10 rounded font-mono"
-                            >
-                              Release
-                            </button>
-                          </>
-                        ) : isClaimedByOther ? (
-                          <span className="text-slate-500 text-xs italic font-mono">
-                            In Review
-                          </span>
-                        ) : (
-                          <button
-                            onClick={() => handleClaim(versionId)}
-                            className="px-3 py-1.5 bg-teal-600/20 text-teal-300 hover:bg-teal-600/40 border border-teal-500/30 font-semibold text-xs rounded"
-                          >
-                            Claim for Review
-                          </button>
-                        )}
+                          )}
 
-                        {isEvaluated && (
-                          item.results_released ? (
-                            <span className="px-2 py-1 text-[10px] font-mono font-bold rounded bg-emerald-500/15 text-emerald-300 border border-emerald-500/30 ml-2">
-                              ✓ Results Released
+                          {isClaimedByOther && !isEvaluated && !isPublished && (
+                            <span className="text-slate-500 text-xs italic font-mono">
+                              In Review
                             </span>
-                          ) : (
-                            <button
-                              onClick={() => handleReleaseResults(versionId)}
-                              className="px-2.5 py-1.5 text-xs bg-teal-500 hover:bg-teal-400 text-slate-950 font-bold rounded ml-2 shadow transition-all"
-                            >
-                              Release Results
-                            </button>
-                          )
-                        )}
+                          )}
+                        </div>
                       </td>
                     </tr>
                   );
@@ -337,10 +404,56 @@ export const StaffReviewQueueView = () => {
         )}
       </div>
 
-      {/* Evaluation Modal */}
+      {/* Confirmation Modal for Publishing Results */}
+      {confirmPublishVersion && (
+        <div className="fixed inset-0 z-50 bg-slate-950/80 backdrop-blur-sm flex items-center justify-center p-4">
+          <div className="bg-[#11181C] border border-[#1B262E] rounded-xl max-w-md w-full p-6 space-y-5 shadow-2xl">
+            <div>
+              <div className="w-10 h-10 rounded-full bg-emerald-500/10 border border-emerald-500/30 flex items-center justify-center text-emerald-400 text-lg mb-3">
+                📢
+              </div>
+              <h3 className="text-base font-bold text-slate-100">
+                Publish Results to Students?
+              </h3>
+              <p className="text-xs text-slate-400 mt-1 leading-relaxed">
+                You are about to publish official marks for{' '}
+                <strong className="text-slate-200">
+                  {confirmPublishVersion.project_name} ({confirmPublishVersion.round_title})
+                </strong>.
+              </p>
+              <div className="mt-3 p-3 rounded-lg bg-[#0B0F12] border border-[#1B262E] text-xs text-slate-300 space-y-1">
+                <p>• Marks will immediately become visible to enrolled group students.</p>
+                <p>• Students will see their individual score and faculty feedback.</p>
+                <p>• Progress metrics will reflect these published results.</p>
+              </div>
+            </div>
+
+            <div className="flex justify-end gap-3 pt-3 border-t border-[#1B262E]">
+              <button
+                type="button"
+                onClick={() => setConfirmPublishVersion(null)}
+                disabled={publishing}
+                className="px-4 py-2 text-xs font-mono text-slate-400 hover:text-slate-200"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={handleExecutePublish}
+                disabled={publishing}
+                className="px-5 py-2 text-xs bg-emerald-600 hover:bg-emerald-500 text-white font-bold rounded shadow disabled:opacity-50 transition-all"
+              >
+                {publishing ? 'Publishing Results...' : 'Confirm & Publish Results'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Evaluation & Marks Modal */}
       {selectedVersion && (
         <div className="fixed inset-0 z-50 bg-slate-950/80 backdrop-blur-sm flex items-center justify-center p-4">
-          <div className="bg-[#11181C] border border-[#1B262E] rounded-xl max-w-2xl w-full p-6 space-y-6 max-h-[90vh] overflow-y-auto">
+          <div className="bg-[#11181C] border border-[#1B262E] rounded-xl max-w-2xl w-full p-6 space-y-6 max-h-[90vh] overflow-y-auto shadow-2xl">
             {/* Modal Header */}
             <div className="flex justify-between items-start border-b border-[#1B262E] pb-4">
               <div>
@@ -348,10 +461,10 @@ export const StaffReviewQueueView = () => {
                   Evaluating Submission v{selectedVersion.version_number}
                 </span>
                 <h3 className="text-lg font-bold text-slate-100">
-                  {selectedVersion.workspace_name || selectedVersion.workspace_title || 'Workspace'} — {selectedVersion.project_name || selectedVersion.project_title || 'Project'}
+                  {selectedVersion.project_name || 'Project'} — {selectedVersion.workspace_name || 'Workspace'}
                 </h3>
-                <p className="text-xs text-slate-400">
-                  Submitted by: <strong className="text-slate-200">{selectedVersion.submitter_name || 'Student'}</strong> • Round: <strong className="text-slate-200">{selectedVersion.round_title || selectedVersion.round_name || 'Round'}</strong> (Max Score: {selectedVersion.round_max_score ?? 100})
+                <p className="text-xs text-slate-400 mt-0.5">
+                  Group: <strong className="text-slate-200">{selectedVersion.group_name || 'Group'}</strong> • Round: <strong className="text-slate-200">{selectedVersion.round_title}</strong> (Max: {selectedVersion.round_max_score ?? 100} marks)
                 </p>
               </div>
               <button
@@ -362,32 +475,40 @@ export const StaffReviewQueueView = () => {
               </button>
             </div>
 
-            {/* Submission Links & Notes */}
-            <div className="p-4 rounded-lg bg-[#0B0F12] border border-[#1B262E] space-y-2 text-xs">
+            {/* Submission Deliverable Details */}
+            <div className="p-4 rounded-lg bg-[#0B0F12] border border-[#1B262E] space-y-2.5 text-xs">
+              <span className="font-mono text-[10px] uppercase tracking-wider text-slate-400 font-bold block mb-1">
+                Student Deliverables
+              </span>
+              
               <div className="flex items-center justify-between">
-                <span className="font-mono text-slate-400">Repository Link:</span>
-                {selectedVersion.repo_url || selectedVersion.repository_url ? (
+                <span className="font-mono text-slate-400">Deliverable / Link:</span>
+                {selectedVersion.deliverable_link ? (
                   <a
-                    href={selectedVersion.repo_url || selectedVersion.repository_url}
+                    href={selectedVersion.deliverable_link}
                     target="_blank"
                     rel="noreferrer"
                     className="font-mono text-teal-400 hover:underline flex items-center gap-1"
                   >
-                    <span>🔗 {selectedVersion.repo_url || selectedVersion.repository_url}</span>
+                    <span>🔗 {selectedVersion.deliverable_link}</span>
                   </a>
                 ) : (
-                  <span className="text-slate-500 font-mono">No repository URL provided</span>
+                  <span className="text-slate-500 font-mono">No external link provided</span>
                 )}
               </div>
-              {selectedVersion.commit_hash && (
+
+              {selectedVersion.github_commit_sha && (
                 <div className="flex items-center justify-between">
-                  <span className="font-mono text-slate-400">Commit Hash:</span>
-                  <span className="font-mono text-slate-300">{selectedVersion.commit_hash}</span>
+                  <span className="font-mono text-slate-400">Commit SHA:</span>
+                  <span className="font-mono text-slate-300 bg-slate-900 px-2 py-0.5 rounded border border-slate-800">
+                    {selectedVersion.github_commit_sha}
+                  </span>
                 </div>
               )}
+
               {selectedVersion.submission_notes && (
                 <div className="pt-2 border-t border-[#1B262E]">
-                  <span className="font-mono text-slate-400 block mb-1">Submission Notes:</span>
+                  <span className="font-mono text-slate-400 block mb-1">Student Notes:</span>
                   <p className="text-slate-300 whitespace-pre-wrap">{selectedVersion.submission_notes}</p>
                 </div>
               )}
@@ -398,7 +519,7 @@ export const StaffReviewQueueView = () => {
               {/* Verdict Selection */}
               <div>
                 <label className="text-xs font-mono text-slate-400 uppercase block mb-2 font-semibold">
-                  Evaluation Verdict
+                  Review Verdict
                 </label>
                 <div className="grid grid-cols-2 gap-3">
                   <button
@@ -410,7 +531,7 @@ export const StaffReviewQueueView = () => {
                         : 'bg-[#0B0F12] border-[#1B262E] text-slate-400 hover:text-slate-200'
                     }`}
                   >
-                    ✓ APPROVED
+                    ✓ APPROVED & SCORE
                   </button>
                   <button
                     type="button"
@@ -431,21 +552,22 @@ export const StaffReviewQueueView = () => {
                 <div className="p-4 rounded-lg bg-[#0B0F12] border border-[#1B262E] space-y-3">
                   <div className="flex justify-between items-center">
                     <label className="text-xs font-mono text-slate-300 font-bold uppercase">
-                      Individual Student Scores
+                      Individual Student Marks
                     </label>
-                    <span className="text-[10px] font-mono text-slate-500">
-                      Max Score: {selectedVersion.round_max_score ?? 100} pts
+                    <span className="text-[10px] font-mono text-slate-400">
+                      Permitted Range: 0 to {selectedVersion.round_max_score ?? 100} marks
                     </span>
                   </div>
 
-                  {(selectedVersion.roster_snapshot || selectedVersion.members || []).length === 0 ? (
+                  {(selectedVersion.roster_snapshot || []).length === 0 ? (
                     <div className="text-xs text-slate-500 font-mono">
-                      No individual group roster snapshot available. Defaulting group evaluation.
+                      No group roster snapshot found.
                     </div>
                   ) : (
                     <div className="space-y-2">
-                      {(selectedVersion.roster_snapshot || selectedVersion.members || []).map((student) => {
+                      {(selectedVersion.roster_snapshot || []).map((student) => {
                         const sId = student.id || student.user_id;
+                        const maxScore = selectedVersion.round_max_score ?? 100;
                         return (
                           <div
                             key={sId}
@@ -464,14 +586,15 @@ export const StaffReviewQueueView = () => {
                                 type="number"
                                 step="0.5"
                                 min="0"
-                                max={selectedVersion.round_max_score ?? 100}
+                                max={maxScore}
                                 value={memberScores[sId] ?? ''}
                                 onChange={(e) => handleScoreChange(sId, e.target.value)}
-                                className="w-20 bg-[#0B0F12] border border-[#1B262E] rounded px-2 py-1 text-xs text-slate-200 font-mono text-right focus:outline-none focus:border-teal-500"
+                                className="w-24 bg-[#0B0F12] border border-[#1B262E] rounded px-2.5 py-1 text-xs text-slate-200 font-mono text-right focus:outline-none focus:border-teal-500"
+                                placeholder="Marks"
                                 required={verdict === 'APPROVED'}
                               />
-                              <span className="text-xs font-mono text-slate-500">
-                                / {selectedVersion.round_max_score ?? 100}
+                              <span className="text-xs font-mono text-slate-400">
+                                / {maxScore}
                               </span>
                             </div>
                           </div>
@@ -489,30 +612,35 @@ export const StaffReviewQueueView = () => {
                 </label>
                 <textarea
                   rows={4}
-                  placeholder="Provide comprehensive feedback, strengths, and necessary improvements..."
+                  placeholder="Provide constructive evaluation feedback, strengths, and necessary corrections..."
                   value={feedback}
                   onChange={(e) => setFeedback(e.target.value)}
-                  className="w-full bg-[#0B0F12] border border-[#1B262E] rounded px-3 py-2 text-xs text-slate-200 focus:outline-none focus:border-teal-500"
+                  className="w-full bg-[#0B0F12] border border-[#1B262E] rounded px-3 py-2 text-xs text-slate-200 focus:outline-none focus:border-teal-500 leading-relaxed"
                   required
                 />
               </div>
 
               {/* Action Buttons */}
-              <div className="flex justify-end gap-3 pt-3 border-t border-[#1B262E]">
-                <button
-                  type="button"
-                  onClick={() => setSelectedVersion(null)}
-                  className="px-4 py-2 text-xs font-mono text-slate-400 hover:text-slate-200"
-                >
-                  Cancel
-                </button>
-                <button
-                  type="submit"
-                  disabled={submittingEval}
-                  className="px-5 py-2 text-xs bg-teal-500 hover:bg-teal-400 text-slate-950 font-bold rounded shadow disabled:opacity-50"
-                >
-                  {submittingEval ? 'Submitting Evaluation...' : 'Submit Evaluation'}
-                </button>
+              <div className="flex justify-between items-center pt-3 border-t border-[#1B262E]">
+                <span className="text-[11px] text-slate-500 font-mono">
+                  Saved marks remain draft until you click "Publish Results".
+                </span>
+                <div className="flex gap-3">
+                  <button
+                    type="button"
+                    onClick={() => setSelectedVersion(null)}
+                    className="px-4 py-2 text-xs font-mono text-slate-400 hover:text-slate-200"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    type="submit"
+                    disabled={submittingEval}
+                    className="px-5 py-2 text-xs bg-teal-500 hover:bg-teal-400 text-slate-950 font-bold rounded shadow disabled:opacity-50 transition-all"
+                  >
+                    {submittingEval ? 'Saving...' : 'Save Evaluation (Draft Marks)'}
+                  </button>
+                </div>
               </div>
             </form>
           </div>

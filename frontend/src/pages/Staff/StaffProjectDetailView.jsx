@@ -27,6 +27,11 @@ export const StaffProjectDetailView = ({ projectId, initialSection, onBack }) =>
   const [loadingGithub, setLoadingGithub] = useState(false);
   const [publishing, setPublishing] = useState(false);
 
+  // Staff Progress Control state
+  const [progressDetails, setProgressDetails] = useState(null);
+  const [progressInput, setProgressInput] = useState('');
+  const [savingProgress, setSavingProgress] = useState(false);
+
   // Score correction modal
   const [correctionTarget, setCorrectionTarget] = useState(null);
 
@@ -56,6 +61,13 @@ export const StaffProjectDetailView = ({ projectId, initialSection, onBack }) =>
   useEffect(() => {
     if (activeSection === 'overview' && projectId && updates.length === 0) {
       loadUpdatesData(projectId);
+    }
+  }, [activeSection, projectId]);
+
+  // Load progress details on mount or tab change
+  useEffect(() => {
+    if (projectId && (activeSection === 'progress' || activeSection === 'overview')) {
+      loadProgressDetails(projectId);
     }
   }, [activeSection, projectId]);
 
@@ -99,6 +111,78 @@ export const StaffProjectDetailView = ({ projectId, initialSection, onBack }) =>
       setUpdates(upd || []);
     } catch {
       // Graceful fallback
+    }
+  };
+
+  const loadProgressDetails = async (pId) => {
+    try {
+      const prog = await projectApi.getProgress(pId);
+      setProgressDetails(prog);
+      setProgressInput(String(prog.progress_percentage ?? 0));
+    } catch {
+      // Graceful fallback
+    }
+  };
+
+  const handleSaveProgress = async (e) => {
+    e?.preventDefault();
+    const val = parseFloat(progressInput);
+    if (isNaN(val) || val < 0 || val > 100) {
+      setError('Progress percentage must be a number between 0 and 100.');
+      return;
+    }
+    setSavingProgress(true);
+    setError(null);
+    try {
+      const updated = await projectApi.updateProgress(projectId, {
+        progress_percentage: val,
+        reset_to_calculated: false,
+      });
+      setProgressDetails(updated);
+      setProgressInput(String(updated.progress_percentage));
+      setSuccess(`Project progress updated to ${updated.progress_percentage}%.`);
+      if (oversightData?.project) {
+        setOversightData((prev) => ({
+          ...prev,
+          project: {
+            ...prev.project,
+            progress_percentage: updated.progress_percentage,
+          },
+        }));
+      }
+    } catch (err) {
+      setError(err.message || 'Failed to update project progress.');
+    } finally {
+      setSavingProgress(false);
+    }
+  };
+
+  const handleResetProgress = async () => {
+    if (!window.confirm('Reset project progress back to the automatically calculated milestone percentage?')) {
+      return;
+    }
+    setSavingProgress(true);
+    setError(null);
+    try {
+      const updated = await projectApi.updateProgress(projectId, {
+        reset_to_calculated: true,
+      });
+      setProgressDetails(updated);
+      setProgressInput(String(updated.progress_percentage));
+      setSuccess('Project progress reset to calculated milestone completion.');
+      if (oversightData?.project) {
+        setOversightData((prev) => ({
+          ...prev,
+          project: {
+            ...prev.project,
+            progress_percentage: updated.progress_percentage,
+          },
+        }));
+      }
+    } catch (err) {
+      setError(err.message || 'Failed to reset project progress.');
+    } finally {
+      setSavingProgress(false);
     }
   };
 
@@ -526,39 +610,140 @@ export const StaffProjectDetailView = ({ projectId, initialSection, onBack }) =>
       {/* Tab 5: Progress */}
       {activeSection === 'progress' && (
         <div className="space-y-6">
-          <div className="bg-[#11181C] p-6 rounded-xl border border-[#1B262E] space-y-4">
-            <h3 className="text-base font-bold text-slate-100 font-serif">Curricular Progress & Assessment Milestones</h3>
+          <div className="bg-[#11181C] p-6 rounded-xl border border-[#1B262E] space-y-6">
+            <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3">
+              <div>
+                <h3 className="text-base font-bold text-slate-100 font-serif">Staff-Controlled Project Progress</h3>
+                <p className="text-xs text-slate-400 font-sans mt-0.5">
+                  Configure the authoritative project progress percentage or allow automatic milestone calculation.
+                </p>
+              </div>
+              {progressDetails?.is_staff_override ? (
+                <span className="px-2.5 py-1 rounded bg-teal-500/10 text-teal-300 border border-teal-500/20 text-xs font-mono font-medium">
+                  ★ Staff Override Active
+                </span>
+              ) : (
+                <span className="px-2.5 py-1 rounded bg-slate-800 text-slate-400 border border-slate-700 text-xs font-mono">
+                  Milestone Calculated
+                </span>
+              )}
+            </div>
+
+            {/* Progress Input Form */}
+            <form onSubmit={handleSaveProgress} className="p-4 rounded-lg bg-[#0B0F12] border border-[#1B262E] space-y-4">
+              <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+                <div>
+                  <label className="text-xs font-mono uppercase text-slate-300 font-semibold block mb-1">
+                    Set Project Progress (0 - 100%)
+                  </label>
+                  <p className="text-[11px] text-slate-500 font-sans">
+                    This value will be displayed as the primary progress across student and staff dashboards.
+                  </p>
+                </div>
+                <div className="flex items-center gap-2">
+                  <div className="relative">
+                    <input
+                      type="number"
+                      step="0.5"
+                      min="0"
+                      max="100"
+                      value={progressInput}
+                      onChange={(e) => setProgressInput(e.target.value)}
+                      className="w-28 bg-[#11181C] border border-[#1B262E] rounded-lg px-3 py-1.5 text-sm text-slate-100 font-mono text-right focus:outline-none focus:border-teal-500"
+                      placeholder="0.0"
+                      required
+                    />
+                    <span className="absolute right-8 top-1.5 text-xs text-slate-500 font-mono pointer-events-none">
+                      %
+                    </span>
+                  </div>
+                  <button
+                    type="submit"
+                    disabled={savingProgress}
+                    className="px-4 py-1.5 text-xs font-bold rounded-lg bg-teal-500 hover:bg-teal-400 text-slate-950 shadow disabled:opacity-50 transition-all"
+                  >
+                    {savingProgress ? 'Saving...' : 'Save Progress'}
+                  </button>
+                  {progressDetails?.is_staff_override && (
+                    <button
+                      type="button"
+                      onClick={handleResetProgress}
+                      disabled={savingProgress}
+                      className="px-3 py-1.5 text-xs font-mono rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 border border-slate-700 disabled:opacity-50"
+                    >
+                      Reset to Calculated
+                    </button>
+                  )}
+                </div>
+              </div>
+
+              {progressDetails?.is_staff_override && (
+                <div className="pt-3 border-t border-[#1B262E] text-xs text-slate-400 font-mono flex items-center justify-between">
+                  <span>
+                    Last set by: <strong className="text-slate-200">{progressDetails.progress_updated_by_name || 'Staff'}</strong>
+                  </span>
+                  {progressDetails.progress_updated_at && (
+                    <span>Updated: {new Date(progressDetails.progress_updated_at).toLocaleString()}</span>
+                  )}
+                </div>
+              )}
+            </form>
+
+            {/* Current Authoritative Progress Bar */}
             <div className="space-y-2">
               <div className="flex justify-between items-center text-xs">
-                <span className="text-slate-400 font-mono">Overall Weighted Completion</span>
-                <span className="text-teal-400 font-bold font-mono">{progressPct}%</span>
+                <span className="text-slate-400 font-mono">Authoritative Progress</span>
+                <span className="text-teal-400 font-bold font-mono text-sm">
+                  {progressDetails?.progress_percentage ?? progressPct}%
+                </span>
               </div>
               <div className="w-full bg-[#0B0F12] h-3 rounded-full overflow-hidden border border-[#1B262E]">
                 <div
                   className="bg-gradient-to-r from-teal-500 to-emerald-400 h-full rounded-full transition-all duration-500"
-                  style={{ width: `${progressPct}%` }}
+                  style={{ width: `${progressDetails?.progress_percentage ?? progressPct}%` }}
                 />
               </div>
             </div>
 
-            <div className="pt-4">
-              <h4 className="text-xs font-mono uppercase text-slate-400 tracking-wider mb-3">
-                Workspace Review Rounds ({rounds.length})
-              </h4>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                {rounds.map((r) => (
-                  <div key={r.round_id} className="p-3.5 bg-[#0B0F12] rounded-lg border border-[#1B262E] flex justify-between items-center text-xs">
-                    <div>
-                      <div className="font-bold text-slate-200">
-                        Round {r.order_index}: {r.round_title}
+            {/* Curricular Assessment Milestones Breakdown */}
+            <div className="pt-4 border-t border-[#1B262E] space-y-3">
+              <div className="flex justify-between items-center">
+                <h4 className="text-xs font-mono uppercase text-slate-300 font-semibold tracking-wider">
+                  Curricular Assessment Milestones
+                </h4>
+                <span className="text-xs font-mono text-slate-400">
+                  Calculated Completion: <strong className="text-slate-200">{progressDetails?.calculated_progress_percentage ?? 0}%</strong>
+                </span>
+              </div>
+              
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs bg-[#0B0F12] p-3.5 rounded-lg border border-[#1B262E]">
+                <p className="text-slate-400">
+                  • Approved Marks: <strong className="text-slate-200">{progressDetails?.approved_marks ?? 0} pts</strong>
+                </p>
+                <p className="text-slate-400">
+                  • Total Possible Marks: <strong className="text-slate-200">{progressDetails?.total_round_marks ?? 0} pts</strong>
+                </p>
+              </div>
+
+              <div className="pt-2">
+                <h5 className="text-[11px] font-mono uppercase text-slate-400 mb-2">
+                  Review Rounds in Workspace ({rounds.length})
+                </h5>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                  {rounds.map((r) => (
+                    <div key={r.round_id} className="p-3 bg-[#0B0F12] rounded-lg border border-[#1B262E] flex justify-between items-center text-xs">
+                      <div>
+                        <div className="font-bold text-slate-200">
+                          Round {r.order_index}: {r.round_title}
+                        </div>
+                        <div className="text-[10px] font-mono text-slate-500">Max Score: {r.max_score} pts</div>
                       </div>
-                      <div className="text-[10px] font-mono text-slate-500">Max Score: {r.max_score} pts</div>
+                      <span className="font-mono text-xs px-2 py-0.5 rounded bg-teal-500/10 text-teal-400 border border-teal-500/20">
+                        ID #{r.round_id}
+                      </span>
                     </div>
-                    <span className="font-mono text-xs px-2 py-0.5 rounded bg-teal-500/10 text-teal-400 border border-teal-500/20">
-                      ID #{r.round_id}
-                    </span>
-                  </div>
-                ))}
+                  ))}
+                </div>
               </div>
             </div>
           </div>

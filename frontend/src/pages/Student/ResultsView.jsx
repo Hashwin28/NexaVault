@@ -1,51 +1,35 @@
 import React, { useState, useEffect } from 'react';
-import { 
-  CheckCircle2, 
-  Award, 
-  TrendingUp, 
-  Layers, 
-  RefreshCw, 
-  Calendar,
-  AlertCircle,
-  FileCheck
-} from 'lucide-react';
+import { Award, FileCheck, Layers, Calendar, AlertCircle, RefreshCw } from 'lucide-react';
 import { resultApi } from '../../api/resultApi';
+import { useAuth } from '../../context/AuthContext';
 
 export const ResultsView = () => {
-  const [data, setData] = useState(null);
+  const { user } = useAuth();
+  const [summaryData, setSummaryData] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
-
-  useEffect(() => {
-    fetchResults();
-  }, []);
 
   const fetchResults = async () => {
     setLoading(true);
     setError(null);
     try {
-      const res = await resultApi.getMyResults();
-      setData(res);
+      const data = await resultApi.getMyResults();
+      setSummaryData(data);
     } catch (err) {
-      setError(err.message || 'Failed to load released results');
+      setError(err.message || 'Failed to fetch academic results.');
     } finally {
       setLoading(false);
     }
   };
 
-  if (loading) {
-    return (
-      <div className="flex items-center justify-center p-12 text-slate-400 font-sans text-sm">
-        <RefreshCw size={20} className="animate-spin mr-3 text-teal-400" />
-        Retrieving Released Evaluation Results...
-      </div>
-    );
-  }
+  useEffect(() => {
+    fetchResults();
+  }, []);
 
-  const results = data?.results || [];
-  const cumulativePct = data?.cumulative_percentage ?? 0;
-  const totalEarned = data?.total_earned ?? 0;
-  const totalPossible = data?.total_possible ?? 0;
+  const results = summaryData?.results || [];
+  const totalEarned = summaryData?.total_earned ?? 0.0;
+  const totalPossible = summaryData?.total_possible ?? 0.0;
+  const cumulativePct = summaryData?.cumulative_percentage ?? 0.0;
 
   return (
     <div className="space-y-8 select-none">
@@ -53,130 +37,104 @@ export const ResultsView = () => {
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
           <h1 className="text-2xl sm:text-3xl font-extrabold text-white font-serif tracking-tight">
-            Academic Results & Evaluations
+            Academic Results & Marks
           </h1>
           <p className="text-sm text-slate-400 mt-1 font-sans">
-            Official published scores and qualitative evaluations released by course faculty across review rounds.
+            Official published evaluation marks and verified faculty feedback for your deliverables.
           </p>
         </div>
-
         <button
           onClick={fetchResults}
-          className="self-start sm:self-auto px-3.5 py-2 rounded-lg bg-vault-surface hover:bg-vault-elevated border border-vault-border/60 text-slate-300 hover:text-white text-xs font-sans flex items-center gap-2 transition-colors"
+          disabled={loading}
+          className="flex items-center gap-2 px-4 py-2 bg-vault-surface border border-vault-border/60 hover:border-teal-500/40 text-slate-200 text-xs rounded-xl font-sans transition-all disabled:opacity-50"
         >
           <RefreshCw size={14} className={loading ? 'animate-spin' : ''} />
-          <span>Refresh Scores</span>
+          <span>Refresh Results</span>
         </button>
       </div>
 
       {error && (
-        <div className="p-4 rounded-xl bg-rose-500/10 border border-rose-500/30 text-rose-300 text-xs flex items-center gap-3">
-          <AlertCircle size={18} />
+        <div className="p-4 rounded-xl bg-rose-500/10 border border-rose-500/20 text-rose-300 text-xs flex items-center gap-2">
+          <AlertCircle size={16} />
           <span>{error}</span>
         </div>
       )}
 
-      {/* Cumulative Metrics Scorecard */}
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-5">
-        
-        {/* Cumulative Score */}
-        <div className="bg-vault-surface/90 border border-teal-500/30 rounded-2xl p-5 shadow-card-subtle relative overflow-hidden">
-          <div className="flex items-center justify-between">
-            <span className="text-xs font-sans text-slate-400 uppercase tracking-wider">Cumulative Average</span>
-            <div className="w-8 h-8 rounded-lg bg-teal-500/10 border border-teal-500/30 flex items-center justify-center text-teal-400">
-              <TrendingUp size={16} />
-            </div>
-          </div>
-          <div className="mt-4 flex items-baseline gap-2">
-            <span className="text-3xl sm:text-4xl font-extrabold text-white font-sans">
-              {cumulativePct.toFixed(1)}%
-            </span>
-            <span className="text-xs font-sans text-teal-400 font-semibold">
-              {cumulativePct >= 80 ? 'Distinction' : cumulativePct >= 60 ? 'Passing' : 'Pending'}
-            </span>
-          </div>
-          <div className="mt-3 w-full bg-vault-canvas h-1.5 rounded-full overflow-hidden">
-            <div 
-              className="bg-teal-400 h-full rounded-full transition-all duration-500" 
-              style={{ width: `${Math.min(cumulativePct, 100)}%` }}
-            />
-          </div>
-        </div>
-
-        {/* Total Earned Points */}
+      {/* Aggregate Score Overview */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+        {/* Cumulative Marks */}
         <div className="bg-vault-surface/90 border border-vault-border/60 rounded-2xl p-5 shadow-card-subtle">
           <div className="flex items-center justify-between">
-            <span className="text-xs font-sans text-slate-400 uppercase tracking-wider">Total Earned Points</span>
+            <span className="text-xs font-sans text-slate-400 uppercase tracking-wider">Total Marks Awarded</span>
             <div className="w-8 h-8 rounded-lg bg-teal-500/10 border border-teal-500/30 flex items-center justify-center text-teal-400">
               <Award size={16} />
             </div>
           </div>
           <div className="mt-4 flex items-baseline gap-1">
-            <span className="text-3xl sm:text-4xl font-extrabold text-white font-sans">
-              {totalEarned.toFixed(1)}
+            <span className="text-3xl sm:text-4xl font-extrabold text-white font-mono">
+              {totalEarned}
             </span>
-            <span className="text-sm font-sans text-slate-400">
-              / {totalPossible.toFixed(1)} pts
+            <span className="text-sm font-mono text-slate-400">
+              / {totalPossible} marks
             </span>
           </div>
-          <p className="mt-3 text-[11px] text-slate-500 font-sans">
-            Across all officially published review rounds
-          </p>
+          <div className="mt-2 text-xs font-mono text-teal-400">
+            {cumulativePct.toFixed(1)}% overall score
+          </div>
         </div>
 
         {/* Released Rounds Count */}
         <div className="bg-vault-surface/90 border border-vault-border/60 rounded-2xl p-5 shadow-card-subtle">
           <div className="flex items-center justify-between">
-            <span className="text-xs font-sans text-slate-400 uppercase tracking-wider">Published Rounds</span>
+            <span className="text-xs font-sans text-slate-400 uppercase tracking-wider">Published Assessments</span>
             <div className="w-8 h-8 rounded-lg bg-teal-500/10 border border-teal-500/30 flex items-center justify-center text-teal-400">
               <FileCheck size={16} />
             </div>
           </div>
           <div className="mt-4 flex items-baseline gap-2">
-            <span className="text-3xl sm:text-4xl font-extrabold text-white font-sans">
+            <span className="text-3xl sm:text-4xl font-extrabold text-white font-mono">
               {results.length}
             </span>
-            <span className="text-xs font-sans text-slate-400">Rounds evaluated</span>
+            <span className="text-xs font-sans text-slate-400">assessments released</span>
           </div>
           <p className="mt-3 text-[11px] text-slate-500 font-sans">
-            Unpublished and draft scores remain hidden
+            Only officially published marks are shown. Unpublished grades remain protected.
           </p>
         </div>
-
       </div>
 
       {/* Released Results Breakdown */}
       <div className="bg-vault-surface border border-vault-border/60 rounded-2xl p-6 space-y-6">
         <div className="flex items-center justify-between border-b border-vault-border/40 pb-4">
-          <div className="flex items-center gap-2.5">
-            <div className="w-8 h-8 rounded-lg bg-teal-500/10 border border-teal-500/30 flex items-center justify-center text-teal-400">
-              <CheckCircle2 size={18} />
-            </div>
-            <div>
-              <h2 className="text-base font-bold text-white font-serif">Round-by-Round Official Scorecard</h2>
-              <p className="text-xs text-slate-400">Component scores, point distribution, and faculty publication timestamps</p>
-            </div>
+          <div>
+            <h2 className="text-lg font-bold text-white font-serif">Assessment Breakdown</h2>
+            <p className="text-xs text-slate-400 font-sans mt-0.5">
+              Verified marks and evaluation notes per course review round.
+            </p>
           </div>
         </div>
 
-        {results.length === 0 ? (
-          <div className="p-10 text-center bg-vault-canvas/50 rounded-xl border border-vault-border/40 space-y-3">
-            <Award size={36} className="mx-auto text-slate-600" />
-            <h4 className="text-sm font-bold text-white">No Official Results Published Yet</h4>
-            <p className="text-xs text-slate-400 max-w-md mx-auto">
-              Evaluation rounds are currently being evaluated or pending official faculty release. Check back once your instructor completes review deliberations.
+        {loading ? (
+          <div className="py-16 text-center text-xs font-mono text-slate-500">
+            Loading released assessment marks...
+          </div>
+        ) : results.length === 0 ? (
+          <div className="py-16 text-center border border-dashed border-vault-border/60 rounded-xl bg-vault-canvas/50">
+            <p className="text-sm font-semibold text-slate-300 font-serif">No Marks Released Yet</p>
+            <p className="text-xs text-slate-500 font-sans max-w-sm mx-auto mt-1">
+              Your submissions are being evaluated by course faculty. Results will appear here once officially published.
             </p>
           </div>
         ) : (
           <div className="space-y-4">
             {results.map((res) => (
-              <div 
-                key={res.id} 
-                className="p-5 rounded-xl bg-vault-canvas/80 border border-vault-border/60 hover:border-teal-500/30 transition-colors flex flex-col gap-3.5"
+              <div
+                key={res.id}
+                className="p-5 rounded-xl bg-vault-canvas/70 border border-vault-border/60 hover:border-vault-border transition-all space-y-3"
               >
                 <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-                  {/* Left: Round & Workspace Context */}
-                  <div className="space-y-1.5">
+                  {/* Left: Metadata */}
+                  <div className="space-y-1">
                     <div className="flex items-center gap-2.5">
                       <span className="px-2 py-0.5 rounded bg-teal-500/15 border border-teal-500/30 text-teal-300 font-sans text-[11px] font-bold">
                         Round {res.round_order}
@@ -207,22 +165,16 @@ export const ResultsView = () => {
                     </div>
                   </div>
 
-                  {/* Right: Scores & Performance */}
-                  <div className="flex items-center gap-6 self-end md:self-auto shrink-0">
-                    <div className="text-right">
-                      <div className="text-lg font-bold font-sans text-white">
-                        {res.score.toFixed(1)} <span className="text-xs text-slate-400">/ {res.max_score.toFixed(1)} pts</span>
+                  {/* Right: Marks Only */}
+                  <div className="flex items-center gap-4 self-end md:self-auto shrink-0">
+                    <div className="text-right px-4 py-2.5 rounded-xl bg-vault-surface border border-vault-border/60">
+                      <span className="text-[10px] font-mono uppercase text-slate-400 block">Marks Obtained</span>
+                      <div className="text-base font-bold font-mono text-white">
+                        {res.score} <span className="text-xs text-slate-400 font-normal">/ {res.max_score}</span>
                       </div>
-                      <div className="text-[11px] font-sans font-semibold text-teal-400">
+                      <div className="text-[10px] font-mono text-teal-400 font-semibold">
                         {res.percentage.toFixed(1)}%
                       </div>
-                    </div>
-
-                    <div className="w-16 h-16 rounded-xl bg-vault-surface border border-teal-500/20 flex flex-col items-center justify-center p-2">
-                      <span className="text-[10px] font-sans text-slate-400 uppercase">Grade</span>
-                      <span className="text-base font-bold font-sans text-teal-300">
-                        {res.percentage >= 90 ? 'A+' : res.percentage >= 80 ? 'A' : res.percentage >= 70 ? 'B' : res.percentage >= 60 ? 'C' : 'F'}
-                      </span>
                     </div>
                   </div>
                 </div>

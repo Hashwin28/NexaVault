@@ -13,7 +13,6 @@ export const Header = ({ onOpenSidebar, activeTab }) => {
     submissions: 'Submissions & Updates',
     results: 'Results & Evaluation',
     search: 'Smart Search',
-    audit: 'Audit Trail',
     profile: 'Student Profile',
   };
 

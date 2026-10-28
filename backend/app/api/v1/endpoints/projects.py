@@ -20,6 +20,7 @@ from app.schemas.project import (
     UpdateCommentCreate,
     UpdateCommentResponse,
     ProjectProgressResponse,
+    ProjectProgressUpdate,
     ProjectReviewsResponse,
     ProjectReviewItem,
     StaffProjectOversightItem,
@@ -754,6 +755,73 @@ def get_project_progress_endpoint(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="Project not found or access denied."
         )
+
+    data = get_project_progress_details(db, project_id)
+    return ProjectProgressResponse(**data)
+
+@router.patch("/{project_id}/progress", response_model=ProjectProgressResponse)
+def update_project_progress_endpoint(
+    project_id: int,
+    payload: ProjectProgressUpdate,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user)
+):
+    """
+    Staff-controlled progress override.
+    Allows assigned workspace staff or superadmin to set project progress or reset to calculated milestone completion.
+    """
+    project = db.query(Project).filter(Project.id == project_id).first()
+    if not project:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Project not found."
+        )
+
+    if not (is_workspace_staff(db, current_user.id, project.workspace_id) or current_user.role == "SUPERADMIN"):
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Only assigned workspace staff or superadmin can update project progress."
+        )
+
+    old_progress = project.custom_progress
+    if payload.reset_to_calculated:
+        project.custom_progress = None
+        project.progress_updated_at = None
+        project.progress_updated_by = None
+        action_detail = "Reset project progress to calculated milestone completion"
+    else:
+        if payload.progress_percentage is None:
+            raise HTTPException(
+                status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+                detail="progress_percentage must be provided when reset_to_calculated is false."
+            )
+        project.custom_progress = round(float(payload.progress_percentage), 2)
+        project.progress_updated_at = datetime.now(timezone.utc)
+        project.progress_updated_by = current_user.id
+        action_detail = f"Updated project progress to {project.custom_progress}%"
+
+    db.commit()
+    db.refresh(project)
+
+    # Invalidate cache
+    invalidate_project(project_id, project.workspace_id)
+
+    # Audit log
+    log_audit(
+        db=db,
+        action_type="project_progress_updated",
+        entity_type="project",
+        actor_id=current_user.id,
+        entity_id=project_id,
+        workspace_id=project.workspace_id,
+        new_value={
+            "project_name": project.name,
+            "old_custom_progress": old_progress,
+            "new_custom_progress": project.custom_progress,
+            "reset_to_calculated": payload.reset_to_calculated,
+            "summary": action_detail,
+        }
+    )
 
     data = get_project_progress_details(db, project_id)
     return ProjectProgressResponse(**data)
