@@ -1,12 +1,15 @@
 import random
 import string
 from typing import List, Optional
-from fastapi import APIRouter, Depends, HTTPException, status, Request
-from sqlalchemy.orm import Session
-from app.api.deps import get_db, get_current_student
+from fastapi import APIRouter, Depends, HTTPException, status, Request, Query
+from sqlalchemy.orm import Session, joinedload
+from app.api.deps import get_db, get_current_student, get_current_staff
 from app.models.user import User
 from app.models.group import Group, GroupMembership
-from app.models.workspace import Workspace, WorkspaceGroup
+from app.models.workspace import Workspace, WorkspaceGroup, WorkspaceStaff
+from app.models.project import Project
+from app.models.review import ReviewRound, Submission, SubmissionVersion, Review, ResultEntry
+from app.services.project_service import calculate_project_progress
 from app.schemas.group import (
     GroupCreate,
     GroupJoin,
@@ -15,8 +18,9 @@ from app.schemas.group import (
     GroupMemberResponse,
     GroupEnrollRequest,
     GroupMessageResponse,
+    StaffGroupOversightItem,
 )
-from app.core.permissions import get_user_active_group, is_user_group_member
+from app.core.permissions import get_user_active_group, is_user_group_member, is_workspace_staff
 from app.services.audit_service import log_audit
 from app.core.cache import (
     cache,
@@ -471,4 +475,328 @@ def enroll_group_in_workspace(
     return GroupMessageResponse(
         message=f"Group '{group.name}' successfully enrolled in workspace '{workspace.name}' ({workspace.id}).",
         group=build_group_response(group, db)
+    )
+
+
+# --- DEDICATED STAFF GROUPS OVERSIGHT ENDPOINTS ---
+
+@router.get("/staff/oversight", response_model=List[StaffGroupOversightItem])
+def list_staff_groups_oversight(
+    workspace_id: Optional[str] = Query(None, description="Optional workspace filter"),
+    db: Session = Depends(get_db),
+    current_staff: User = Depends(get_current_staff),
+):
+    """
+    Staff oversight endpoint for groups.
+    Lists all distinct groups enrolled in workspaces managed by the current staff member.
+    Includes group metadata, member rosters with roll numbers, connected project info,
+    submission status, review verdicts, and results publication state.
+    Eliminates N+1 queries.
+    """
+    # 1. Determine authorized workspaces for staff
+    staff_entries = db.query(WorkspaceStaff).filter(WorkspaceStaff.user_id == current_staff.id).all()
+    ws_ids = {s.workspace_id for s in staff_entries}
+    owned = db.query(Workspace).filter(Workspace.owner_id == current_staff.id).all()
+    for o in owned:
+        ws_ids.add(o.id)
+
+    if not ws_ids:
+        return []
+
+    if workspace_id:
+        if workspace_id not in ws_ids:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="Workspace not found or access denied."
+            )
+        target_ws_ids = [workspace_id]
+    else:
+        target_ws_ids = list(ws_ids)
+
+    # 2. Fetch enrollments with eager loading
+    enrollments = (
+        db.query(WorkspaceGroup)
+        .options(
+            joinedload(WorkspaceGroup.workspace),
+            joinedload(WorkspaceGroup.group).joinedload(Group.creator),
+            joinedload(WorkspaceGroup.group).joinedload(Group.memberships).joinedload(GroupMembership.user),
+        )
+        .filter(WorkspaceGroup.workspace_id.in_(target_ws_ids))
+        .order_by(WorkspaceGroup.enrolled_at.asc())
+        .all()
+    )
+
+    group_ids = [enr.group_id for enr in enrollments if enr.group and not enr.group.is_deleted]
+
+    # 3. Pre-fetch associated projects in ONE query
+    projects = (
+        db.query(Project)
+        .options(
+            joinedload(Project.github_link),
+            joinedload(Project.submissions).joinedload(Submission.round),
+            joinedload(Project.submissions).joinedload(Submission.versions).joinedload(SubmissionVersion.review).joinedload(Review.reviewer),
+            joinedload(Project.submissions).joinedload(Submission.versions).joinedload(SubmissionVersion.review).joinedload(Review.result_entries),
+        )
+        .filter(Project.workspace_id.in_(target_ws_ids), Project.group_id.in_(group_ids))
+        .all()
+    )
+    project_by_ws_group = {(p.workspace_id, p.group_id): p for p in projects}
+
+    result = []
+    for enr in enrollments:
+        group = enr.group
+        ws = enr.workspace
+        if not group or group.is_deleted or not ws:
+            continue
+
+        members_data = [
+            {
+                "id": m.user.id,
+                "full_name": m.user.full_name,
+                "email": m.user.email,
+                "roll_number": m.user.roll_number or m.user.email.split("@")[0],
+                "joined_at": m.joined_at,
+            }
+            for m in group.memberships
+            if m.user
+        ]
+
+        proj = project_by_ws_group.get((ws.id, group.id))
+        submissions_data = []
+        latest_sub_dict = None
+        review_status = "NO_PROJECT"
+        results_status = "PENDING"
+        prog_pct = 0.0
+
+        if proj:
+            prog_pct = calculate_project_progress(db, proj.id)
+            all_versions = []
+            for sub in (proj.submissions or []):
+                round_obj = sub.round
+                for ver in (sub.versions or []):
+                    rev = ver.review
+                    is_rel = any(re.is_released for re in rev.result_entries) if (rev and rev.result_entries) else False
+                    has_scores = bool(rev and rev.result_entries)
+                    scores_cnt = len(rev.result_entries) if (rev and rev.result_entries) else 0
+
+                    sub_item = {
+                        "submission_id": sub.id,
+                        "round_id": sub.round_id,
+                        "round_title": round_obj.title if round_obj else f"Round #{sub.round_id}",
+                        "round_order": round_obj.order_index if round_obj else 1,
+                        "max_score": float(round_obj.max_score) if round_obj and round_obj.max_score is not None else 100.0,
+                        "due_date": round_obj.due_date if round_obj else None,
+                        "version_id": ver.id,
+                        "version_number": ver.version_number,
+                        "status": ver.status,
+                        "submitted_at": ver.submitted_at,
+                        "verdict": rev.status if rev else None,
+                        "reviewer_name": rev.reviewer.full_name if (rev and rev.reviewer) else None,
+                        "is_released": is_rel,
+                        "scores_count": scores_cnt,
+                    }
+                    submissions_data.append(sub_item)
+                    all_versions.append((ver.submitted_at or ver.created_at, sub_item, ver.status, is_rel, has_scores))
+
+            if all_versions:
+                all_versions.sort(key=lambda x: x[0], reverse=True)
+                latest_sub_dict = all_versions[0][1]
+                latest_status = all_versions[0][2]
+                any_released = any(x[3] for x in all_versions)
+                any_graded = any(x[4] for x in all_versions)
+
+                review_status = latest_status or "SUBMITTED"
+                results_status = "PUBLISHED" if any_released else ("DRAFT" if any_graded else "PENDING")
+            else:
+                review_status = "NO_SUBMISSION"
+                results_status = "PENDING"
+
+        project_overview = {
+            "id": proj.id,
+            "name": proj.name,
+            "description": proj.description,
+            "progress_percentage": prog_pct,
+            "github_repo_url": proj.github_link.repo_url if (proj and proj.github_link) else None,
+            "created_at": proj.created_at,
+        } if proj else None
+
+        result.append(
+            StaffGroupOversightItem(
+                id=group.id,
+                name=group.name,
+                code=group.code,
+                group_id=group.id,
+                group_name=group.name,
+                group_code=group.code,
+                created_at=group.created_at,
+                created_by=group.created_by,
+                creator_name=group.creator.full_name if group.creator else None,
+                workspace_id=ws.id,
+                workspace_name=ws.name,
+                enrolled_at=enr.enrolled_at,
+                member_count=len(members_data),
+                members=members_data,
+                has_project=proj is not None,
+                project=project_overview,
+                latest_submission=latest_sub_dict,
+                submissions=submissions_data,
+                review_status=review_status,
+                results_status=results_status,
+            )
+        )
+
+    return result
+
+
+@router.get("/{group_id}/oversight", response_model=StaffGroupOversightItem)
+def get_staff_group_oversight_detail(
+    group_id: int,
+    db: Session = Depends(get_db),
+    current_staff: User = Depends(get_current_staff),
+):
+    """
+    Dedicated detail view for staff to inspect a group:
+    Includes group metadata, member roster with roll numbers, connected project details,
+    all review round submissions, evaluations, and publication status.
+    """
+    group = (
+        db.query(Group)
+        .options(
+            joinedload(Group.creator),
+            joinedload(Group.memberships).joinedload(GroupMembership.user),
+            joinedload(Group.enrolled_workspaces).joinedload(WorkspaceGroup.workspace),
+        )
+        .filter(Group.id == group_id, Group.is_deleted == False)
+        .first()
+    )
+    if not group:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Group not found."
+        )
+
+    # Check staff authorization across workspaces in which group is enrolled
+    staff_entries = db.query(WorkspaceStaff).filter(WorkspaceStaff.user_id == current_staff.id).all()
+    authorized_ws_ids = {s.workspace_id for s in staff_entries}
+    owned = db.query(Workspace).filter(Workspace.owner_id == current_staff.id).all()
+    for o in owned:
+        authorized_ws_ids.add(o.id)
+
+    enrolled_ws = [ew.workspace for ew in group.enrolled_workspaces if ew.workspace and ew.workspace.id in authorized_ws_ids]
+    if not enrolled_ws:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Group not found or access denied in managed workspaces."
+        )
+
+    primary_ws = enrolled_ws[0]
+
+    # Pre-fetch project
+    proj = (
+        db.query(Project)
+        .options(
+            joinedload(Project.github_link),
+            joinedload(Project.submissions).joinedload(Submission.round),
+            joinedload(Project.submissions).joinedload(Submission.versions).joinedload(SubmissionVersion.review).joinedload(Review.reviewer),
+            joinedload(Project.submissions).joinedload(Submission.versions).joinedload(SubmissionVersion.review).joinedload(Review.result_entries),
+        )
+        .filter(Project.group_id == group.id, Project.workspace_id == primary_ws.id)
+        .first()
+    )
+
+    members_data = [
+        {
+            "id": m.user.id,
+            "full_name": m.user.full_name,
+            "email": m.user.email,
+            "roll_number": m.user.roll_number or m.user.email.split("@")[0],
+            "joined_at": m.joined_at,
+        }
+        for m in group.memberships
+        if m.user
+    ]
+
+    submissions_data = []
+    latest_sub_dict = None
+    review_status = "NO_PROJECT"
+    results_status = "PENDING"
+    prog_pct = 0.0
+
+    if proj:
+        prog_pct = calculate_project_progress(db, proj.id)
+        all_versions = []
+        for sub in (proj.submissions or []):
+            round_obj = sub.round
+            for ver in (sub.versions or []):
+                rev = ver.review
+                is_rel = any(re.is_released for re in rev.result_entries) if (rev and rev.result_entries) else False
+                has_scores = bool(rev and rev.result_entries)
+                scores_cnt = len(rev.result_entries) if (rev and rev.result_entries) else 0
+
+                sub_item = {
+                    "submission_id": sub.id,
+                    "round_id": sub.round_id,
+                    "round_title": round_obj.title if round_obj else f"Round #{sub.round_id}",
+                    "round_order": round_obj.order_index if round_obj else 1,
+                    "max_score": float(round_obj.max_score) if round_obj and round_obj.max_score is not None else 100.0,
+                    "due_date": round_obj.due_date if round_obj else None,
+                    "version_id": ver.id,
+                    "version_number": ver.version_number,
+                    "status": ver.status,
+                    "submitted_at": ver.submitted_at,
+                    "verdict": rev.status if rev else None,
+                    "reviewer_name": rev.reviewer.full_name if (rev and rev.reviewer) else None,
+                    "is_released": is_rel,
+                    "scores_count": scores_cnt,
+                }
+                submissions_data.append(sub_item)
+                all_versions.append((ver.submitted_at or ver.created_at, sub_item, ver.status, is_rel, has_scores))
+
+        if all_versions:
+            all_versions.sort(key=lambda x: x[0], reverse=True)
+            latest_sub_dict = all_versions[0][1]
+            latest_status = all_versions[0][2]
+            any_released = any(x[3] for x in all_versions)
+            any_graded = any(x[4] for x in all_versions)
+
+            review_status = latest_status or "SUBMITTED"
+            results_status = "PUBLISHED" if any_released else ("DRAFT" if any_graded else "PENDING")
+        else:
+            review_status = "NO_SUBMISSION"
+            results_status = "PENDING"
+
+    project_overview = {
+        "id": proj.id,
+        "name": proj.name,
+        "description": proj.description,
+        "progress_percentage": prog_pct,
+        "github_repo_url": proj.github_link.repo_url if (proj and proj.github_link) else None,
+        "created_at": proj.created_at,
+    } if proj else None
+
+    # Find enrollment timestamp
+    enr = next((ew for ew in group.enrolled_workspaces if ew.workspace_id == primary_ws.id), None)
+    enrolled_at = enr.enrolled_at if enr else None
+
+    return StaffGroupOversightItem(
+        id=group.id,
+        name=group.name,
+        code=group.code,
+        group_id=group.id,
+        group_name=group.name,
+        group_code=group.code,
+        created_at=group.created_at,
+        created_by=group.created_by,
+        creator_name=group.creator.full_name if group.creator else None,
+        workspace_id=primary_ws.id,
+        workspace_name=primary_ws.name,
+        enrolled_at=enrolled_at,
+        member_count=len(members_data),
+        members=members_data,
+        has_project=proj is not None,
+        project=project_overview,
+        latest_submission=latest_sub_dict,
+        submissions=submissions_data,
+        review_status=review_status,
+        results_status=results_status,
     )

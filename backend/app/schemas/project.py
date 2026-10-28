@@ -94,3 +94,74 @@ class ProjectReviewsResponse(BaseModel):
     reviews: List[ProjectReviewItem] = []
 
     model_config = ConfigDict(from_attributes=True)
+
+# --- STAFF PROJECTS OVERSIGHT SCHEMAS ---
+
+class StaffProjectOversightItem(BaseModel):
+    project_id: int
+    name: str
+    description: Optional[str] = None
+    created_at: datetime
+    progress_percentage: float = 0.0
+    github_repo_url: Optional[str] = None
+    workspace_id: str
+    workspace_name: str
+    group_id: Optional[int] = None
+    group_name: Optional[str] = None
+    group_code: Optional[str] = None
+    members: List[ProjectMemberInfo] = []
+    submission_count: int = 0
+    latest_round_title: Optional[str] = None
+    latest_version_number: Optional[int] = None
+    latest_submission_status: Optional[str] = None
+    grading_status: str  # "APPROVED", "IN_REVIEW", "REVISION_REQUESTED", "SUBMITTED", "PENDING"
+    results_status: str  # "PUBLISHED", "DRAFT", "PENDING"
+
+    model_config = ConfigDict(from_attributes=True)
+
+class StaffProjectSubmissionItem(BaseModel):
+    id: int
+    version_id: int
+    version_number: int
+    round_id: int
+    round_name: str
+    round_number: int
+    max_score: float
+    due_date: Optional[datetime] = None
+    status: str
+    submitted_by: int
+    submitter_name: Optional[str] = None
+    submitted_at: Optional[datetime] = None
+    commit_hash: Optional[str] = None
+    submission_notes: Optional[str] = None
+    repo_url: Optional[str] = None
+    feedback: Optional[str] = None
+    reviewer_name: Optional[str] = None
+    is_evaluated: bool = False
+    is_released: bool = False
+
+    model_config = ConfigDict(from_attributes=True)
+
+class StaffProjectResultItem(BaseModel):
+    id: int
+    student_id: int
+    student_name: str
+    student_email: str
+    roll_number: Optional[str] = None
+    round_id: int
+    round_name: str
+    score: float
+    max_score: float
+    percentage: float
+    feedback: Optional[str] = None
+    reviewer_name: Optional[str] = None
+    is_released: bool = False
+    released_at: Optional[datetime] = None
+
+    model_config = ConfigDict(from_attributes=True)
+
+class StaffProjectDetailResponse(BaseModel):
+    project: ProjectResponse
+    submissions: List[StaffProjectSubmissionItem] = []
+    results: List[StaffProjectResultItem] = []
+    rounds: List[ApprovedRoundInfo] = []

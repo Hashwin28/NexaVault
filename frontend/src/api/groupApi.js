@@ -27,4 +27,8 @@ export const groupApi = {
       method: 'POST',
       body: { workspace_id: workspaceId },
     }),
+  getStaffGroups: (workspaceId = null) =>
+    apiRequest(`/groups/staff/oversight${workspaceId ? `?workspace_id=${encodeURIComponent(workspaceId)}` : ''}`),
+  getStaffGroupDetail: (groupId) =>
+    apiRequest(`/groups/${groupId}/oversight`),
 };

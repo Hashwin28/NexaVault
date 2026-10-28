@@ -23,8 +23,9 @@ from app.models.workspace import (
     WorkspaceNotice,
 )
 from app.models.group import Group, GroupMembership
-from app.models.review import ReviewRound, Submission, SubmissionVersion
+from app.models.review import ReviewRound, Submission, SubmissionVersion, Review, ResultEntry
 from app.models.project import Project
+from app.services.project_service import calculate_project_progress
 from app.schemas.workspace import (
     WorkspaceCreate,
     WorkspaceResponse,
@@ -790,6 +791,9 @@ def list_workspace_groups(
 ):
     """
     Staff inspects enrolled groups in authorized workspace.
+    Returns complete group metadata, member rosters with student identifiers,
+    connected project status, submission rounds, review verdicts, and results release state.
+    Eliminates N+1 queries using targeted relationship eager loading.
     """
     if not is_workspace_staff(db, current_staff.id, workspace_id):
         raise HTTPException(
@@ -802,33 +806,147 @@ def list_workspace_groups(
     if cached is not None:
         return cached
 
+    ws = db.query(Workspace).filter(Workspace.id == workspace_id).first()
+    if not ws:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Workspace not found."
+        )
+
     enrollments = (
         db.query(WorkspaceGroup)
+        .options(
+            joinedload(WorkspaceGroup.group)
+            .joinedload(Group.creator),
+            joinedload(WorkspaceGroup.group)
+            .joinedload(Group.memberships)
+            .joinedload(GroupMembership.user),
+        )
         .filter(WorkspaceGroup.workspace_id == workspace_id)
+        .order_by(WorkspaceGroup.enrolled_at.asc())
         .all()
     )
 
+    group_ids = [enr.group_id for enr in enrollments if enr.group and not enr.group.is_deleted]
+
+    # Pre-fetch projects with GitHub link and submissions in ONE query
+    projects = (
+        db.query(Project)
+        .options(
+            joinedload(Project.github_link),
+            joinedload(Project.submissions)
+            .joinedload(Submission.round),
+            joinedload(Project.submissions)
+            .joinedload(Submission.versions)
+            .joinedload(SubmissionVersion.review)
+            .joinedload(Review.reviewer),
+            joinedload(Project.submissions)
+            .joinedload(Submission.versions)
+            .joinedload(SubmissionVersion.review)
+            .joinedload(Review.result_entries),
+        )
+        .filter(Project.workspace_id == workspace_id, Project.group_id.in_(group_ids))
+        .all()
+    )
+    project_by_group = {p.group_id: p for p in projects}
+
     result = []
     for enr in enrollments:
-        group = db.query(Group).filter(Group.id == enr.group_id, Group.is_deleted == False).first()
-        if not group:
+        group = enr.group
+        if not group or group.is_deleted:
             continue
-        memberships = db.query(GroupMembership).filter(GroupMembership.group_id == group.id).all()
+
         members_data = [
-            {"id": m.user.id, "full_name": m.user.full_name, "email": m.user.email}
-            for m in memberships if m.user
+            {
+                "id": m.user.id,
+                "full_name": m.user.full_name,
+                "email": m.user.email,
+                "roll_number": m.user.roll_number or m.user.email.split("@")[0],
+                "joined_at": m.joined_at,
+            }
+            for m in group.memberships
+            if m.user
         ]
-        project = db.query(Project).filter(Project.workspace_id == workspace_id, Project.group_id == group.id).first()
+
+        proj = project_by_group.get(group.id)
+
+        # Build submissions overview
+        submissions_data = []
+        latest_sub_dict = None
+        review_status = "NO_PROJECT"
+        results_status = "PENDING"
+        prog_pct = 0.0
+
+        if proj:
+            prog_pct = calculate_project_progress(db, proj.id)
+            all_versions = []
+            for sub in (proj.submissions or []):
+                round_obj = sub.round
+                for ver in (sub.versions or []):
+                    rev = ver.review
+                    is_rel = any(re.is_released for re in rev.result_entries) if (rev and rev.result_entries) else False
+                    has_scores = bool(rev and rev.result_entries)
+
+                    sub_item = {
+                        "submission_id": sub.id,
+                        "round_id": sub.round_id,
+                        "round_title": round_obj.title if round_obj else f"Round #{sub.round_id}",
+                        "round_order": round_obj.order_index if round_obj else 1,
+                        "max_score": float(round_obj.max_score) if round_obj and round_obj.max_score is not None else 100.0,
+                        "due_date": round_obj.due_date if round_obj else None,
+                        "version_id": ver.id,
+                        "version_number": ver.version_number,
+                        "status": ver.status,
+                        "submitted_at": ver.submitted_at,
+                        "verdict": rev.status if rev else None,
+                        "reviewer_name": rev.reviewer.full_name if (rev and rev.reviewer) else None,
+                        "is_released": is_rel,
+                        "has_scores": has_scores,
+                    }
+                    submissions_data.append(sub_item)
+                    all_versions.append((ver.submitted_at or ver.created_at, sub_item, ver.status, is_rel, has_scores))
+
+            if all_versions:
+                all_versions.sort(key=lambda x: x[0], reverse=True)
+                latest_sub_dict = all_versions[0][1]
+                latest_status = all_versions[0][2]
+                any_released = any(x[3] for x in all_versions)
+                any_graded = any(x[4] for x in all_versions)
+
+                review_status = latest_status or "SUBMITTED"
+                results_status = "PUBLISHED" if any_released else ("DRAFT" if any_graded else "PENDING")
+            else:
+                review_status = "NO_SUBMISSION"
+                results_status = "PENDING"
+
+        project_overview = {
+            "id": proj.id,
+            "name": proj.name,
+            "description": proj.description,
+            "progress_percentage": prog_pct,
+            "github_repo_url": proj.github_link.repo_url if (proj and proj.github_link) else None,
+            "created_at": proj.created_at,
+        } if proj else None
 
         result.append({
             "group_id": group.id,
             "group_name": group.name,
+            "group_code": group.code,
+            "created_by": group.created_by,
+            "creator_name": group.creator.full_name if group.creator else None,
+            "workspace_id": ws.id,
+            "workspace_name": ws.name,
             "enrolled_at": enr.enrolled_at,
             "member_count": len(members_data),
             "members": members_data,
-            "has_project": project is not None,
-            "project_id": project.id if project else None,
-            "project_name": project.name if project else None,
+            "has_project": proj is not None,
+            "project_id": proj.id if proj else None,
+            "project_name": proj.name if proj else None,
+            "project": project_overview,
+            "latest_submission": latest_sub_dict,
+            "submissions": submissions_data,
+            "review_status": review_status,
+            "results_status": results_status,
         })
 
     cache.set(c_key, result, ttl=120, tags=[f"workspace:{workspace_id}"])
@@ -842,6 +960,9 @@ def list_workspace_projects(
 ):
     """
     Staff inspects projects in authorized workspace.
+    Returns complete project details, linked group metadata, member rosters,
+    submission history, review status, and result publication status.
+    Eliminates N+1 queries.
     """
     if not is_workspace_staff(db, current_staff.id, workspace_id):
         raise HTTPException(
@@ -854,23 +975,119 @@ def list_workspace_projects(
     if cached is not None:
         return cached
 
-    projects = db.query(Project).filter(Project.workspace_id == workspace_id).all()
+    ws = db.query(Workspace).filter(Workspace.id == workspace_id).first()
+    if not ws:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Workspace not found."
+        )
+
+    projects = (
+        db.query(Project)
+        .options(
+            joinedload(Project.group)
+            .joinedload(Group.memberships)
+            .joinedload(GroupMembership.user),
+            joinedload(Project.github_link),
+            joinedload(Project.submissions)
+            .joinedload(Submission.round),
+            joinedload(Project.submissions)
+            .joinedload(Submission.versions)
+            .joinedload(SubmissionVersion.review)
+            .joinedload(Review.reviewer),
+            joinedload(Project.submissions)
+            .joinedload(Submission.versions)
+            .joinedload(SubmissionVersion.review)
+            .joinedload(Review.result_entries),
+        )
+        .filter(Project.workspace_id == workspace_id)
+        .order_by(Project.created_at.asc())
+        .all()
+    )
+
     result = []
     for proj in projects:
-        group = db.query(Group).filter(Group.id == proj.group_id).first()
-        memberships = db.query(GroupMembership).filter(GroupMembership.group_id == proj.group_id).all() if group else []
-        members_data = [
-            {"id": m.user.id, "full_name": m.user.full_name, "email": m.user.email}
-            for m in memberships if m.user
-        ]
+        group = proj.group
+        members_data = []
+        if group:
+            members_data = [
+                {
+                    "id": m.user.id,
+                    "full_name": m.user.full_name,
+                    "email": m.user.email,
+                    "roll_number": m.user.roll_number or m.user.email.split("@")[0],
+                }
+                for m in group.memberships
+                if m.user
+            ]
+
+        prog_pct = calculate_project_progress(db, proj.id)
+        github_url = proj.github_link.repo_url if proj.github_link else None
+
+        submissions_list = []
+        latest_ver_num = None
+        latest_round_title = None
+        latest_sub_status = None
+        any_released = False
+        any_graded = False
+
+        all_vers = []
+        for sub in (proj.submissions or []):
+            round_obj = sub.round
+            for ver in (sub.versions or []):
+                rev = ver.review
+                is_rel = any(re.is_released for re in rev.result_entries) if (rev and rev.result_entries) else False
+                has_sc = bool(rev and rev.result_entries)
+                if is_rel:
+                    any_released = True
+                if has_sc:
+                    any_graded = True
+
+                sub_item = {
+                    "submission_id": sub.id,
+                    "version_id": ver.id,
+                    "version_number": ver.version_number,
+                    "round_id": sub.round_id,
+                    "round_title": round_obj.title if round_obj else f"Round #{sub.round_id}",
+                    "status": ver.status,
+                    "submitted_at": ver.submitted_at,
+                    "feedback": rev.feedback if rev else None,
+                    "verdict": rev.status if rev else None,
+                    "reviewer_name": rev.reviewer.full_name if (rev and rev.reviewer) else None,
+                    "is_released": is_rel,
+                }
+                submissions_list.append(sub_item)
+                all_vers.append((ver.submitted_at or ver.created_at, ver.version_number, sub_item["round_title"], ver.status))
+
+        if all_vers:
+            all_vers.sort(key=lambda x: x[0], reverse=True)
+            latest_ver_num = all_vers[0][1]
+            latest_round_title = all_vers[0][2]
+            latest_sub_status = all_vers[0][3]
+
+        grading_status = latest_sub_status or ("PENDING" if submissions_list else "NOT_SUBMITTED")
+        results_status = "PUBLISHED" if any_released else ("DRAFT" if any_graded else "PENDING")
+
         result.append({
             "project_id": proj.id,
             "name": proj.name,
             "description": proj.description,
+            "workspace_id": ws.id,
+            "workspace_name": ws.name,
             "group_id": proj.group_id,
             "group_name": group.name if group else None,
+            "group_code": group.code if group else None,
             "members": members_data,
             "created_at": proj.created_at,
+            "progress_percentage": prog_pct,
+            "github_repo_url": github_url,
+            "submission_count": len(submissions_list),
+            "submissions": submissions_list,
+            "latest_round_title": latest_round_title,
+            "latest_version_number": latest_ver_num,
+            "latest_submission_status": latest_sub_status,
+            "grading_status": grading_status,
+            "results_status": results_status,
         })
 
     cache.set(c_key, result, ttl=120, tags=[f"workspace:{workspace_id}"])
