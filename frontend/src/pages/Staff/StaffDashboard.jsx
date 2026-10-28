@@ -3,6 +3,8 @@ import { StaffSidebar } from '../../components/staff/StaffSidebar';
 import { StaffHeader } from '../../components/staff/StaffHeader';
 import { StaffDashboardView } from './StaffDashboardView';
 import { StaffWorkspacesView } from './StaffWorkspacesView';
+import { StaffGroupsView } from './StaffGroupsView';
+import { StaffProjectsView } from './StaffProjectsView';
 import { StaffReviewQueueView } from './StaffReviewQueueView';
 import { StaffSmartSearchView } from './StaffSmartSearchView';
 import { StaffAuditTrailView } from './StaffAuditTrailView';
@@ -10,7 +12,18 @@ import { StaffProfileView } from './StaffProfileView';
 import { StaffProjectDetailView } from './StaffProjectDetailView';
 import { StaffResultsView } from './StaffResultsView';
 
-const VALID_STAFF_TABS = ['dashboard', 'workspaces', 'review-queue', 'results', 'search', 'audit', 'profile', 'project-detail'];
+const VALID_STAFF_TABS = [
+  'dashboard',
+  'workspaces',
+  'groups',
+  'projects',
+  'review-queue',
+  'results',
+  'search',
+  'audit',
+  'profile',
+  'project-detail',
+];
 
 const parseStaffUrlHash = () => {
   if (typeof window === 'undefined') return { tab: 'dashboard', workspaceId: null, projectId: null, section: null };
@@ -50,7 +63,7 @@ export const StaffDashboard = () => {
   const setActiveTab = (tab, params = {}) => {
     if (!VALID_STAFF_TABS.includes(tab)) return;
     setActiveTabState(tab);
-    setVisitedTabs(prev => new Set([...prev, tab]));
+    setVisitedTabs((prev) => new Set([...prev, tab]));
     const searchParams = new URLSearchParams();
     if (params.workspaceId) searchParams.set('workspaceId', params.workspaceId);
     if (params.projectId) searchParams.set('projectId', params.projectId);
@@ -63,7 +76,7 @@ export const StaffDashboard = () => {
     const handleHashChange = () => {
       const { tab, workspaceId, projectId, section } = parseStaffUrlHash();
       setActiveTabState(tab);
-      setVisitedTabs(prev => new Set([...prev, tab]));
+      setVisitedTabs((prev) => new Set([...prev, tab]));
       if (workspaceId) setSelectedWorkspaceId(workspaceId);
       if (projectId) setSelectedProjectId(projectId);
       if (section) setSelectedSection(section);
@@ -88,9 +101,10 @@ export const StaffDashboard = () => {
     }
   };
 
-  const handleSelectProject = (projectId) => {
+  const handleSelectProject = (projectId, section = null) => {
     setSelectedProjectId(projectId);
-    setActiveTab('project-detail', { projectId });
+    setSelectedSection(section || null);
+    setActiveTab('project-detail', { projectId, ...(section ? { section } : {}) });
   };
 
   return (
@@ -123,6 +137,22 @@ export const StaffDashboard = () => {
             <div className={activeTab === 'workspaces' ? 'block' : 'hidden'}>
               <StaffWorkspacesView
                 selectedWorkspaceId={selectedWorkspaceId}
+                onSelectProject={handleSelectProject}
+              />
+            </div>
+          )}
+
+          {visitedTabs.has('groups') && (
+            <div className={activeTab === 'groups' ? 'block' : 'hidden'}>
+              <StaffGroupsView
+                onSelectProject={handleSelectProject}
+              />
+            </div>
+          )}
+
+          {visitedTabs.has('projects') && (
+            <div className={activeTab === 'projects' ? 'block' : 'hidden'}>
+              <StaffProjectsView
                 onSelectProject={handleSelectProject}
               />
             </div>
@@ -163,7 +193,7 @@ export const StaffDashboard = () => {
               <StaffProjectDetailView
                 projectId={selectedProjectId}
                 initialSection={selectedSection}
-                onBack={() => setActiveTab('workspaces')}
+                onBack={() => setActiveTab('projects')}
               />
             </div>
           )}

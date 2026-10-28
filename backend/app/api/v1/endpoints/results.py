@@ -21,10 +21,11 @@ from app.schemas.result import (
     WorkspaceStudentResultItem,
     WorkspaceResultsSummaryStats,
     WorkspaceResultsResponse,
+    PublishRoundResultsResponse,
 )
 from app.core.permissions import can_correct_result, can_access_workspace
 from app.services.audit_service import log_audit
-from app.core.cache import cache, key_results_me, invalidate_results
+from app.core.cache import cache, key_results_me, invalidate_results, invalidate_workspace
 
 router = APIRouter()
 
@@ -61,17 +62,6 @@ def build_workspace_results(
         .order_by(ReviewRound.order_index.asc(), ReviewRound.id.asc())
         .all()
     )
-    round_headers = [
-        RoundColumnHeader(
-            id=r.id,
-            title=r.title,
-            order_index=r.order_index,
-            max_score=float(r.max_score),
-            is_open=r.is_open,
-            weight=float(r.weight) if r.weight is not None else 20.0,
-        )
-        for r in rounds
-    ]
     total_possible_max = sum(float(r.max_score) for r in rounds)
 
     # 3. Enrolled groups in workspace
@@ -120,6 +110,30 @@ def build_workspace_results(
         .all()
     )
     result_entry_by_round_student = {(re.round_id, re.student_id): re for re in result_entries}
+    entries_by_round = {}
+    for re in result_entries:
+        entries_by_round.setdefault(re.round_id, []).append(re)
+
+    round_headers = []
+    for r in rounds:
+        r_entries = entries_by_round.get(r.id, [])
+        graded_cnt = len([e for e in r_entries if e.score is not None])
+        released_cnt = len([e for e in r_entries if e.score is not None and e.is_released])
+        is_rel = (graded_cnt > 0 and released_cnt == graded_cnt)
+        round_headers.append(
+            RoundColumnHeader(
+                id=r.id,
+                title=r.title,
+                order_index=r.order_index,
+                max_score=float(r.max_score),
+                is_open=r.is_open,
+                weight=float(r.weight) if r.weight is not None else 20.0,
+                is_released=is_rel,
+                released_count=released_cnt,
+                graded_count=graded_cnt,
+                total_count=0,
+            )
+        )
 
     # 7. Group memberships & individual students
     memberships = (
@@ -165,6 +179,7 @@ def build_workspace_results(
                 fb = re.feedback or (re.review.feedback if re.review else None) or (latest_v.review.feedback if (latest_v and latest_v.review) else None)
                 reviewer = (re.review.reviewer.full_name if (re.review and re.review.reviewer) else None) or (latest_v.review.reviewer.full_name if (latest_v and latest_v.review and latest_v.review.reviewer) else None)
                 rev_date = (re.review.completed_at if re.review else None) or re.created_at
+                is_rel = bool(re.is_released)
 
                 student_round_results[str(r.id)] = StudentRoundScoreDetail(
                     round_id=r.id,
@@ -177,12 +192,15 @@ def build_workspace_results(
                     reviewer_name=reviewer,
                     review_date=rev_date,
                     status="GRADED",
+                    is_released=is_rel,
+                    released_at=re.released_at,
                     result_entry_id=re.id,
                 )
             elif re:
                 fb = re.feedback or (re.review.feedback if re.review else None) or (latest_v.review.feedback if (latest_v and latest_v.review) else None)
                 reviewer = (re.review.reviewer.full_name if (re.review and re.review.reviewer) else None) or (latest_v.review.reviewer.full_name if (latest_v and latest_v.review and latest_v.review.reviewer) else None)
                 rev_date = (re.review.completed_at if re.review else None) or re.created_at
+                is_rel = bool(re.is_released)
 
                 student_round_results[str(r.id)] = StudentRoundScoreDetail(
                     round_id=r.id,
@@ -195,6 +213,8 @@ def build_workspace_results(
                     reviewer_name=reviewer,
                     review_date=rev_date,
                     status="PENDING",
+                    is_released=is_rel,
+                    released_at=re.released_at,
                     result_entry_id=re.id,
                 )
             elif latest_v:
@@ -215,6 +235,8 @@ def build_workspace_results(
                     reviewer_name=reviewer,
                     review_date=rev_date,
                     status=rev_status or "SUBMITTED",
+                    is_released=False,
+                    released_at=None,
                     result_entry_id=None,
                 )
             else:
@@ -233,6 +255,8 @@ def build_workspace_results(
                     reviewer_name=None,
                     review_date=None,
                     status=missing_status,
+                    is_released=False,
+                    released_at=None,
                     result_entry_id=None,
                 )
 
@@ -292,6 +316,9 @@ def build_workspace_results(
         average_percentage=avg_pct,
         pass_rate=pass_rate,
     )
+
+    for rh in round_headers:
+        rh.total_count = total_students
 
     return ws, round_headers, students_list, summary
 
@@ -474,6 +501,10 @@ def get_my_released_results(
 
     released_entries = (
         db.query(ResultEntry)
+        .options(
+            joinedload(ResultEntry.round).joinedload(ReviewRound.workspace),
+            joinedload(ResultEntry.review).joinedload(Review.reviewer),
+        )
         .join(ReviewRound, ResultEntry.round_id == ReviewRound.id)
         .filter(ResultEntry.student_id == current_student.id, ResultEntry.is_released == True)
         .order_by(ReviewRound.order_index.asc(), ResultEntry.released_at.asc())
@@ -494,6 +525,9 @@ def get_my_released_results(
         total_possible += max_val
 
         ws = round_obj.workspace if round_obj else None
+        fb = entry.feedback or (entry.review.feedback if entry.review else None)
+        rev_name = entry.review.reviewer.full_name if (entry.review and entry.review.reviewer) else None
+
         results_list.append(
             StudentResultResponse(
                 id=entry.id,
@@ -505,7 +539,10 @@ def get_my_released_results(
                 score=score_val,
                 max_score=max_val,
                 percentage=round(pct, 2),
-                released_at=entry.released_at
+                feedback=fb,
+                status="PUBLISHED",
+                reviewer_name=rev_name,
+                released_at=entry.released_at,
             )
         )
 
@@ -592,4 +629,195 @@ def correct_result_score(
         new_score=float(correction.new_score),
         reason=correction.reason,
         created_at=correction.created_at,
+    )
+
+
+# --- STAFF RESULTS PUBLICATION / RELEASE WORKFLOW ---
+
+@router.post("/workspace/{workspace_id}/rounds/{round_id}/publish", response_model=PublishRoundResultsResponse)
+def publish_round_results(
+    workspace_id: str,
+    round_id: int,
+    db: Session = Depends(get_db),
+    current_staff: User = Depends(get_current_staff),
+):
+    """
+    Staff explicitly publishes/releases results for all evaluated submissions in a review round.
+    Validates grades, sets is_released = True transactionally, logs audit trail, and invalidates caches.
+    Safe and idempotent for repeated calls.
+    """
+    if not can_access_workspace(db, current_staff.id, workspace_id):
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Workspace not found or access denied."
+        )
+
+    round_obj = (
+        db.query(ReviewRound)
+        .filter(ReviewRound.id == round_id, ReviewRound.workspace_id == workspace_id)
+        .first()
+    )
+    if not round_obj:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Review round #{round_id} not found in workspace {workspace_id}."
+        )
+
+    max_score = float(round_obj.max_score)
+
+    # Fetch all result entries for this round
+    entries = db.query(ResultEntry).filter(ResultEntry.round_id == round_id).all()
+    if not entries:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="No evaluated grades exist for this review round yet. Evaluate submissions before publishing."
+        )
+
+    # Validate that none of the scores are invalid or incomplete
+    for entry in entries:
+        if entry.score is None:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=f"Incomplete grading detected: Student #{entry.student_id} has a null score."
+            )
+        score_val = float(entry.score)
+        if score_val < 0 or score_val > max_score:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=f"Invalid score {score_val} detected for student #{entry.student_id}. Score must be between 0 and {max_score}."
+            )
+
+    unreleased = [e for e in entries if not e.is_released]
+    now = datetime.now(timezone.utc)
+
+    for entry in unreleased:
+        entry.is_released = True
+        entry.released_at = now
+
+    # Audit logging
+    log_audit(
+        db=db,
+        actor_id=current_staff.id,
+        action_type="results_published",
+        category="ASSESSMENT",
+        status="SUCCESS",
+        entity_type="review_round",
+        entity_id=round_obj.id,
+        workspace_id=workspace_id,
+        resource_name=f"Round Results: {round_obj.title}",
+        description=f"Staff {current_staff.full_name} published {len(entries)} grades for round '{round_obj.title}'",
+        details=f"Released {len(unreleased)} newly published results out of {len(entries)} total grades.",
+    )
+
+    db.commit()
+
+    # Invalidate relevant caches
+    invalidate_results()
+    invalidate_workspace(workspace_id)
+    cache.invalidate_prefix("project:progress:")
+
+    already_published = len(unreleased) == 0
+    msg = (
+        f"All {len(entries)} results for round '{round_obj.title}' are already published."
+        if already_published
+        else f"Successfully published {len(unreleased)} results for round '{round_obj.title}'."
+    )
+
+    return PublishRoundResultsResponse(
+        workspace_id=workspace_id,
+        round_id=round_obj.id,
+        round_title=round_obj.title,
+        published_count=len(entries),
+        already_published=already_published,
+        message=msg,
+    )
+
+
+@router.post("/workspace/{workspace_id}/publish", response_model=PublishRoundResultsResponse)
+def publish_all_workspace_results(
+    workspace_id: str,
+    db: Session = Depends(get_db),
+    current_staff: User = Depends(get_current_staff),
+):
+    """
+    Staff publishes/releases all evaluated grades across all review rounds for a workspace.
+    Safe and idempotent for repeated calls.
+    """
+    if not can_access_workspace(db, current_staff.id, workspace_id):
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Workspace not found or access denied."
+        )
+
+    rounds = db.query(ReviewRound).filter(ReviewRound.workspace_id == workspace_id).all()
+    if not rounds:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="No review rounds found in workspace."
+        )
+
+    round_ids = [r.id for r in rounds]
+    entries = db.query(ResultEntry).filter(ResultEntry.round_id.in_(round_ids)).all()
+    if not entries:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="No evaluated grades exist in this workspace to publish."
+        )
+
+    round_map = {r.id: r for r in rounds}
+    for entry in entries:
+        r_obj = round_map.get(entry.round_id)
+        max_s = float(r_obj.max_score) if r_obj else 100.0
+        if entry.score is None:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=f"Incomplete grading detected: Student #{entry.student_id} has null score."
+            )
+        s_val = float(entry.score)
+        if s_val < 0 or s_val > max_s:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=f"Invalid score {s_val} for student #{entry.student_id} (max {max_s})."
+            )
+
+    unreleased = [e for e in entries if not e.is_released]
+    now = datetime.now(timezone.utc)
+    for entry in unreleased:
+        entry.is_released = True
+        entry.released_at = now
+
+    log_audit(
+        db=db,
+        actor_id=current_staff.id,
+        action_type="results_published",
+        category="ASSESSMENT",
+        status="SUCCESS",
+        entity_type="workspace",
+        entity_id=None,
+        workspace_id=workspace_id,
+        resource_name=f"Workspace Results: {workspace_id}",
+        description=f"Staff {current_staff.full_name} published all results ({len(entries)} entries) for workspace",
+        details=f"Released {len(unreleased)} newly published results out of {len(entries)} total.",
+    )
+
+    db.commit()
+
+    invalidate_results()
+    invalidate_workspace(workspace_id)
+    cache.invalidate_prefix("project:progress:")
+
+    already_published = len(unreleased) == 0
+    msg = (
+        f"All {len(entries)} workspace results are already published."
+        if already_published
+        else f"Successfully published {len(unreleased)} results across {len(rounds)} rounds."
+    )
+
+    return PublishRoundResultsResponse(
+        workspace_id=workspace_id,
+        round_id=None,
+        round_title="All Rounds",
+        published_count=len(entries),
+        already_published=already_published,
+        message=msg,
     )

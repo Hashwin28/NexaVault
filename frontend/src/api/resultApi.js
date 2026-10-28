@@ -14,6 +14,18 @@ export const resultApi = {
     apiRequest(`/results/workspace/${workspaceId}`),
 
   /**
+   * Publishes/releases all evaluated student marks for a specific review round in a workspace.
+   */
+  publishRoundResults: (workspaceId, roundId) =>
+    apiRequest(`/results/workspace/${workspaceId}/rounds/${roundId}/publish`, { method: 'POST' }),
+
+  /**
+   * Publishes/releases all evaluated student marks across all rounds for a workspace.
+   */
+  publishWorkspaceResults: (workspaceId) =>
+    apiRequest(`/results/workspace/${workspaceId}/publish`, { method: 'POST' }),
+
+  /**
    * Initiates direct download of the workspace-wide results CSV file.
    */
   exportWorkspaceResultsCsv: async (workspaceId) => {

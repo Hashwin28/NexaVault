@@ -1,15 +1,16 @@
 import re
 from datetime import datetime, timezone
 from typing import List, Optional
-from fastapi import APIRouter, Depends, HTTPException, status, Request
+from fastapi import APIRouter, Depends, HTTPException, status, Request, Query
 import httpx
 from sqlalchemy.orm import Session, joinedload, selectinload
-from app.api.deps import get_db, get_current_user, get_current_student
+from app.api.deps import get_db, get_current_user, get_current_student, get_current_staff
 from app.models.user import User
 from app.models.project import Project, ProjectUpdate, UpdateComment
-from app.models.group import GroupMembership
+from app.models.group import Group, GroupMembership
+from app.models.workspace import Workspace, WorkspaceStaff
 from app.models.github import GithubLink, GithubCommit
-from app.models.review import ReviewRound, Submission, SubmissionVersion, Review
+from app.models.review import ReviewRound, Submission, SubmissionVersion, Review, ResultEntry
 from app.schemas.project import (
     ProjectCreate,
     ProjectResponse,
@@ -21,6 +22,11 @@ from app.schemas.project import (
     ProjectProgressResponse,
     ProjectReviewsResponse,
     ProjectReviewItem,
+    StaffProjectOversightItem,
+    StaffProjectDetailResponse,
+    StaffProjectSubmissionItem,
+    StaffProjectResultItem,
+    ApprovedRoundInfo,
 )
 from app.schemas.github import (
     GithubLinkCreate,
@@ -32,6 +38,7 @@ from app.core.permissions import (
     can_create_project,
     is_user_group_member,
     can_access_workspace,
+    is_workspace_staff,
 )
 from app.services.audit_service import log_audit
 from app.core.cache import (
@@ -134,6 +141,123 @@ def create_project(
     cache.invalidate_prefix("ws:list:")
 
     return build_project_response(new_project, db)
+
+@router.get("/staff/oversight", response_model=List[StaffProjectOversightItem])
+def list_staff_projects_oversight(
+    workspace_id: Optional[str] = Query(None),
+    db: Session = Depends(get_db),
+    current_staff: User = Depends(get_current_staff),
+):
+    """
+    Staff lists all projects across all authorized workspaces (or filtered by workspace_id)
+    with detailed oversight metrics: group info, members, submissions count,
+    latest submission status, grading status, and results publication status.
+    """
+    ws_staff = db.query(WorkspaceStaff.workspace_id).filter(WorkspaceStaff.user_id == current_staff.id).all()
+    owned_ws = db.query(Workspace.id).filter(Workspace.owner_id == current_staff.id).all()
+    accessible_ids = list(set([r[0] for r in ws_staff] + [r[0] for r in owned_ws]))
+
+    if workspace_id:
+        if workspace_id not in accessible_ids:
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="You do not have staff access to this workspace."
+            )
+        target_ws_ids = [workspace_id]
+    else:
+        target_ws_ids = accessible_ids
+
+    if not target_ws_ids:
+        return []
+
+    projects = (
+        db.query(Project)
+        .options(
+            joinedload(Project.workspace),
+            joinedload(Project.group)
+            .joinedload(Group.memberships)
+            .joinedload(GroupMembership.user),
+            joinedload(Project.github_link),
+            joinedload(Project.submissions).joinedload(Submission.round),
+            joinedload(Project.submissions).joinedload(Submission.versions).joinedload(SubmissionVersion.review).joinedload(Review.result_entries),
+        )
+        .filter(Project.workspace_id.in_(target_ws_ids))
+        .order_by(Project.created_at.desc())
+        .all()
+    )
+
+    items = []
+    for proj in projects:
+        group = proj.group
+        members_data = []
+        if group:
+            members_data = [
+                ProjectMemberInfo(
+                    id=m.user.id,
+                    full_name=m.user.full_name,
+                    email=m.user.email,
+                )
+                for m in group.memberships
+                if m.user
+            ]
+
+        prog_pct = calculate_project_progress(db, proj.id)
+        github_url = proj.github_link.repo_url if proj.github_link else None
+
+        sub_count = 0
+        latest_ver_num = None
+        latest_round_title = None
+        latest_sub_status = None
+        any_released = False
+        any_graded = False
+
+        all_vers = []
+        for sub in (proj.submissions or []):
+            round_obj = sub.round
+            for ver in (sub.versions or []):
+                sub_count += 1
+                rev = ver.review
+                is_rel = any(re.is_released for re in rev.result_entries) if (rev and rev.result_entries) else False
+                has_sc = bool(rev and rev.result_entries)
+                if is_rel:
+                    any_released = True
+                if has_sc:
+                    any_graded = True
+                all_vers.append((ver.submitted_at or ver.created_at, ver.version_number, round_obj.title if round_obj else f"Round #{sub.round_id}", ver.status))
+
+        if all_vers:
+            all_vers.sort(key=lambda x: x[0], reverse=True)
+            latest_ver_num = all_vers[0][1]
+            latest_round_title = all_vers[0][2]
+            latest_sub_status = all_vers[0][3]
+
+        grading_status = latest_sub_status or ("PENDING" if sub_count > 0 else "NOT_SUBMITTED")
+        results_status = "PUBLISHED" if any_released else ("DRAFT" if any_graded else "PENDING")
+
+        items.append(
+            StaffProjectOversightItem(
+                project_id=proj.id,
+                name=proj.name,
+                description=proj.description,
+                created_at=proj.created_at,
+                progress_percentage=prog_pct,
+                github_repo_url=github_url,
+                workspace_id=proj.workspace_id,
+                workspace_name=proj.workspace.name if proj.workspace else proj.workspace_id,
+                group_id=proj.group_id,
+                group_name=group.name if group else None,
+                group_code=group.code if group else None,
+                members=members_data,
+                submission_count=sub_count,
+                latest_round_title=latest_round_title,
+                latest_version_number=latest_ver_num,
+                latest_submission_status=latest_sub_status,
+                grading_status=grading_status,
+                results_status=results_status,
+            )
+        )
+
+    return items
 
 @router.get("/{project_id}", response_model=ProjectResponse)
 def get_project_details(
@@ -687,5 +811,129 @@ def get_project_reviews_endpoint(
     res = ProjectReviewsResponse(project_id=project.id, reviews=review_items)
     cache.set(c_key, res.model_dump(), ttl=120, tags=[f"project:{project_id}", f"workspace:{project.workspace_id}"])
     return res
+
+@router.get("/{project_id}/oversight", response_model=StaffProjectDetailResponse)
+def get_staff_project_oversight(
+    project_id: int,
+    db: Session = Depends(get_db),
+    current_staff: User = Depends(get_current_staff),
+):
+    """
+    Staff inspection of complete project details: project metadata,
+    all submissions with versions, reviews, score items, and workspace rounds.
+    """
+    project = (
+        db.query(Project)
+        .options(
+            joinedload(Project.workspace),
+            joinedload(Project.group).joinedload(Group.memberships).joinedload(GroupMembership.user),
+            joinedload(Project.github_link),
+        )
+        .filter(Project.id == project_id)
+        .first()
+    )
+    if not project or not is_workspace_staff(db, current_staff.id, project.workspace_id):
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Project not found or staff access denied."
+        )
+
+    project_resp = build_project_response(project, db)
+
+    # Submissions
+    submissions = (
+        db.query(Submission)
+        .options(
+            joinedload(Submission.round),
+            selectinload(Submission.versions).joinedload(SubmissionVersion.submitter),
+            selectinload(Submission.versions).joinedload(SubmissionVersion.review).joinedload(Review.reviewer),
+            selectinload(Submission.versions).joinedload(SubmissionVersion.review).joinedload(Review.result_entries),
+        )
+        .filter(Submission.project_id == project_id)
+        .all()
+    )
+
+    submission_items: List[StaffProjectSubmissionItem] = []
+    result_items: List[StaffProjectResultItem] = []
+
+    for sub in submissions:
+        round_obj = sub.round
+        for ver in sub.versions:
+            rev = ver.review
+            is_evaluated = rev is not None and rev.status in ["APPROVED", "REVISION_REQUESTED"]
+            is_released = any(re.is_released for re in rev.result_entries) if (rev and rev.result_entries) else False
+
+            submission_items.append(
+                StaffProjectSubmissionItem(
+                    id=sub.id,
+                    version_id=ver.id,
+                    version_number=ver.version_number,
+                    round_id=sub.round_id,
+                    round_name=round_obj.title if round_obj else f"Round #{sub.round_id}",
+                    round_number=round_obj.order_index if round_obj else 1,
+                    max_score=round_obj.max_score if round_obj else 100.0,
+                    due_date=round_obj.due_date if round_obj else None,
+                    status=ver.status,
+                    submitted_by=ver.submitted_by,
+                    submitter_name=ver.submitter.full_name if ver.submitter else None,
+                    submitted_at=ver.submitted_at or ver.created_at,
+                    commit_hash=ver.github_commit_sha,
+                    submission_notes=ver.notes,
+                    repo_url=ver.link,
+                    feedback=rev.feedback if rev else None,
+                    reviewer_name=rev.reviewer.full_name if (rev and rev.reviewer) else None,
+                    is_evaluated=is_evaluated,
+                    is_released=is_released,
+                )
+            )
+
+            if rev and rev.result_entries:
+                for re_entry in rev.result_entries:
+                    student = db.query(User).filter(User.id == re_entry.student_id).first()
+                    max_sc = round_obj.max_score if round_obj and round_obj.max_score > 0 else 100.0
+                    score_val = re_entry.score if re_entry.score is not None else 0.0
+                    result_items.append(
+                        StaffProjectResultItem(
+                            id=re_entry.id,
+                            student_id=re_entry.student_id,
+                            student_name=student.full_name if student else f"Student #{re_entry.student_id}",
+                            student_email=student.email if student else "",
+                            roll_number=student.roll_number if student else None,
+                            round_id=sub.round_id,
+                            round_name=round_obj.title if round_obj else f"Round #{sub.round_id}",
+                            score=score_val,
+                            max_score=max_sc,
+                            percentage=round((score_val / max_sc) * 100, 2) if max_sc > 0 else 0.0,
+                            feedback=re_entry.feedback or (rev.feedback if rev else None),
+                            reviewer_name=rev.reviewer.full_name if (rev and rev.reviewer) else None,
+                            is_released=re_entry.is_released,
+                            released_at=re_entry.released_at,
+                        )
+                    )
+
+    # Rounds
+    rounds = (
+        db.query(ReviewRound)
+        .filter(ReviewRound.workspace_id == project.workspace_id)
+        .order_by(ReviewRound.order_index.asc())
+        .all()
+    )
+    round_infos = [
+        ApprovedRoundInfo(
+            round_id=r.id,
+            round_title=r.title,
+            order_index=r.order_index,
+            max_score=r.max_score,
+        )
+        for r in rounds
+    ]
+
+    return StaffProjectDetailResponse(
+        project=project_resp,
+        submissions=submission_items,
+        results=result_items,
+        rounds=round_infos,
+    )
+
 
 

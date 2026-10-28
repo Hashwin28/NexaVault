@@ -14,6 +14,10 @@ export const projectApi = {
       body: { workspace_id: workspaceId, name, ...(description ? { description } : {}) },
     }),
   getProject: (id, options = {}) => apiRequest(`/projects/${id}`, options),
+  getStaffProjects: (workspaceId = null, options = {}) =>
+    apiRequest(`/projects/staff/oversight${workspaceId ? `?workspace_id=${encodeURIComponent(workspaceId)}` : ''}`, options),
+  getStaffProjectOversight: (projectId, options = {}) =>
+    apiRequest(`/projects/${projectId}/oversight`, options),
   getUpdates: (projectId, options = {}) => apiRequest(`/projects/${projectId}/updates`, options),
   postUpdate: (projectId, contentOrObj, link = null) => {
     let body = {};

@@ -21,6 +21,7 @@ class QueueItemResponse(BaseModel):
     claimed_by_id: Optional[int] = None
     claimed_by_name: Optional[str] = None
     is_late: bool
+    results_released: bool = False
     roster_snapshot: List[Dict[str, Any]] = []
 
     model_config = ConfigDict(from_attributes=True)

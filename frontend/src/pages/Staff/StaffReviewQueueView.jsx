@@ -8,6 +8,7 @@ export const StaffReviewQueueView = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [success, setSuccess] = useState(null);
+  const [statusFilter, setStatusFilter] = useState('PENDING'); // 'PENDING', 'EVALUATED', 'ALL'
 
   // Active evaluation modal state
   const [selectedVersion, setSelectedVersion] = useState(null);
@@ -17,14 +18,15 @@ export const StaffReviewQueueView = () => {
   const [submittingEval, setSubmittingEval] = useState(false);
 
   useEffect(() => {
-    fetchQueue();
-  }, []);
+    fetchQueue(statusFilter);
+  }, [statusFilter]);
 
-  const fetchQueue = async () => {
+  const fetchQueue = async (overrideFilter) => {
+    const filter = overrideFilter !== undefined ? overrideFilter : statusFilter;
     setLoading(true);
     setError(null);
     try {
-      const data = await reviewApi.getQueue();
+      const data = await reviewApi.getQueue(filter);
       setQueue(data || []);
     } catch (err) {
       setError(err.message || 'Failed to load review queue.');
@@ -156,19 +158,40 @@ export const StaffReviewQueueView = () => {
           <h2 className="text-xl font-bold text-slate-100 font-serif flex items-center gap-2">
             Submission Review Queue
             <span className="text-xs px-2 py-0.5 rounded bg-teal-500/20 text-teal-300 font-sans font-normal">
-              {queue.length} Pending
+              {queue.length} Submissions
             </span>
           </h2>
           <p className="text-xs text-slate-400 font-sans">
             Claim pending submissions, grade individual group members, send evaluation feedback, and release published scores.
           </p>
         </div>
-        <button
-          onClick={fetchQueue}
-          className="px-3.5 py-2 text-xs font-sans text-slate-300 bg-[#11181C] hover:bg-[#1B262E] rounded-lg border border-[#1B262E] flex items-center gap-2"
-        >
-          <span>↻ Refresh Queue</span>
-        </button>
+        <div className="flex flex-wrap items-center gap-2">
+          <div className="flex items-center gap-1 bg-[#11181C] p-1 rounded-lg border border-[#1B262E]">
+            {[
+              { id: 'PENDING', label: 'Pending Review' },
+              { id: 'EVALUATED', label: 'Evaluated & Graded' },
+              { id: 'ALL', label: 'All Submissions' },
+            ].map((tab) => (
+              <button
+                key={tab.id}
+                onClick={() => setStatusFilter(tab.id)}
+                className={`px-3 py-1 rounded text-xs font-sans transition-all ${
+                  statusFilter === tab.id
+                    ? 'bg-teal-500 text-slate-950 font-bold'
+                    : 'text-slate-400 hover:text-slate-200'
+                }`}
+              >
+                {tab.label}
+              </button>
+            ))}
+          </div>
+          <button
+            onClick={() => fetchQueue(statusFilter)}
+            className="px-3.5 py-1.5 text-xs font-sans text-slate-300 bg-[#11181C] hover:bg-[#1B262E] rounded-lg border border-[#1B262E] flex items-center gap-1.5"
+          >
+            <span>↻ Refresh</span>
+          </button>
+        </div>
       </div>
 
       {error && (
@@ -290,13 +313,19 @@ export const StaffReviewQueueView = () => {
                           </button>
                         )}
 
-                        {isEvaluated && !item.results_released && (
-                          <button
-                            onClick={() => handleReleaseResults(versionId)}
-                            className="px-2.5 py-1.5 text-xs bg-purple-600 hover:bg-purple-500 text-white font-semibold rounded ml-2 shadow"
-                          >
-                            Release Results
-                          </button>
+                        {isEvaluated && (
+                          item.results_released ? (
+                            <span className="px-2 py-1 text-[10px] font-mono font-bold rounded bg-emerald-500/15 text-emerald-300 border border-emerald-500/30 ml-2">
+                              ✓ Results Released
+                            </span>
+                          ) : (
+                            <button
+                              onClick={() => handleReleaseResults(versionId)}
+                              className="px-2.5 py-1.5 text-xs bg-teal-500 hover:bg-teal-400 text-slate-950 font-bold rounded ml-2 shadow transition-all"
+                            >
+                              Release Results
+                            </button>
+                          )
                         )}
                       </td>
                     </tr>

@@ -14,6 +14,9 @@ class StudentResultResponse(BaseModel):
     score: float
     max_score: float
     percentage: float
+    feedback: Optional[str] = None
+    status: str = "PUBLISHED"
+    reviewer_name: Optional[str] = None
     released_at: Optional[datetime] = None
 
     model_config = ConfigDict(from_attributes=True)
@@ -49,6 +52,10 @@ class RoundColumnHeader(BaseModel):
     max_score: float
     is_open: bool
     weight: Optional[float] = 20.0
+    is_released: bool = False
+    released_count: int = 0
+    graded_count: int = 0
+    total_count: int = 0
 
 class StudentRoundScoreDetail(BaseModel):
     round_id: int
@@ -60,8 +67,18 @@ class StudentRoundScoreDetail(BaseModel):
     reviewer_id: Optional[int] = None
     reviewer_name: Optional[str] = None
     review_date: Optional[datetime] = None
-    status: str  # "GRADED", "SUBMITTED", "IN_REVIEW", "REVISION_REQUESTED", "MISSING", "NOT_SUBMITTED"
+    status: str  # "PUBLISHED", "GRADED", "SUBMITTED", "IN_REVIEW", "REVISION_REQUESTED", "MISSING", "NOT_SUBMITTED"
+    is_released: bool = False
+    released_at: Optional[datetime] = None
     result_entry_id: Optional[int] = None
+
+class PublishRoundResultsResponse(BaseModel):
+    workspace_id: str
+    round_id: Optional[int] = None
+    round_title: Optional[str] = None
+    published_count: int
+    already_published: bool = False
+    message: str
 
 class WorkspaceStudentResultItem(BaseModel):
     student_id: int
