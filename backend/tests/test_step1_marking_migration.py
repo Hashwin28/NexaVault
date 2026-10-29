@@ -67,15 +67,15 @@ def test_02_view_released_results_isolation(db_session):
     # Insert newer approved Version 2 for Student 3 with unreleased score (25.00)
     db_session.execute(text("""
         INSERT INTO submission_versions (id, submission_id, version_number, submitted_by, is_late, status, roster_snapshot, created_at)
-        VALUES (912, 1, 2, 3, FALSE, 'APPROVED', '[{"user_id": 3}]'::jsonb, NOW());
+        VALUES (888912, 1, 2, 3, FALSE, 'APPROVED', '[{"user_id": 3}]'::jsonb, NOW());
     """))
     db_session.execute(text("""
         INSERT INTO reviews (id, submission_version_id, reviewer_id, status, created_at)
-        VALUES (912, 912, 1, 'APPROVED', NOW());
+        VALUES (888912, 888912, 1, 'APPROVED', NOW());
     """))
     db_session.execute(text("""
         INSERT INTO result_entries (id, review_id, student_id, round_id, score, is_released, released_at, created_at)
-        VALUES (912, 912, 3, 1, 25.00, FALSE, NULL, NOW());
+        VALUES (888912, 888912, 3, 1, 25.00, FALSE, NULL, NOW());
     """))
 
     # Student view querying view_released_results must still return Version 1 released score (18.00)
@@ -137,7 +137,7 @@ def test_05_exclusion_of_draft_and_withdrawn_versions(db_session):
     # Insert DRAFT version 3
     db_session.execute(text("""
         INSERT INTO submission_versions (id, submission_id, version_number, submitted_by, is_late, status, roster_snapshot, created_at)
-        VALUES (915, 1, 3, 3, FALSE, 'DRAFT', '[{"user_id": 2}]'::jsonb, NOW());
+        VALUES (888915, 1, 3, 3, FALSE, 'DRAFT', '[{"user_id": 2}]'::jsonb, NOW());
     """))
 
     # Grid status should NOT be impacted by DRAFT version 3
