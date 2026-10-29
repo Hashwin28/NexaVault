@@ -35,8 +35,7 @@ NexaVault is an enterprise-grade academic project management and continuous eval
 9. [Project Directory Structure](#9-project-directory-structure)
 10. [Setup & Execution Guide](#10-setup--execution-guide)
 11. [Testing & Verification](#11-testing--verification)
-12. [Academic DSA Demonstration Suite](#12-academic-dsa-demonstration-suite)
-13. [Current Limitations & Roadmap](#13-current-limitations--roadmap)
+12. [Current Limitations & Roadmap](#12-current-limitations--roadmap)
 
 ---
 
@@ -585,13 +584,6 @@ NexaVault/
 │               ├── SmartSearchView.jsx        # Student scoped search
 │               ├── AuditTrailView.jsx         # Student activity history
 │               └── ProfileView.jsx            # Student profile view
-│
-└── DSA_Demonstration/               # Academic DSA demonstration suite (pure Python)
-    ├── README.md                    # DSA suite documentation & Big-O analysis
-    ├── hashing_linear_probing.py    # Custom Open Addressing Hash Table with Tombstones
-    ├── priority_queue.py            # Binary Min-Heap Priority Queue with FIFO tie-breaker
-    ├── normal_queue.py              # O(1) FIFO Queue via collections.deque
-    └── trie_autocomplete.py         # Prefix Tree (Trie) Autocomplete with DFS
 ```
 
 ---
@@ -714,28 +706,7 @@ python benchmark_cache.py
 
 ---
 
-## 12. Academic DSA Demonstration Suite
-
-Located in [`DSA_Demonstration/`](DSA_Demonstration/), this standalone folder contains pure Python implementations of core data structures designed for faculty evaluation in the **23AID204-A Data Structures and Algorithms** course.
-
-Each file is self-contained, relies only on the Python standard library, and executes with an interactive console demo:
-
-1. **`hashing_linear_probing.py`**: Custom Hash Table demonstrating polynomial rolling hash, open addressing collision resolution, linear probing, and tombstone slot reuse ($O(1)$ average, $O(N)$ worst).
-2. **`priority_queue.py`**: Priority Queue using Python's `heapq` binary min-heap with a sequence counter tie-breaker guaranteeing stable FIFO order for equal priorities ($O(\log N)$ push/pop, $O(1)$ peek).
-3. **`normal_queue.py`**: First-In, First-Out (FIFO) queue implemented via `collections.deque` guaranteeing true $O(1)$ enqueue and $O(1)$ dequeue without array element shifting.
-4. **`trie_autocomplete.py`**: Prefix Tree (Trie) using custom `TrieNode` objects and depth-first search for prefix matching and fast autocomplete suggestions ($O(L)$ search, $O(P + K)$ autocomplete).
-
-To run any demonstration:
-```bash
-python DSA_Demonstration/hashing_linear_probing.py
-python DSA_Demonstration/priority_queue.py
-python DSA_Demonstration/normal_queue.py
-python DSA_Demonstration/trie_autocomplete.py
-```
-
----
-
-## 13. Current Limitations & Roadmap
+## 12. Current Limitations & Roadmap
 
 1. **Email Service Dispatch**:
    - `EmailToken` database model is implemented.
