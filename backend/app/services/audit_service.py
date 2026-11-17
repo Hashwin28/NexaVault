@@ -77,6 +77,15 @@ ACTION_META_REGISTRY = {
     "project_created": ("PROJECT", "Project Created", "New workspace project initiated"),
     "project_updated": ("PROJECT", "Project Updated", "Project details modified"),
     "project_repo_linked": ("PROJECT", "GitHub Linked", "GitHub repository linked to student project"),
+
+    # Administrator Operations
+    "admin_workspace_updated": ("ADMIN", "Workspace Config Updated", "Administrator modified workspace configuration"),
+    "admin_workspace_archived": ("ADMIN", "Workspace Archived by Admin", "Administrator archived workspace"),
+    "admin_workspace_unarchived": ("ADMIN", "Workspace Unarchived by Admin", "Administrator unarchived workspace"),
+    "admin_staff_assigned": ("ADMIN", "Staff Assigned by Admin", "Administrator assigned staff member to workspace"),
+    "admin_staff_removed": ("ADMIN", "Staff Removed by Admin", "Administrator removed staff member from workspace"),
+    "admin_account_status_changed": ("ADMIN", "Account Status Changed", "Administrator changed user account active status"),
+    "admin_account_provisioned": ("ADMIN", "Admin Account Provisioned", "New administrator account provisioned"),
 }
 
 def resolve_action_meta(action_type: str, category: Optional[str] = None, action_name: Optional[str] = None, description: Optional[str] = None):

@@ -20,7 +20,7 @@ class AuditLog(Base):
     """
     __tablename__ = "audit_logs"
 
-    id = Column(BigInteger, primary_key=True, index=True, autoincrement=True)
+    id = Column(BigInteger().with_variant(Integer, "sqlite"), primary_key=True, index=True, autoincrement=True)
     actor_id = Column(Integer, ForeignKey("users.id", ondelete="SET NULL"), nullable=True, index=True)
     category = Column(String(50), default="SYSTEM", nullable=False, index=True)
     action_type = Column(String(100), nullable=False, index=True)

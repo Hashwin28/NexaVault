@@ -8,12 +8,22 @@ class WorkspaceCreate(BaseModel):
     title: Optional[str] = Field(None, max_length=255)
     description: Optional[str] = None
     term: Optional[str] = Field("Academic Term", max_length=100)
+    department: Optional[str] = Field(None, max_length=100, description="Department tag, e.g., CS, AI, DS")
+
+class WorkspaceUpdate(BaseModel):
+    """Admin-only workspace configuration update schema."""
+    name: Optional[str] = Field(None, max_length=255)
+    description: Optional[str] = None
+    term: Optional[str] = Field(None, max_length=100)
+    department: Optional[str] = Field(None, max_length=100)
+    is_open: Optional[bool] = None
 
 class WorkspaceResponse(BaseModel):
     id: str
     name: str
     description: Optional[str] = None
     term: str
+    department: Optional[str] = None
     owner_id: int
     owner_name: Optional[str] = None
     is_open: bool

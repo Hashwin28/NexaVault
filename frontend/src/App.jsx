@@ -3,6 +3,7 @@ import { AuthProvider, useAuth } from './context/AuthContext';
 import { Login } from './pages/Login/Login';
 import { StudentDashboard } from './pages/Student/StudentDashboard';
 import { StaffDashboard } from './pages/Staff/StaffDashboard';
+import { AdminDashboard } from './pages/Admin/AdminDashboard';
 
 /**
  * AppContent Component
@@ -35,6 +36,10 @@ function AppContent() {
   // Route based on role: staff members receive administrative dashboard, otherwise student dashboard
   if (user?.role === 'staff') {
     return <StaffDashboard />;
+  }
+
+  if (user?.role === 'administrator') {
+    return <AdminDashboard />;
   }
 
   return <StudentDashboard />;

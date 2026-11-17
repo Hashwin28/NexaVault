@@ -9,6 +9,7 @@ from app.api.v1.endpoints import (
     reviews,
     search,
     audit,
+    admin,
 )
 
 api_router = APIRouter()
@@ -21,3 +22,4 @@ api_router.include_router(results.router, prefix="/results", tags=["Results"])
 api_router.include_router(reviews.router, tags=["Reviews"])
 api_router.include_router(search.router, tags=["Smart Search"])
 api_router.include_router(audit.router, tags=["Audit Trail"])
+api_router.include_router(admin.router, tags=["Administrator"])
