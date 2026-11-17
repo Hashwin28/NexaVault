@@ -3,6 +3,7 @@ import { AuthProvider, useAuth } from './context/AuthContext';
 import { Login } from './pages/Login/Login';
 import { StudentDashboard } from './pages/Student/StudentDashboard';
 import { StaffDashboard } from './pages/Staff/StaffDashboard';
+import { AdminDashboard } from './pages/Admin/AdminDashboard';
 
 function AppContent() {
   const { isAuthenticated, isLoading, user } = useAuth();
@@ -24,6 +25,10 @@ function AppContent() {
 
   if (user?.role === 'staff') {
     return <StaffDashboard />;
+  }
+
+  if (user?.role === 'administrator') {
+    return <AdminDashboard />;
   }
 
   return <StudentDashboard />;

@@ -10,6 +10,7 @@ class Workspace(Base):
     name = Column(String(255), nullable=False)
     description = Column(Text, nullable=True)
     term = Column(String(100), nullable=False)
+    department = Column(String(100), nullable=True, index=True)  # dept tag for administrator scoping
     owner_id = Column(Integer, ForeignKey("users.id"), nullable=False, index=True)
     is_open = Column(Boolean, default=True, nullable=False)
     is_archived = Column(Boolean, default=False, nullable=False)

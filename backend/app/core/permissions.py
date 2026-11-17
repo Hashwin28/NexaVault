@@ -40,12 +40,16 @@ def can_access_workspace(db: Session, user_id: int, workspace_id: str) -> bool:
     """
     A student can access a workspace if their active group is enrolled in it.
     A staff member can access if they are assigned staff or owner.
+    An administrator can access any workspace in their department.
     """
     user = db.query(User).filter(User.id == user_id).first()
     if not user:
         return False
 
-    if user.role.lower() == "staff":
+    if user.role.lower() == "administrator":
+        return is_admin_for_workspace(db, user, workspace_id)
+
+    if user.role.lower() in ["staff", "teacher"]:
         staff_entry = (
             db.query(WorkspaceStaff)
             .filter(WorkspaceStaff.workspace_id == workspace_id, WorkspaceStaff.user_id == user_id)
@@ -66,17 +70,64 @@ def can_access_workspace(db: Session, user_id: int, workspace_id: str) -> bool:
     )
     return enrollment is not None
 
+# ---------------------------------------------------------------------------
+# Administrator-specific permission helpers
+# ---------------------------------------------------------------------------
+
+def is_admin_for_workspace(db: Session, admin_user: User, workspace_id: str) -> bool:
+    """
+    Returns True if the administrator is authorized to access the given workspace.
+    - If admin.department is None → super-admin, can access all workspaces.
+    - Otherwise checks workspace.department == admin.department.
+    """
+    if admin_user.role.lower() != "administrator":
+        return False
+    if admin_user.department is None:
+        # Super-admin: unrestricted access across all departments
+        workspace = db.query(Workspace).filter(Workspace.id == workspace_id).first()
+        return workspace is not None
+    workspace = db.query(Workspace).filter(Workspace.id == workspace_id).first()
+    if not workspace:
+        return False
+    # Department-scoped admin: workspace must belong to the same dept,
+    # OR workspace has no dept tag (untagged workspaces visible to all dept admins)
+    return workspace.department is None or workspace.department == admin_user.department
+
+def get_admin_workspace_ids(db: Session, admin_user: User) -> list:
+    """Returns list of workspace IDs accessible to this administrator."""
+    if admin_user.department is None:
+        # Super-admin: all workspaces
+        return [ws.id for ws in db.query(Workspace.id).all()]
+    # Department-scoped: workspaces with matching dept OR untagged workspaces
+    workspaces = (
+        db.query(Workspace)
+        .filter(
+            (Workspace.department == admin_user.department) |
+            (Workspace.department.is_(None))
+        )
+        .all()
+    )
+    return [ws.id for ws in workspaces]
+
+# ---------------------------------------------------------------------------
+# Existing project/workspace permission helpers (unchanged)
+# ---------------------------------------------------------------------------
+
 def can_access_project(db: Session, user_id: int, project: Project) -> bool:
     """
     Project access is derived strictly from current group membership.
     If a student left the group, access is immediately revoked.
     Staff can access if assigned to the workspace.
+    Administrator can access if workspace is in their department.
     """
     user = db.query(User).filter(User.id == user_id).first()
     if not user:
         return False
 
-    if user.role.lower() == "staff":
+    if user.role.lower() == "administrator":
+        return is_admin_for_workspace(db, user, project.workspace_id)
+
+    if user.role.lower() in ["staff", "teacher"]:
         return can_access_workspace(db, user_id, project.workspace_id)
 
     # Student must currently belong to project's group
@@ -195,7 +246,7 @@ def is_workspace_staff(db: Session, user_id: int, workspace_id: str) -> bool:
 def can_manage_workspace(db: Session, user_id: int, workspace_id: str) -> bool:
     """Staff member authorized for the workspace."""
     user = db.query(User).filter(User.id == user_id).first()
-    if not user or user.role.lower() != "staff":
+    if not user or user.role.lower() not in ["staff", "teacher"]:
         return False
     return is_workspace_staff(db, user_id, workspace_id)
 
@@ -210,7 +261,7 @@ def can_manage_round(db: Session, user_id: int, workspace_id: str) -> bool:
 def can_review_submission(db: Session, user_id: int, submission_version_id: int) -> bool:
     """Staff can review a submission if authorized for its workspace."""
     user = db.query(User).filter(User.id == user_id).first()
-    if not user or user.role.lower() != "staff":
+    if not user or user.role.lower() not in ["staff", "teacher"]:
         return False
     from app.models.review import SubmissionVersion, Submission
     version = db.query(SubmissionVersion).filter(SubmissionVersion.id == submission_version_id).first()
@@ -231,7 +282,7 @@ def can_release_result(db: Session, user_id: int, submission_version_id: int) ->
 def can_correct_result(db: Session, user_id: int, result_entry_id: int) -> bool:
     """Staff can correct a result entry if authorized for the workspace."""
     user = db.query(User).filter(User.id == user_id).first()
-    if not user or user.role.lower() != "staff":
+    if not user or user.role.lower() not in ["staff", "teacher"]:
         return False
     from app.models.review import ResultEntry, ReviewRound
     entry = db.query(ResultEntry).filter(ResultEntry.id == result_entry_id).first()
