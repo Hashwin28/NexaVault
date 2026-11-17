@@ -357,3 +357,6 @@ export const AdminProjectsView = ({ initialProjectId }) => {
     </div>
   );
 };
+
+
+export default AdminProjectsView;

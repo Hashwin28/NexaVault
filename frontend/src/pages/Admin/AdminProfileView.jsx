@@ -63,3 +63,6 @@ export const AdminProfileView = () => {
     </div>
   );
 };
+
+
+export default AdminProfileView;

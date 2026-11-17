@@ -343,3 +343,6 @@ export const AdminAuditView = () => {
     </div>
   );
 };
+
+
+export default AdminAuditView;

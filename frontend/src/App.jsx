@@ -1,10 +1,10 @@
 import React, { Suspense, lazy } from 'react';
 import { AuthProvider, useAuth } from './context/AuthContext';
 
-const Login = lazy(() => import('./pages/Login/Login').then(m => ({ default: m.Login })));
-const StudentDashboard = lazy(() => import('./pages/Student/StudentDashboard').then(m => ({ default: m.StudentDashboard })));
-const StaffDashboard = lazy(() => import('./pages/Staff/StaffDashboard').then(m => ({ default: m.StaffDashboard })));
-const AdminDashboard = lazy(() => import('./pages/Admin/AdminDashboard').then(m => ({ default: m.AdminDashboard })));
+const Login = lazy(() => import('./pages/Login/Login').then(m => ({ default: m.default || m.Login })));
+const StudentDashboard = lazy(() => import('./pages/Student/StudentDashboard').then(m => ({ default: m.default || m.StudentDashboard })));
+const StaffDashboard = lazy(() => import('./pages/Staff/StaffDashboard').then(m => ({ default: m.default || m.StaffDashboard })));
+const AdminDashboard = lazy(() => import('./pages/Admin/AdminDashboard').then(m => ({ default: m.default || m.AdminDashboard })));
 
 function FullPageLoading({ text = 'Authenticating NexaVault Session...' }) {
   return (
@@ -34,12 +34,35 @@ function AppContent() {
     return <FullPageLoading text="Authenticating NexaVault Session..." />;
   }
 
+  // Redirect to login if user is not authenticated
+  if (!isAuthenticated) {
+    return (
+      <Suspense fallback={<FullPageLoading text="Loading authentication portal..." />}>
+        <Login />
+      </Suspense>
+    );
+  }
+
+  // Route based on role
+  if (user?.role === 'administrator') {
+    return (
+      <Suspense fallback={<FullPageLoading text="Loading administrator console..." />}>
+        <AdminDashboard />
+      </Suspense>
+    );
+  }
+
+  if (user?.role === 'staff') {
+    return (
+      <Suspense fallback={<FullPageLoading text="Loading staff oversight..." />}>
+        <StaffDashboard />
+      </Suspense>
+    );
+  }
+
   return (
-    <Suspense fallback={<FullPageLoading text="Loading interface..." />}>
-      {!isAuthenticated && <Login />}
-      {isAuthenticated && user?.role === 'staff' && <StaffDashboard />}
-      {isAuthenticated && user?.role === 'administrator' && <AdminDashboard />}
-      {isAuthenticated && user?.role !== 'staff' && user?.role !== 'administrator' && <StudentDashboard />}
+    <Suspense fallback={<FullPageLoading text="Loading student vault..." />}>
+      <StudentDashboard />
     </Suspense>
   );
 }

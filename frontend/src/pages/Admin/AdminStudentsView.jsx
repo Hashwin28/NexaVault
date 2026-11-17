@@ -388,3 +388,6 @@ export const AdminStudentsView = ({ onNavigate }) => {
     </div>
   );
 };
+
+
+export default AdminStudentsView;

@@ -605,3 +605,6 @@ export const AdminWorkspacesView = ({ initialWorkspaceId, onNavigate }) => {
     </div>
   );
 };
+
+
+export default AdminWorkspacesView;

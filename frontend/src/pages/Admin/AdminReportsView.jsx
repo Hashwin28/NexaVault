@@ -217,3 +217,6 @@ export const AdminReportsView = () => {
     </div>
   );
 };
+
+
+export default AdminReportsView;

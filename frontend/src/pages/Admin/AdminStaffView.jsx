@@ -385,3 +385,6 @@ export const AdminStaffView = ({ onNavigate }) => {
     </div>
   );
 };
+
+
+export default AdminStaffView;

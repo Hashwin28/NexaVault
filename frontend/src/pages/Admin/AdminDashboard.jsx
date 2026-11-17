@@ -3,14 +3,14 @@ import { AdminSidebar } from '../../components/admin/AdminSidebar';
 import { AdminHeader } from '../../components/admin/AdminHeader';
 import { TabLoadingFallback } from '../../components/common/TabLoadingFallback';
 
-const AdminDashboardView = lazy(() => import('./AdminDashboardView').then(m => ({ default: m.AdminDashboardView })));
-const AdminWorkspacesView = lazy(() => import('./AdminWorkspacesView').then(m => ({ default: m.AdminWorkspacesView })));
-const AdminProjectsView = lazy(() => import('./AdminProjectsView').then(m => ({ default: m.AdminProjectsView })));
-const AdminStaffView = lazy(() => import('./AdminStaffView').then(m => ({ default: m.AdminStaffView })));
-const AdminStudentsView = lazy(() => import('./AdminStudentsView').then(m => ({ default: m.AdminStudentsView })));
-const AdminAuditView = lazy(() => import('./AdminAuditView').then(m => ({ default: m.AdminAuditView })));
-const AdminReportsView = lazy(() => import('./AdminReportsView').then(m => ({ default: m.AdminReportsView })));
-const AdminProfileView = lazy(() => import('./AdminProfileView').then(m => ({ default: m.AdminProfileView })));
+const AdminDashboardView = lazy(() => import('./AdminDashboardView').then(m => ({ default: m.default || m.AdminDashboardView })));
+const AdminWorkspacesView = lazy(() => import('./AdminWorkspacesView').then(m => ({ default: m.default || m.AdminWorkspacesView })));
+const AdminProjectsView = lazy(() => import('./AdminProjectsView').then(m => ({ default: m.default || m.AdminProjectsView })));
+const AdminStaffView = lazy(() => import('./AdminStaffView').then(m => ({ default: m.default || m.AdminStaffView })));
+const AdminStudentsView = lazy(() => import('./AdminStudentsView').then(m => ({ default: m.default || m.AdminStudentsView })));
+const AdminAuditView = lazy(() => import('./AdminAuditView').then(m => ({ default: m.default || m.AdminAuditView })));
+const AdminReportsView = lazy(() => import('./AdminReportsView').then(m => ({ default: m.default || m.AdminReportsView })));
+const AdminProfileView = lazy(() => import('./AdminProfileView').then(m => ({ default: m.default || m.AdminProfileView })));
 
 const VALID_ADMIN_TABS = [
   'dashboard',
@@ -173,3 +173,5 @@ export const AdminDashboard = () => {
     </div>
   );
 };
+
+export default AdminDashboard;
