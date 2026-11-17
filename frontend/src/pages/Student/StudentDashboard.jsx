@@ -1,14 +1,16 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, lazy, Suspense } from 'react';
 import { Sidebar } from '../../components/student/Sidebar';
 import { Header } from '../../components/student/Header';
-import { DashboardView } from './DashboardView';
-import { WorkspacesView } from './WorkspacesView';
-import { GroupsView } from './GroupsView';
-import { ProjectsView } from './ProjectsView';
-import { SubmissionsView } from './SubmissionsView';
-import { ResultsView } from './ResultsView';
-import { SmartSearchView } from './SmartSearchView';
-import { ProfileView } from './ProfileView';
+import { TabLoadingFallback } from '../../components/common/TabLoadingFallback';
+
+const DashboardView = lazy(() => import('./DashboardView').then(m => ({ default: m.DashboardView })));
+const WorkspacesView = lazy(() => import('./WorkspacesView').then(m => ({ default: m.WorkspacesView })));
+const GroupsView = lazy(() => import('./GroupsView').then(m => ({ default: m.GroupsView })));
+const ProjectsView = lazy(() => import('./ProjectsView').then(m => ({ default: m.ProjectsView })));
+const SubmissionsView = lazy(() => import('./SubmissionsView').then(m => ({ default: m.SubmissionsView })));
+const ResultsView = lazy(() => import('./ResultsView').then(m => ({ default: m.ResultsView })));
+const SmartSearchView = lazy(() => import('./SmartSearchView').then(m => ({ default: m.SmartSearchView })));
+const ProfileView = lazy(() => import('./ProfileView').then(m => ({ default: m.ProfileView })));
 
 const VALID_TABS = ['dashboard', 'workspaces', 'groups', 'projects', 'submissions', 'results', 'search', 'profile'];
 
@@ -101,64 +103,66 @@ export const StudentDashboard = () => {
 
         {/* Dynamic Content Views with Keep-Alive / Lazy-Hydration */}
         <main className="flex-1 p-6 lg:p-8 space-y-8 max-w-7xl w-full mx-auto">
-          {visitedTabs.has('dashboard') && (
-            <div className={activeTab === 'dashboard' ? 'block' : 'hidden'}>
-              <DashboardView onNavigate={(tab, projId, sec) => setActiveTab(tab, projId, sec)} />
-            </div>
-          )}
+          <Suspense fallback={<TabLoadingFallback message="Loading view..." />}>
+            {visitedTabs.has('dashboard') && (
+              <div className={activeTab === 'dashboard' ? 'block' : 'hidden'}>
+                <DashboardView onNavigate={(tab, projId, sec) => setActiveTab(tab, projId, sec)} />
+              </div>
+            )}
 
-          {visitedTabs.has('workspaces') && (
-            <div className={activeTab === 'workspaces' ? 'block' : 'hidden'}>
-              <WorkspacesView onNavigate={(tab, projId, sec) => setActiveTab(tab, projId, sec)} />
-            </div>
-          )}
+            {visitedTabs.has('workspaces') && (
+              <div className={activeTab === 'workspaces' ? 'block' : 'hidden'}>
+                <WorkspacesView onNavigate={(tab, projId, sec) => setActiveTab(tab, projId, sec)} />
+              </div>
+            )}
 
-          {visitedTabs.has('groups') && (
-            <div className={activeTab === 'groups' ? 'block' : 'hidden'}>
-              <GroupsView onNavigate={(tab, projId, sec) => setActiveTab(tab, projId, sec)} />
-            </div>
-          )}
+            {visitedTabs.has('groups') && (
+              <div className={activeTab === 'groups' ? 'block' : 'hidden'}>
+                <GroupsView onNavigate={(tab, projId, sec) => setActiveTab(tab, projId, sec)} />
+              </div>
+            )}
 
-          {visitedTabs.has('projects') && (
-            <div className={activeTab === 'projects' ? 'block' : 'hidden'}>
-              <ProjectsView 
-                defaultProjectId={selectedProjectId}
-                initialSection={selectedSection}
-                onNavigate={(tab, projId, sec) => setActiveTab(tab, projId, sec)} 
-              />
-            </div>
-          )}
+            {visitedTabs.has('projects') && (
+              <div className={activeTab === 'projects' ? 'block' : 'hidden'}>
+                <ProjectsView 
+                  defaultProjectId={selectedProjectId}
+                  initialSection={selectedSection}
+                  onNavigate={(tab, projId, sec) => setActiveTab(tab, projId, sec)} 
+                />
+              </div>
+            )}
 
-          {visitedTabs.has('submissions') && (
-            <div className={activeTab === 'submissions' ? 'block' : 'hidden'}>
-              <SubmissionsView />
-            </div>
-          )}
+            {visitedTabs.has('submissions') && (
+              <div className={activeTab === 'submissions' ? 'block' : 'hidden'}>
+                <SubmissionsView />
+              </div>
+            )}
 
-          {visitedTabs.has('results') && (
-            <div className={activeTab === 'results' ? 'block' : 'hidden'}>
-              <ResultsView />
-            </div>
-          )}
+            {visitedTabs.has('results') && (
+              <div className={activeTab === 'results' ? 'block' : 'hidden'}>
+                <ResultsView />
+              </div>
+            )}
 
-          {visitedTabs.has('search') && (
-            <div className={activeTab === 'search' ? 'block' : 'hidden'}>
-              <SmartSearchView />
-            </div>
-          )}
+            {visitedTabs.has('search') && (
+              <div className={activeTab === 'search' ? 'block' : 'hidden'}>
+                <SmartSearchView />
+              </div>
+            )}
 
-          {visitedTabs.has('profile') && (
-            <div className={activeTab === 'profile' ? 'block' : 'hidden'}>
-              <ProfileView />
-            </div>
-          )}
+            {visitedTabs.has('profile') && (
+              <div className={activeTab === 'profile' ? 'block' : 'hidden'}>
+                <ProfileView />
+              </div>
+            )}
+          </Suspense>
         </main>
 
         {/* Global Footer */}
         <footer className="p-6 border-t border-vault-border/30 text-center text-xs font-mono text-slate-600 flex flex-col sm:flex-row justify-between items-center max-w-7xl w-full mx-auto gap-2">
           <p>© 2026 NexaVault Platform. Academic Workspace & Submission Lifecycle Engine.</p>
           <div className="flex items-center gap-4">
-            <span className="text-teal-500/80">• Active Node: NV-NODE-01</span>
+            <span className="text-teal-500/80">● Active Node: NV-NODE-01</span>
             <span>•</span>
             <span className="text-slate-400">PostgreSQL Connection: Verified</span>
           </div>

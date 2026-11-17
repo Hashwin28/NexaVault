@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Mail, Lock, Eye, EyeOff, ArrowRight, ShieldCheck, LogOut, User, UserPlus, Loader2, Sparkles } from 'lucide-react';
+import { Mail, Lock, Eye, EyeOff, ArrowRight, ShieldCheck, LogOut, User, UserPlus, Loader2 } from 'lucide-react';
 import { NexaLogo } from '../../components/layout/NexaLogo';
 import { HeroVaultGraphic } from '../../components/layout/HeroVaultGraphic';
 import { Input } from '../../components/ui/Input';
@@ -23,7 +23,6 @@ export const Login = () => {
   const [alert, setAlert] = useState(null);
   const [fieldErrors, setFieldErrors] = useState({});
 
-  // Pre-warm backend and Neon database early while user enters credentials
   useEffect(() => {
     authApi.prewarm(true);
 
@@ -86,7 +85,7 @@ export const Login = () => {
         setAlert({
           type: 'success',
           title: 'Authentication Successful',
-          message: `Welcome back, ${activeUser.full_name}! Active session verified as ${activeUser.role.toUpperCase()}.`,
+          message: `Welcome back, ${activeUser.full_name}! Session verified as ${activeUser.role.toUpperCase()}.`,
         });
       }
     } catch (err) {
@@ -103,120 +102,107 @@ export const Login = () => {
   const isLoading = isSubmitting || authLoading;
 
   return (
-    <div className="min-h-screen w-full bg-vault-bg text-vault-heading flex flex-col justify-between relative overflow-hidden font-sans">
-      {/* Background Graphic Layer */}
+    <div className="min-h-screen w-full bg-[#080C0E] text-[#ECF1F4] flex flex-col justify-between relative overflow-hidden font-sans">
       <HeroVaultGraphic />
 
-      {/* Main Container */}
-      <div className="relative z-10 w-full max-w-7xl mx-auto px-6 lg:px-12 py-8 flex-1 flex flex-col justify-between">
+      <div className="relative z-10 w-full max-w-6xl mx-auto px-6 lg:px-8 py-8 flex-1 flex flex-col justify-between">
         
-        {/* Top Header Row */}
-        <header className="flex items-center justify-between w-full pb-6 border-b border-vault-border/40">
+        {/* Top Header */}
+        <header className="flex items-center justify-between w-full pb-5 border-b border-[#1B262E]">
           <NexaLogo size="md" />
-
-          {/* Header motto line */}
-          <div className="hidden md:flex items-center gap-3 text-xs tracking-widest font-display text-vault-muted uppercase">
-            <span>PEOPLE</span>
-            <span className="text-teal-500/50">•</span>
-            <span>PROJECTS</span>
-            <span className="text-teal-500/50">•</span>
-            <span>PROGRESS</span>
-            <span className="text-teal-500/50">•</span>
-            <span>TOGETHER</span>
-            <div className="w-8 h-[2px] bg-teal-500/60 ml-1 rounded-full" />
+          <div className="hidden sm:flex items-center gap-2 text-xs font-mono text-slate-500">
+            <span className="w-1.5 h-1.5 rounded-full bg-emerald-400"></span>
+            <span>SYSTEM OPERATIONAL</span>
           </div>
         </header>
 
-        {/* Hero & Form Split */}
-        <main className="grid grid-cols-1 lg:grid-cols-12 gap-12 lg:gap-8 items-center py-10 lg:py-16 my-auto">
+        {/* Content Body */}
+        <main className="grid grid-cols-1 lg:grid-cols-12 gap-10 lg:gap-12 items-center py-10 lg:py-16 my-auto">
           
-          {/* Left Column: Brand Hero & Statement */}
-          <div className="lg:col-span-6 space-y-8 pr-0 lg:pr-8">
-            
-            {/* Tagline Badge */}
-            <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-teal-950/60 border border-teal-500/20 text-[11px] font-display tracking-widest text-teal-400 uppercase">
-              <span className="w-1.5 h-1.5 rounded-full bg-teal-400 animate-pulse" />
-              ACADEMIC WORKSPACE
+          {/* Left Column: Institutional Info */}
+          <div className="lg:col-span-6 space-y-6">
+            <div className="inline-flex items-center gap-2 px-2.5 py-1 rounded bg-[#11181C] border border-[#1B262E] text-xs font-mono text-teal-400 uppercase">
+              Academic Platform
             </div>
 
-            {/* Main Statement */}
-            <div className="space-y-4">
-              <h1 className="text-4xl sm:text-5xl lg:text-6xl font-extrabold tracking-tight leading-[1.1] text-white font-display">
-                Build <br />
-                <span className="text-teal-400 underline decoration-teal-500/30 underline-offset-8">Collaborate</span> <br />
-                Achieve
+            <div className="space-y-3">
+              <h1 className="text-3xl sm:text-4xl font-bold tracking-tight text-white">
+                Academic Project & Milestone Governance
               </h1>
-              
-              <div className="w-12 h-1 bg-teal-500 rounded-full" />
-
-              <p className="font-sans text-slate-200 text-xl sm:text-2xl tracking-normal leading-relaxed max-w-lg pt-3">
-                Plan better. Work together. Deliver on time.
+              <p className="text-slate-400 text-sm leading-relaxed max-w-lg">
+                Structured workspace management, collaborative group tracking, and rigorous multi-round evaluation for university departments.
               </p>
             </div>
 
-            {/* Bottom Stacked Motto */}
-            <div className="pt-8 border-t border-vault-border/30 max-w-xs">
-              <div className="font-display text-[11px] tracking-widest text-slate-500 uppercase leading-snug space-y-0.5">
-                <p>KNOWLEDGE</p>
-                <p className="text-slate-400">BUILDS</p>
-                <p className="text-slate-300">BRIGHTER</p>
-                <p className="text-teal-400 font-semibold">TOMORROWS</p>
+            <div className="space-y-2.5 pt-2 text-xs text-slate-400 font-mono">
+              <div className="flex items-center gap-2">
+                <span className="w-1 h-1 rounded-full bg-teal-400"></span>
+                <span>Role-Based Access: Student, Staff, and Administrator</span>
+              </div>
+              <div className="flex items-center gap-2">
+                <span className="w-1 h-1 rounded-full bg-teal-400"></span>
+                <span>Immutable audit logs and continuous deliverable tracking</span>
+              </div>
+              <div className="flex items-center gap-2">
+                <span className="w-1 h-1 rounded-full bg-teal-400"></span>
+                <span>Departmental oversight and multi-workspace administration</span>
               </div>
             </div>
           </div>
 
-          {/* Right Column: Auth Card */}
+          {/* Right Column: Authentication Form Card */}
           <div className="lg:col-span-6 flex justify-center lg:justify-end">
-            <div className="w-full max-w-md bg-vault-surface/85 login-card-blur border border-teal-500/20 rounded-2xl p-7 sm:p-9 shadow-card-subtle relative group transition-all duration-300 hover:border-teal-500/30">
+            <div className="w-full max-w-md bg-[#11181C] border border-[#1B262E] rounded-lg p-6 sm:p-8">
               
-              {/* Card Subtle Accent Highlight */}
-              <div className="absolute top-0 left-8 right-8 h-[1px] bg-gradient-to-r from-transparent via-teal-500/40 to-transparent" />
-
-              {/* Title & Mode Switcher */}
-              <div className="mb-6 flex items-center justify-between">
-                <div>
-                  <h2 className="text-2xl font-bold text-white tracking-tight">
-                    {isAuthenticated ? 'Authenticated Session' : mode === 'register' ? 'Student Registration' : 'Welcome back'}
-                  </h2>
-                  <p className="text-xs text-slate-400 mt-1">
-                    {isAuthenticated 
-                      ? 'Connected to NexaVault API Security Core' 
-                      : mode === 'register'
-                      ? 'Create your Student account to access academic workspaces'
-                      : 'Sign in to access your groups, projects, and deliverables'}
-                  </p>
-                </div>
+              <div className="mb-6">
+                <h2 className="text-xl font-semibold text-white tracking-tight">
+                  {isAuthenticated ? 'Active Session' : mode === 'register' ? 'Create Student Account' : 'Institutional Sign In'}
+                </h2>
+                <p className="text-xs text-slate-400 mt-1">
+                  {isAuthenticated 
+                    ? 'You are currently authenticated.'
+                    : mode === 'register'
+                    ? 'Register your academic student account'
+                    : 'Enter your credentials to access your dashboard'}
+                </p>
               </div>
 
-              {/* Alert Feedback Banner */}
-              {alert && (
-                <Alert
-                  type={alert.type}
-                  title={alert.title}
-                  message={alert.message}
-                  className="mb-6"
-                />
+              {isWaking && !alert && (
+                <div className="mb-5 p-3 rounded bg-amber-500/10 border border-amber-500/20 text-amber-300 text-xs flex items-center gap-2.5">
+                  <Loader2 size={14} className="animate-spin shrink-0 text-amber-400" />
+                  <div>
+                    <span className="font-semibold">Backend Initializing: </span>
+                    <span className="text-amber-200/90">Connecting to database. Please wait...</span>
+                  </div>
+                </div>
               )}
 
-              {/* If Authenticated: Active Profile */}
-              {isAuthenticated && user ? (
-                <div className="space-y-6">
-                  <div className="p-4 rounded-xl bg-teal-950/40 border border-teal-500/30 space-y-3">
+              {alert && (
+                <div className="mb-5">
+                  <Alert
+                    type={alert.type}
+                    title={alert.title}
+                    message={alert.message}
+                    onClose={() => setAlert(null)}
+                  />
+                </div>
+              )}
+
+              {isAuthenticated ? (
+                <div className="space-y-4">
+                  <div className="p-4 rounded bg-[#0B0F12] border border-[#1B262E] space-y-2">
                     <div className="flex items-center gap-3">
-                      <div className="w-10 h-10 rounded-full bg-teal-500/20 border border-teal-400/40 flex items-center justify-center text-teal-300 font-bold">
-                        <User size={20} />
+                      <div className="w-9 h-9 rounded bg-teal-500/20 border border-teal-500/30 flex items-center justify-center text-teal-300 font-semibold text-xs">
+                        <User size={16} />
                       </div>
-                      <div>
-                        <h3 className="text-sm font-semibold text-white">{user.full_name}</h3>
-                        <p className="text-xs text-slate-400 font-mono">{user.email}</p>
+                      <div className="min-w-0 flex-1">
+                        <p className="text-sm font-semibold text-white truncate">{user?.full_name}</p>
+                        <p className="text-xs text-slate-400 font-mono truncate">{user?.email}</p>
                       </div>
                     </div>
-
-                    <div className="pt-2 border-t border-teal-500/20 flex items-center justify-between text-xs font-mono text-slate-300">
-                      <span>Role: <strong className="text-teal-400 uppercase">{user.role}</strong></span>
-                      <span className="flex items-center gap-1 text-teal-400">
-                        <ShieldCheck size={14} /> Active
-                      </span>
+                    <div className="pt-2 border-t border-[#1B262E] flex justify-between items-center text-xs">
+                      <span className="text-slate-500">Active Role:</span>
+                      <span className="text-teal-400 font-semibold uppercase">{user?.role}</span>
                     </div>
                   </div>
 
@@ -224,30 +210,20 @@ export const Login = () => {
                     type="button"
                     variant="outline"
                     onClick={logout}
-                    endIcon={LogOut}
-                    className="w-full py-2.5 text-xs text-rose-300 hover:text-rose-200 border-rose-500/30 hover:border-rose-500/50"
+                    startIcon={LogOut}
+                    className="w-full text-xs text-rose-400 hover:text-rose-300 border-rose-900/30 hover:bg-rose-950/20"
                   >
-                    Sign Out Session
+                    Sign Out & Switch Account
                   </Button>
                 </div>
               ) : (
-                <>
-                  {/* Cold Boot Waking Notice */}
-                  {isWaking && (
-                    <div className="mb-4 p-3 rounded-lg bg-teal-950/60 border border-teal-500/40 flex items-center gap-3 text-xs text-teal-300 font-mono animate-pulse">
-                      <Loader2 size={16} className="animate-spin text-teal-400 shrink-0" />
-                      <span>Resuming backend & database cluster (~10–20s on first load)...</span>
-                    </div>
-                  )}
-
-                  {/* Authentication Form */}
-                  <form onSubmit={handleSubmit} className="space-y-4" noValidate>
+                <form onSubmit={handleSubmit} className="space-y-4">
                   {mode === 'register' && (
                     <Input
                       id="fullName"
                       type="text"
                       label="Full Name"
-                      placeholder="e.g. Alex Chen"
+                      placeholder="e.g. Jane Doe"
                       value={fullName}
                       onChange={(e) => {
                         setFullName(e.target.value);
@@ -261,12 +237,11 @@ export const Login = () => {
                     />
                   )}
 
-                  {/* Email Field */}
                   <Input
                     id="email"
                     type="email"
-                    label="Email"
-                    placeholder="student@nexavault.edu"
+                    label="University Email"
+                    placeholder="student@university.edu"
                     value={email}
                     onChange={(e) => {
                       setEmail(e.target.value);
@@ -275,16 +250,15 @@ export const Login = () => {
                     icon={Mail}
                     error={fieldErrors.email}
                     required
-                    autoComplete="email"
+                    autoComplete="username"
                     disabled={isLoading}
                   />
 
-                  {/* Password Field */}
                   <Input
                     id="password"
                     type={showPassword ? 'text' : 'password'}
                     label="Password"
-                    placeholder="Enter password (min 6 characters)"
+                    placeholder="Min 6 characters"
                     value={password}
                     onChange={(e) => {
                       setPassword(e.target.value);
@@ -303,7 +277,7 @@ export const Login = () => {
                         className="text-slate-400 hover:text-slate-200 transition-colors p-1"
                         aria-label={showPassword ? 'Hide password' : 'Show password'}
                       >
-                        {showPassword ? <EyeOff size={16} /> : <Eye size={16} />}
+                        {showPassword ? <EyeOff size={15} /> : <Eye size={15} />}
                       </button>
                     }
                   />
@@ -327,23 +301,21 @@ export const Login = () => {
                     />
                   )}
 
-                  {/* Submit Action */}
                   <Button
                     type="submit"
                     variant="primary"
                     size="md"
                     isLoading={isLoading}
                     endIcon={mode === 'register' ? UserPlus : ArrowRight}
-                    className="w-full mt-4 py-3 text-sm font-semibold tracking-wide"
+                    className="w-full mt-2 py-2.5 text-xs font-semibold"
                   >
                     {mode === 'register' ? 'Create Student Account' : 'Sign In'}
                   </Button>
 
-                  {/* Mode Toggle */}
-                  <div className="pt-4 border-t border-vault-border/40 text-center text-xs text-slate-400">
+                  <div className="pt-3 border-t border-[#1B262E] text-center text-xs text-slate-400">
                     {mode === 'login' ? (
                       <>
-                        <span>New to NexaVault? </span>
+                        <span>New student? </span>
                         <button
                           type="button"
                           onClick={() => {
@@ -351,14 +323,14 @@ export const Login = () => {
                             setAlert(null);
                             setFieldErrors({});
                           }}
-                          className="text-teal-400 hover:text-teal-300 font-semibold underline underline-offset-2 transition-colors ml-1"
+                          className="text-teal-400 hover:text-teal-300 font-semibold underline underline-offset-2 ml-1"
                         >
-                          Create a student account
+                          Register an account
                         </button>
                       </>
                     ) : (
                       <>
-                        <span>Already have an account? </span>
+                        <span>Already registered? </span>
                         <button
                           type="button"
                           onClick={() => {
@@ -366,15 +338,14 @@ export const Login = () => {
                             setAlert(null);
                             setFieldErrors({});
                           }}
-                          className="text-teal-400 hover:text-teal-300 font-semibold underline underline-offset-2 transition-colors ml-1"
+                          className="text-teal-400 hover:text-teal-300 font-semibold underline underline-offset-2 ml-1"
                         >
-                          Sign in instead
+                          Sign in
                         </button>
                       </>
                     )}
                   </div>
                 </form>
-                </>
               )}
 
             </div>
@@ -382,13 +353,13 @@ export const Login = () => {
 
         </main>
 
-        {/* Footer info line */}
-        <footer className="py-4 text-center md:text-left text-[11px] font-mono text-slate-600 flex flex-col sm:flex-row justify-between items-center border-t border-vault-border/20 gap-2">
-          <p>© 2026 NexaVault Platform. Academic Workspace & Deliverable Lifecycle Core.</p>
-          <div className="flex items-center gap-4">
-            <span className="text-slate-500">PostgreSQL Secured</span>
+        {/* Footer */}
+        <footer className="py-4 text-xs font-mono text-slate-600 flex flex-col sm:flex-row justify-between items-center border-t border-[#1B262E] gap-2">
+          <p>© 2026 NexaVault Academic Platform.</p>
+          <div className="flex items-center gap-4 text-slate-500">
+            <span>PostgreSQL Secured</span>
             <span>•</span>
-            <span className="text-slate-500">Student Domain</span>
+            <span>Institutional Access</span>
           </div>
         </footer>
 
@@ -396,3 +367,5 @@ export const Login = () => {
     </div>
   );
 };
+
+export default Login;

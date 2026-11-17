@@ -1,16 +1,18 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, lazy, Suspense } from 'react';
 import { StaffSidebar } from '../../components/staff/StaffSidebar';
 import { StaffHeader } from '../../components/staff/StaffHeader';
-import { StaffDashboardView } from './StaffDashboardView';
-import { StaffWorkspacesView } from './StaffWorkspacesView';
-import { StaffGroupsView } from './StaffGroupsView';
-import { StaffProjectsView } from './StaffProjectsView';
-import { StaffReviewQueueView } from './StaffReviewQueueView';
-import { StaffSmartSearchView } from './StaffSmartSearchView';
-import { StaffAuditTrailView } from './StaffAuditTrailView';
-import { StaffProfileView } from './StaffProfileView';
-import { StaffProjectDetailView } from './StaffProjectDetailView';
-import { StaffResultsView } from './StaffResultsView';
+import { TabLoadingFallback } from '../../components/common/TabLoadingFallback';
+
+const StaffDashboardView = lazy(() => import('./StaffDashboardView').then(m => ({ default: m.StaffDashboardView })));
+const StaffWorkspacesView = lazy(() => import('./StaffWorkspacesView').then(m => ({ default: m.StaffWorkspacesView })));
+const StaffGroupsView = lazy(() => import('./StaffGroupsView').then(m => ({ default: m.StaffGroupsView })));
+const StaffProjectsView = lazy(() => import('./StaffProjectsView').then(m => ({ default: m.StaffProjectsView })));
+const StaffReviewQueueView = lazy(() => import('./StaffReviewQueueView').then(m => ({ default: m.StaffReviewQueueView })));
+const StaffSmartSearchView = lazy(() => import('./StaffSmartSearchView').then(m => ({ default: m.StaffSmartSearchView })));
+const StaffAuditTrailView = lazy(() => import('./StaffAuditTrailView').then(m => ({ default: m.StaffAuditTrailView })));
+const StaffProfileView = lazy(() => import('./StaffProfileView').then(m => ({ default: m.StaffProfileView })));
+const StaffProjectDetailView = lazy(() => import('./StaffProjectDetailView').then(m => ({ default: m.StaffProjectDetailView })));
+const StaffResultsView = lazy(() => import('./StaffResultsView').then(m => ({ default: m.StaffResultsView })));
 
 const VALID_STAFF_TABS = [
   'dashboard',
@@ -125,85 +127,87 @@ export const StaffDashboard = () => {
           onOpenSidebar={() => setSidebarOpen(true)}
         />
 
-        {/* Dynamic Staff View with Keep-Alive */}
+        {/* Dynamic Staff View with Keep-Alive & Lazy Loading */}
         <main className="flex-1 p-6 lg:p-8 space-y-8 max-w-7xl w-full mx-auto">
-          {visitedTabs.has('dashboard') && (
-            <div className={activeTab === 'dashboard' ? 'block' : 'hidden'}>
-              <StaffDashboardView onNavigate={handleNavigate} />
-            </div>
-          )}
+          <Suspense fallback={<TabLoadingFallback message="Loading oversight module..." />}>
+            {visitedTabs.has('dashboard') && (
+              <div className={activeTab === 'dashboard' ? 'block' : 'hidden'}>
+                <StaffDashboardView onNavigate={handleNavigate} />
+              </div>
+            )}
 
-          {visitedTabs.has('workspaces') && (
-            <div className={activeTab === 'workspaces' ? 'block' : 'hidden'}>
-              <StaffWorkspacesView
-                selectedWorkspaceId={selectedWorkspaceId}
-                onSelectProject={handleSelectProject}
-              />
-            </div>
-          )}
+            {visitedTabs.has('workspaces') && (
+              <div className={activeTab === 'workspaces' ? 'block' : 'hidden'}>
+                <StaffWorkspacesView
+                  selectedWorkspaceId={selectedWorkspaceId}
+                  onSelectProject={handleSelectProject}
+                />
+              </div>
+            )}
 
-          {visitedTabs.has('groups') && (
-            <div className={activeTab === 'groups' ? 'block' : 'hidden'}>
-              <StaffGroupsView
-                onSelectProject={handleSelectProject}
-              />
-            </div>
-          )}
+            {visitedTabs.has('groups') && (
+              <div className={activeTab === 'groups' ? 'block' : 'hidden'}>
+                <StaffGroupsView
+                  onSelectProject={handleSelectProject}
+                />
+              </div>
+            )}
 
-          {visitedTabs.has('projects') && (
-            <div className={activeTab === 'projects' ? 'block' : 'hidden'}>
-              <StaffProjectsView
-                onSelectProject={handleSelectProject}
-              />
-            </div>
-          )}
+            {visitedTabs.has('projects') && (
+              <div className={activeTab === 'projects' ? 'block' : 'hidden'}>
+                <StaffProjectsView
+                  onSelectProject={handleSelectProject}
+                />
+              </div>
+            )}
 
-          {visitedTabs.has('review-queue') && (
-            <div className={activeTab === 'review-queue' ? 'block' : 'hidden'}>
-              <StaffReviewQueueView />
-            </div>
-          )}
+            {visitedTabs.has('review-queue') && (
+              <div className={activeTab === 'review-queue' ? 'block' : 'hidden'}>
+                <StaffReviewQueueView />
+              </div>
+            )}
 
-          {visitedTabs.has('results') && (
-            <div className={activeTab === 'results' ? 'block' : 'hidden'}>
-              <StaffResultsView selectedWorkspaceId={selectedWorkspaceId} />
-            </div>
-          )}
+            {visitedTabs.has('results') && (
+              <div className={activeTab === 'results' ? 'block' : 'hidden'}>
+                <StaffResultsView selectedWorkspaceId={selectedWorkspaceId} />
+              </div>
+            )}
 
-          {visitedTabs.has('search') && (
-            <div className={activeTab === 'search' ? 'block' : 'hidden'}>
-              <StaffSmartSearchView onSelectProject={handleSelectProject} />
-            </div>
-          )}
+            {visitedTabs.has('search') && (
+              <div className={activeTab === 'search' ? 'block' : 'hidden'}>
+                <StaffSmartSearchView onSelectProject={handleSelectProject} />
+              </div>
+            )}
 
-          {visitedTabs.has('audit') && (
-            <div className={activeTab === 'audit' ? 'block' : 'hidden'}>
-              <StaffAuditTrailView />
-            </div>
-          )}
+            {visitedTabs.has('audit') && (
+              <div className={activeTab === 'audit' ? 'block' : 'hidden'}>
+                <StaffAuditTrailView />
+              </div>
+            )}
 
-          {visitedTabs.has('profile') && (
-            <div className={activeTab === 'profile' ? 'block' : 'hidden'}>
-              <StaffProfileView />
-            </div>
-          )}
+            {visitedTabs.has('profile') && (
+              <div className={activeTab === 'profile' ? 'block' : 'hidden'}>
+                <StaffProfileView />
+              </div>
+            )}
 
-          {visitedTabs.has('project-detail') && (
-            <div className={activeTab === 'project-detail' ? 'block' : 'hidden'}>
-              <StaffProjectDetailView
-                projectId={selectedProjectId}
-                initialSection={selectedSection}
-                onBack={() => setActiveTab('projects')}
-              />
-            </div>
-          )}
+            {visitedTabs.has('project-detail') && (
+              <div className={activeTab === 'project-detail' ? 'block' : 'hidden'}>
+                <StaffProjectDetailView
+                  projectId={selectedProjectId}
+                  initialSection={selectedSection}
+                  onBack={() => setActiveTab('projects')}
+                />
+              </div>
+            )}
+          </Suspense>
         </main>
 
         {/* Global Staff Footer */}
         <footer className="p-6 border-t border-[#1B262E] text-center text-xs font-mono text-slate-500 flex flex-col sm:flex-row justify-between items-center max-w-7xl w-full mx-auto gap-2">
           <p>© 2026 NexaVault Academic Engine. Staff Oversight Portal.</p>
           <div className="flex items-center gap-4">
-            <span className="text-teal-400">• Role: Staff / Oversight</span>
+            <span className="text-teal-400">● Role: Staff / Oversight</span>
             <span>•</span>
             <span className="text-emerald-400">API Connection: PostgreSQL Active</span>
           </div>

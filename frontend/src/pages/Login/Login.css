@@ -1,6 +1,4 @@
-/* Custom styles specific to the Login component */
-
+/* Clean institutional card surface - no expensive backdrop filters */
 .login-card-blur {
-  backdrop-filter: blur(16px);
-  -webkit-backdrop-filter: blur(16px);
+  background-color: #11181C;
 }

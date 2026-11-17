@@ -1,14 +1,16 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, lazy, Suspense } from 'react';
 import { AdminSidebar } from '../../components/admin/AdminSidebar';
 import { AdminHeader } from '../../components/admin/AdminHeader';
-import { AdminDashboardView } from './AdminDashboardView';
-import { AdminWorkspacesView } from './AdminWorkspacesView';
-import { AdminProjectsView } from './AdminProjectsView';
-import { AdminStaffView } from './AdminStaffView';
-import { AdminStudentsView } from './AdminStudentsView';
-import { AdminAuditView } from './AdminAuditView';
-import { AdminReportsView } from './AdminReportsView';
-import { AdminProfileView } from './AdminProfileView';
+import { TabLoadingFallback } from '../../components/common/TabLoadingFallback';
+
+const AdminDashboardView = lazy(() => import('./AdminDashboardView').then(m => ({ default: m.AdminDashboardView })));
+const AdminWorkspacesView = lazy(() => import('./AdminWorkspacesView').then(m => ({ default: m.AdminWorkspacesView })));
+const AdminProjectsView = lazy(() => import('./AdminProjectsView').then(m => ({ default: m.AdminProjectsView })));
+const AdminStaffView = lazy(() => import('./AdminStaffView').then(m => ({ default: m.AdminStaffView })));
+const AdminStudentsView = lazy(() => import('./AdminStudentsView').then(m => ({ default: m.AdminStudentsView })));
+const AdminAuditView = lazy(() => import('./AdminAuditView').then(m => ({ default: m.AdminAuditView })));
+const AdminReportsView = lazy(() => import('./AdminReportsView').then(m => ({ default: m.AdminReportsView })));
+const AdminProfileView = lazy(() => import('./AdminProfileView').then(m => ({ default: m.AdminProfileView })));
 
 const VALID_ADMIN_TABS = [
   'dashboard',
@@ -102,65 +104,67 @@ export const AdminDashboard = () => {
           onOpenSidebar={() => setSidebarOpen(true)}
         />
 
-        {/* Dynamic Admin Views with Keep-Alive */}
+        {/* Dynamic Admin Views with Keep-Alive & Lazy Loading */}
         <main className="flex-1 p-6 lg:p-8 space-y-8 max-w-7xl w-full mx-auto">
-          {visitedTabs.has('dashboard') && (
-            <div className={activeTab === 'dashboard' ? 'block' : 'hidden'}>
-              <AdminDashboardView onNavigate={handleNavigate} />
-            </div>
-          )}
+          <Suspense fallback={<TabLoadingFallback message="Loading governance module..." />}>
+            {visitedTabs.has('dashboard') && (
+              <div className={activeTab === 'dashboard' ? 'block' : 'hidden'}>
+                <AdminDashboardView onNavigate={handleNavigate} />
+              </div>
+            )}
 
-          {visitedTabs.has('workspaces') && (
-            <div className={activeTab === 'workspaces' ? 'block' : 'hidden'}>
-              <AdminWorkspacesView
-                initialWorkspaceId={selectedWorkspaceId}
-                onNavigate={handleNavigate}
-              />
-            </div>
-          )}
+            {visitedTabs.has('workspaces') && (
+              <div className={activeTab === 'workspaces' ? 'block' : 'hidden'}>
+                <AdminWorkspacesView
+                  initialWorkspaceId={selectedWorkspaceId}
+                  onNavigate={handleNavigate}
+                />
+              </div>
+            )}
 
-          {visitedTabs.has('projects') && (
-            <div className={activeTab === 'projects' ? 'block' : 'hidden'}>
-              <AdminProjectsView initialProjectId={selectedProjectId} />
-            </div>
-          )}
+            {visitedTabs.has('projects') && (
+              <div className={activeTab === 'projects' ? 'block' : 'hidden'}>
+                <AdminProjectsView initialProjectId={selectedProjectId} />
+              </div>
+            )}
 
-          {visitedTabs.has('staff') && (
-            <div className={activeTab === 'staff' ? 'block' : 'hidden'}>
-              <AdminStaffView onNavigate={handleNavigate} />
-            </div>
-          )}
+            {visitedTabs.has('staff') && (
+              <div className={activeTab === 'staff' ? 'block' : 'hidden'}>
+                <AdminStaffView onNavigate={handleNavigate} />
+              </div>
+            )}
 
-          {visitedTabs.has('students') && (
-            <div className={activeTab === 'students' ? 'block' : 'hidden'}>
-              <AdminStudentsView onNavigate={handleNavigate} />
-            </div>
-          )}
+            {visitedTabs.has('students') && (
+              <div className={activeTab === 'students' ? 'block' : 'hidden'}>
+                <AdminStudentsView onNavigate={handleNavigate} />
+              </div>
+            )}
 
-          {visitedTabs.has('audit') && (
-            <div className={activeTab === 'audit' ? 'block' : 'hidden'}>
-              <AdminAuditView />
-            </div>
-          )}
+            {visitedTabs.has('audit') && (
+              <div className={activeTab === 'audit' ? 'block' : 'hidden'}>
+                <AdminAuditView />
+              </div>
+            )}
 
-          {visitedTabs.has('reports') && (
-            <div className={activeTab === 'reports' ? 'block' : 'hidden'}>
-              <AdminReportsView />
-            </div>
-          )}
+            {visitedTabs.has('reports') && (
+              <div className={activeTab === 'reports' ? 'block' : 'hidden'}>
+                <AdminReportsView />
+              </div>
+            )}
 
-          {visitedTabs.has('profile') && (
-            <div className={activeTab === 'profile' ? 'block' : 'hidden'}>
-              <AdminProfileView />
-            </div>
-          )}
+            {visitedTabs.has('profile') && (
+              <div className={activeTab === 'profile' ? 'block' : 'hidden'}>
+                <AdminProfileView />
+              </div>
+            )}
+          </Suspense>
         </main>
 
         {/* Global Admin Footer */}
         <footer className="p-6 border-t border-[#1B262E] text-center text-xs font-mono text-slate-500 flex flex-col sm:flex-row justify-between items-center max-w-7xl w-full mx-auto gap-2">
           <p>© 2026 NexaVault Academic Engine. Administrator Console.</p>
           <div className="flex items-center gap-4">
-            <span className="text-amber-400">• Role: Administrator</span>
+            <span className="text-amber-400">● Role: Administrator</span>
             <span>•</span>
             <span className="text-emerald-400">Department Governance Active</span>
           </div>
