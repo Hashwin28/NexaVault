@@ -710,7 +710,7 @@ python benchmark_cache.py
 
 1. **Email Service Dispatch**:
    - `EmailToken` database model is implemented.
-   - SMTP dispatch (via Mailpit in development or SendGrid/SES in production) for self-service password reset and email verification links is planned for a future release.
+   - SMTP dispatch (via Mailpit in development or SendGrid/SES in production) for self-service password reset and email verification links is planned for  future release.
 2. **Automated Merkle Tree Generator**:
    - The `AuditMerkleRoot` database model is implemented to record periodic checkpoint hashes.
    - The scheduled background cron job to compute Merkle trees over ranges of audit log entries and verify external cryptographic proofs is not yet automated.

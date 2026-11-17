@@ -1,3 +1,10 @@
+/**
+ * Project API Service
+ * 
+ * Provides HTTP client integration for project workspace lifecycle:
+ * project creation, status updates, collaborative comments, and GitHub repository sync.
+ */
+
 import { apiRequest } from './client';
 
 export const projectApi = {

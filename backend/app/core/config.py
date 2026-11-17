@@ -1,9 +1,19 @@
+"""
+Application Configuration Module.
+
+Utilizes Pydantic BaseSettings to parse environment variables,
+manage security keys, cache configurations, and configure CORS origins.
+"""
+
 import os
 from typing import List, Union
 from pydantic import field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 class Settings(BaseSettings):
+    """
+    Central application settings container with validation for CORS and database schemas.
+    """
     API_V1_STR: str = "/api/v1"
     PROJECT_NAME: str = "NexaVault Platform"
     

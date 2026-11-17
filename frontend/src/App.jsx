@@ -17,9 +17,19 @@ function FullPageLoading({ text = 'Authenticating NexaVault Session...' }) {
   );
 }
 
+/**
+ * AppContent Component
+ * 
+ * Handles client-side view routing based on authentication and authorization state:
+ * - Displays a loading spinner while session verification is in progress.
+ * - Redirects unauthenticated users to the Login page.
+ * - Routes authenticated users to role-specific views (Student, Staff, or Administrator).
+ * - Code-split via React.lazy and Suspense for optimal bundle performance.
+ */
 function AppContent() {
   const { isAuthenticated, isLoading, user } = useAuth();
 
+  // Show loading indicator while session/token verification is taking place
   if (isLoading) {
     return <FullPageLoading text="Authenticating NexaVault Session..." />;
   }
@@ -34,6 +44,10 @@ function AppContent() {
   );
 }
 
+/**
+ * Root Application Component
+ * Wraps the app in the AuthProvider context for global authentication state management.
+ */
 export function App() {
   return (
     <AuthProvider>

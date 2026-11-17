@@ -1,9 +1,19 @@
+"""
+Project and Progress Updates Data Models Module.
+
+Defines SQLAlchemy entities for workspace projects, milestone updates,
+author attribution, and collaborative comments on updates.
+"""
+
 from datetime import datetime, timezone
 from sqlalchemy import Column, Integer, String, DateTime, ForeignKey, Text, UniqueConstraint, Float
 from sqlalchemy.orm import relationship
 from app.db.base import Base
 
 class Project(Base):
+    """
+    Project entity associating student groups with workspaces, submissions, and GitHub repositories.
+    """
     __tablename__ = "projects"
 
     id = Column(Integer, primary_key=True, index=True, autoincrement=True)

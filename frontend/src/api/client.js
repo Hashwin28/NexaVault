@@ -1,3 +1,10 @@
+/**
+ * API Client Module
+ * 
+ * Provides unified HTTP fetch client utilities with Bearer token injection,
+ * JSON payload serialization, multipart FormData support, and resilient retry logic.
+ */
+
 export const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || '/api/v1';
 
 // Global slow-request event helpers for UI status indicators

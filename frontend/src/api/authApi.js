@@ -1,3 +1,10 @@
+/**
+ * Authentication API Service
+ * 
+ * Provides HTTP client bindings for authentication lifecycle:
+ * server pre-warming, credentials login, student/staff registration, and session verification.
+ */
+
 import { apiRequest } from './client';
 
 export const authApi = {

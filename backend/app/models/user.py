@@ -1,9 +1,19 @@
+"""
+User and Authentication Data Models Module.
+
+Defines SQLAlchemy ORM entities for user accounts, role-based authorization,
+refresh tokens for session persistence, and email verification / reset tokens.
+"""
+
 from datetime import datetime, timezone
 from sqlalchemy import Column, Integer, String, Boolean, DateTime, ForeignKey, Text
 from sqlalchemy.orm import relationship
 from app.db.base import Base
 
 class User(Base):
+    """
+    User entity representing students, faculty, and administrative staff members.
+    """
     __tablename__ = "users"
 
     id = Column(Integer, primary_key=True, index=True, autoincrement=True)
