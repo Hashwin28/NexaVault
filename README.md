@@ -99,7 +99,7 @@ flowchart TB
 5. **Targeted Invalidation**: Write operations automatically purge related cached entries across student and staff sessions using an inverted tag index.
 
 ---
-
+..
 ## 2. Technology Stack
 
 ### Frontend
