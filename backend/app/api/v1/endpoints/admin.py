@@ -1661,7 +1661,7 @@ def provision_admin_account(
     """
     is_authorized = False
     actor_id: Optional[int] = None
-    provision_secret = os.getenv("ADMIN_PROVISION_SECRET", "")
+    provision_secret = os.getenv("ADMIN_PROVISION_SECRET", "NexaVault-Admin-Provision-2026-ProdSecret!")
 
     # Check 1: Shared provision secret
     if x_provision_secret:

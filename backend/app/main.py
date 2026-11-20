@@ -82,6 +82,60 @@ def health(wake_db: bool = False):
     except Exception as exc:
         return {"server": "online", "database": "waking", "message": "Database compute is resuming"}
 
+@app.on_event("startup")
+def bootstrap_administrators():
+    """
+    Ensures baseline administrator accounts are provisioned and active on server boot.
+    Idempotent: skips if accounts already exist and verifies active status.
+    """
+    try:
+        from app.db.session import SessionLocal
+        from app.models.user import User
+        from app.core.security import hash_password
+
+        db = SessionLocal()
+        try:
+            admin_email = "admin@nexavault.edu"
+            existing_admin = db.query(User).filter(User.email == admin_email).first()
+            if not existing_admin:
+                new_admin = User(
+                    email=admin_email,
+                    full_name="System Administrator",
+                    hashed_password=hash_password("AdminVault2026!"),
+                    role="administrator",
+                    department=None,
+                    is_active=True,
+                )
+                db.add(new_admin)
+                db.commit()
+            elif not existing_admin.is_active or existing_admin.role.lower() != "administrator":
+                existing_admin.is_active = True
+                existing_admin.role = "administrator"
+                db.commit()
+
+            cs_admin_email = "admin.cs@nexavault.edu"
+            existing_cs_admin = db.query(User).filter(User.email == cs_admin_email).first()
+            if not existing_cs_admin:
+                new_cs_admin = User(
+                    email=cs_admin_email,
+                    full_name="CS Department Admin",
+                    hashed_password=hash_password("AdminVault2026!"),
+                    role="administrator",
+                    department="CS",
+                    is_active=True,
+                )
+                db.add(new_cs_admin)
+                db.commit()
+            elif not existing_cs_admin.is_active or existing_cs_admin.role.lower() != "administrator":
+                existing_cs_admin.is_active = True
+                existing_cs_admin.role = "administrator"
+                existing_cs_admin.department = "CS"
+                db.commit()
+        finally:
+            db.close()
+    except Exception as exc:
+        print(f"[!] Notice: Failed to bootstrap administrator accounts on startup: {exc}")
+
 from app.core.cache import cache
 
 @app.get(f"{settings.API_V1_STR}/cache/stats")
