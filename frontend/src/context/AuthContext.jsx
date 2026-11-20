@@ -79,6 +79,9 @@ export const AuthProvider = ({ children }) => {
     setToken(null);
     setUser(null);
     setError(null);
+    if (typeof window !== 'undefined') {
+      window.location.hash = '';
+    }
   };
 
   return (

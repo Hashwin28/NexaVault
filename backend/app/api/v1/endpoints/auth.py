@@ -13,7 +13,7 @@ def register_student(user_in: UserCreate, request: Request, db: Session = Depend
     """
     Public student registration endpoint.
     PUBLIC REGISTRATION = STUDENT ONLY.
-    Staff accounts are pre-seeded/invited and cannot self-register here.
+    Staff and Administrator accounts cannot self-register through this endpoint.
     """
     email_clean = user_in.email.lower().strip()
     
@@ -51,8 +51,16 @@ def register_student(user_in: UserCreate, request: Request, db: Session = Depend
     db.commit()
     db.refresh(db_user)
 
-    # Generate JWT access token
-    access_token = create_access_token(subject=db_user.email)
+    # Generate JWT access token with user role and metadata
+    access_token = create_access_token(
+        subject=db_user.email,
+        role=db_user.role,
+        extra_claims={
+            "id": db_user.id,
+            "department": db_user.department,
+            "full_name": db_user.full_name,
+        }
+    )
     
     return Token(
         access_token=access_token,
@@ -62,7 +70,7 @@ def register_student(user_in: UserCreate, request: Request, db: Session = Depend
 
 @router.post("/login", response_model=Token)
 def login_user(credentials: UserLogin, request: Request, db: Session = Depends(get_db)):
-    """Authenticates a user and returns a signed JWT token."""
+    """Authenticates a user and returns a signed JWT token containing role and profile claims."""
     email_clean = credentials.email.lower().strip()
     user = db.query(User).filter(User.email == email_clean).first()
 
@@ -121,7 +129,15 @@ def login_user(credentials: UserLogin, request: Request, db: Session = Depends(g
     )
     db.commit()
 
-    access_token = create_access_token(subject=user.email)
+    access_token = create_access_token(
+        subject=user.email,
+        role=user.role,
+        extra_claims={
+            "id": user.id,
+            "department": user.department,
+            "full_name": user.full_name,
+        }
+    )
 
     return Token(
         access_token=access_token,

@@ -7,7 +7,7 @@ from pydantic import BaseModel, ConfigDict
 from sqlalchemy.orm import Session, joinedload
 from sqlalchemy import func, or_
 
-from app.api.deps import get_db, get_current_admin
+from app.api.deps import get_db, get_current_admin, get_optional_current_user
 from app.models.user import User
 from app.models.workspace import Workspace, WorkspaceStaff, WorkspaceGroup, WorkspaceNotice
 from app.models.group import Group, GroupMembership
@@ -1641,31 +1641,53 @@ def get_admin_reports_overview(
 
 
 # ---------------------------------------------------------------------------
-# 20. POST /admin/provision (NO authentication required)
+# 20. POST /admin/provision (Shared secret OR Authenticated Administrator)
 # ---------------------------------------------------------------------------
 
 @router.post("/provision", response_model=AdminUserResponse, status_code=status.HTTP_201_CREATED)
 def provision_admin_account(
     body: AdminProvisionRequest,
-    x_provision_secret: str = Header(..., alias="x-provision-secret"),
+    x_provision_secret: Optional[str] = Header(None, alias="x-provision-secret"),
+    current_user: Optional[User] = Depends(get_optional_current_user),
     db: Session = Depends(get_db),
 ):
     """
     Creates a new administrator account.
-    This endpoint requires NO authentication — it uses a shared provision secret
-    validated via the X-Provision-Secret header against the ADMIN_PROVISION_SECRET
-    environment variable. The secret must be non-empty and must match exactly.
+    Authorized via:
+      1) Valid X-Provision-Secret header matching ADMIN_PROVISION_SECRET, OR
+      2) Authenticated Administrator Bearer token (scoped administrators can only provision
+         admins for their own department; global administrators can provision for any department).
+    Public registration as Administrator is strictly prevented.
     """
+    is_authorized = False
+    actor_id: Optional[int] = None
     provision_secret = os.getenv("ADMIN_PROVISION_SECRET", "")
-    if not provision_secret:
+
+    # Check 1: Shared provision secret
+    if x_provision_secret:
+        if not provision_secret or x_provision_secret != provision_secret:
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="Invalid provision secret.",
+            )
+        is_authorized = True
+
+    # Check 2: Authenticated Administrator
+    elif current_user and current_user.role.lower() == "administrator":
+        actor_id = current_user.id
+        if current_user.department:
+            # Department admin can only provision admins within their own department
+            if body.department != current_user.department:
+                raise HTTPException(
+                    status_code=status.HTTP_403_FORBIDDEN,
+                    detail=f"Department Administrators may only provision administrators for their own department ({current_user.department}).",
+                )
+        is_authorized = True
+
+    if not is_authorized:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
-            detail="Provisioning is disabled: ADMIN_PROVISION_SECRET is not configured.",
-        )
-    if x_provision_secret != provision_secret:
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="Invalid provision secret.",
+            detail="Unauthorized: Provisioning requires a valid X-Provision-Secret header or an active Administrator session.",
         )
 
     existing = db.query(User).filter(User.email == body.email).first()
@@ -1685,10 +1707,11 @@ def provision_admin_account(
         is_active=True,
     )
     db.add(new_admin)
-    db.flush()  # Obtain the new ID before logging
+    db.flush()
 
     log_audit(
         db=db,
+        actor_id=actor_id,
         action_type="admin_account_provisioned",
         entity_type="user",
         entity_id=new_admin.id,

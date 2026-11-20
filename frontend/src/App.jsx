@@ -44,7 +44,8 @@ function AppContent() {
   }
 
   // Route based on role
-  if (user?.role === 'administrator') {
+  const role = user?.role?.toLowerCase();
+  if (role === 'administrator') {
     return (
       <Suspense fallback={<FullPageLoading text="Loading administrator console..." />}>
         <AdminDashboard />
@@ -52,7 +53,7 @@ function AppContent() {
     );
   }
 
-  if (user?.role === 'staff') {
+  if (role === 'staff' || role === 'teacher') {
     return (
       <Suspense fallback={<FullPageLoading text="Loading staff oversight..." />}>
         <StaffDashboard />

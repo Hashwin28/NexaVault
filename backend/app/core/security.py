@@ -7,7 +7,7 @@ password verification with length handling, and JSON Web Token (JWT) encoding/de
 
 import bcrypt
 from datetime import datetime, timedelta, timezone
-from typing import Union, Optional
+from typing import Union, Optional, Dict, Any
 import jwt
 from app.core.config import settings
 
@@ -29,9 +29,11 @@ def verify_password(plain_password: str, hashed_password: str) -> bool:
 
 def create_access_token(
     subject: Union[str, int, dict], 
-    expires_delta: Optional[timedelta] = None
+    expires_delta: Optional[timedelta] = None,
+    role: Optional[str] = None,
+    extra_claims: Optional[Dict[str, Any]] = None,
 ) -> str:
-    """Generates a signed JWT access token."""
+    """Generates a signed JWT access token containing subject, role, and claims."""
     if expires_delta:
         expire = datetime.now(timezone.utc) + expires_delta
     else:
@@ -42,6 +44,11 @@ def create_access_token(
         "sub": str(subject),
         "iat": datetime.now(timezone.utc),
     }
+    if role:
+        to_encode["role"] = role
+    if extra_claims:
+        to_encode.update(extra_claims)
+
     encoded_jwt = jwt.encode(to_encode, settings.JWT_SECRET, algorithm=settings.ALGORITHM)
     return encoded_jwt
 

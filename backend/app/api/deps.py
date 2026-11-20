@@ -49,7 +49,36 @@ def get_current_user(
             detail="Inactive user account"
         )
 
+    # Security check: if role claim is present in token, ensure it matches current DB role
+    token_role = payload.get("role")
+    if token_role and token_role.lower() != user.role.lower():
+        raise credentials_exception
+
     return user
+
+def get_optional_current_user(
+    db: Session = Depends(get_db),
+    token: Optional[str] = Depends(oauth2_scheme)
+) -> Optional[User]:
+    """Extracts user from Bearer token if present, returns None if not present or invalid."""
+    if not token:
+        return None
+    try:
+        payload = decode_access_token(token)
+        if not payload:
+            return None
+        user_email: str = payload.get("sub")
+        if not user_email:
+            return None
+        user = db.query(User).filter(User.email == user_email).first()
+        if not user or not user.is_active:
+            return None
+        token_role = payload.get("role")
+        if token_role and token_role.lower() != user.role.lower():
+            return None
+        return user
+    except Exception:
+        return None
 
 def get_current_student(
     current_user: User = Depends(get_current_user)
